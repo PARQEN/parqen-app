@@ -1592,7 +1592,41 @@ app.get('/api/health', (req, res) => {
 // ============================================
 // EMAIL VERIFICATION ROUTES
 // ============================================
-
+// Find this section and make sure it has proper error handling
+app.post('/api/auth/send-verification', async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    
+    // Add better validation
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    
+    // Generate code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Log for debugging (remove in production)
+    console.log(`📧 Verification code for ${email}: ${code}`);
+    
+    // Store in memory (temporary - use Redis in production)
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    verificationCodes.set(email, { code, expiresAt });
+    
+    // Send email
+    await sendVerificationEmail(email, code, username);
+    
+    res.json({ 
+      success: true, 
+      message: 'Verification code sent to your email',
+      // For development only
+      devCode: process.env.NODE_ENV === 'development' ? code : undefined
+    });
+    
+  } catch (error) {
+    console.error('Send verification error:', error);
+    res.status(500).json({ error: 'Failed to send verification email. Please try again.' });
+  }
+});
 // Send verification code endpoint
 app.post('/api/auth/send-verification', async (req, res) => {
   try {

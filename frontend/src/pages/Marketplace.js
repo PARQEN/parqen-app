@@ -161,7 +161,7 @@ export default function Marketplace({ user }) {
                     <span className="font-semibold">{rating.toFixed(1)}</span>
                   </div>
                   <span className="text-gray-400">•</span>
-                  <span className="text-gray-500">{totalTrades} trades</span>
+                  <span className="font-bold text-gray-900">{totalTrades} trades</span>
                 </div>
               </div>
             </div>

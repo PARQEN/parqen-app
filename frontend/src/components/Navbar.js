@@ -61,9 +61,13 @@ export default function Navbar({user, onLogout}) {
   const loadBalance = async()=>{
     try {
       const tk=localStorage.getItem('token');
-      const r=await axios.get(`${API_URL}/user/balance`,{headers:{Authorization:`Bearer ${tk}`}});
-      setBalance(r.data.balance_btc||0);
-    } catch {}
+      const r=await axios.get(`${API_URL}/wallet`,{headers:{Authorization:`Bearer ${tk}`}});
+      setBalance(r.data.wallet?.balance_btc||0);
+      console.log('💰 Real wallet balance from navbar:', r.data.wallet?.balance_btc);
+    } catch (err) {
+      console.error('Failed to load wallet balance:', err);
+      setBalance(0);
+    }
   };
 
   // Close dropdowns on outside click

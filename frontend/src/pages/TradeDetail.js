@@ -10,6 +10,7 @@ import {
   Smartphone, Building2, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import TradeDisplay from '../components/TradeDisplay';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -87,10 +88,11 @@ function FeedbackModal({name,onClose,onSubmit,submitting}) {
   const [rating,setRating]=useState(5);
   const [comment,setComment]=useState('');
   const [hover,setHover]=useState(0);
+  const sentiment = rating >= 4 ? 'Positive feedback' : rating <= 2 ? 'Negative feedback' : 'Neutral feedback';
   return(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{backgroundColor:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)'}}>
-      <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl">
+      <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-bounceIn">
         <div className="p-5 text-white text-center"
           style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
           <Star size={36} className="mx-auto mb-2 fill-yellow-400 text-yellow-400"/>
@@ -106,6 +108,7 @@ function FeedbackModal({name,onClose,onSubmit,submitting}) {
               </button>
             ))}
           </div>
+          <p className="text-center text-sm font-bold" style={{color:C.forest}}>{sentiment}</p>
           <textarea value={comment} onChange={e=>setComment(e.target.value)}
             placeholder="Share your experience… (optional)" rows={3}
             className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none resize-none"
@@ -121,6 +124,7 @@ function FeedbackModal({name,onClose,onSubmit,submitting}) {
           </div>
         </div>
       </div>
+      <style>{`@keyframes bounceIn {0%{transform:scale(0.85) translateY(20px);opacity:0;}60%{transform:scale(1.03) translateY(-8px);opacity:1;}100%{transform:scale(1) translateY(0);opacity:1;}} .animate-bounceIn{animation:bounceIn 0.55s ease-out;}`}</style>
     </div>
   );
 }
@@ -295,6 +299,8 @@ export default function TradeDetail({user}) {
   const [timeLeft,  setTimeLeft]  = useState(null);
   const [showCancel,setShowCancel]= useState(false);
   const [showFb,    setShowFb]    = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [tradeCompleted, setTradeCompleted] = useState(false);
   const [imgSrc,    setImgSrc]    = useState(null);
   const [fbSub,     setFbSub]     = useState(false);
   const [profUser,  setProfUser]  = useState(null);
@@ -340,11 +346,11 @@ export default function TradeDetail({user}) {
   },[trade?.created_at,status]);
 
   useEffect(()=>{
-    if(isCompleted&&!trade?.user_gave_feedback){
+    if(isCompleted && !trade?.user_gave_feedback && !tradeCompleted){
       const t=setTimeout(()=>setShowFb(true),1500);
       return()=>clearTimeout(t);
     }
-  },[isCompleted]);
+  },[isCompleted, trade?.user_gave_feedback, tradeCompleted]);
 
   useEffect(()=>{
     if(messages.length>0&&scrolled.current) msgEnd.current?.scrollIntoView({behavior:'smooth'});
@@ -444,7 +450,10 @@ export default function TradeDetail({user}) {
     try{
       await axios.post(`${API_URL}/trades/${id}/release`,{},{headers:authH()});
       await postSys('🎉 TRADE COMPLETE! Bitcoin has been released to buyer. 0.5% fee deducted by escrow.');
-      toast.success('Bitcoin released! Trade complete.');await loadTrade();
+      toast.success('✅ Trade complete! Please leave feedback.');
+      setTradeCompleted(true);
+      setShowSuccessModal(true);
+      await loadTrade();
     }catch(e){toast.error(e?.response?.data?.error||'Failed');}
     finally{setSubmitting(false);}
   };
@@ -484,7 +493,10 @@ export default function TradeDetail({user}) {
     setFbSub(true);
     try{
       await axios.post(`${API_URL}/trades/${id}/feedback`,{rating,comment,toUserId:isBuyer?trade.seller_id:trade.buyer_id},{headers:authH()});
-      toast.success('Feedback submitted!');setShowFb(false);await loadTrade();
+      toast.success('Feedback submitted!');
+      setShowFb(false);
+      setShowSuccessModal(false);
+      await loadTrade();
     }catch(e){toast.error(e?.response?.data?.error||'Failed');}
     finally{setFbSub(false);}
   };
@@ -587,40 +599,16 @@ export default function TradeDetail({user}) {
                   </div>
                 </div>
 
-                {/* Big amount row */}
+                {/* Trade Display Component */}
                 <div className="mb-3 p-3 rounded-xl" style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-                  <p className="text-white/60 text-[9px] uppercase tracking-wide mb-0.5">
-                    {isBuyer?'You Pay':'Buyer Pays'}
-                  </p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-black text-2xl" style={{color:C.gold}}>
-                      {sym}{fmt(localAmt)}
-                    </span>
-                    <span className="text-white/50 text-xs">≈ {fmtUsd(usdAmt)}</span>
-                  </div>
-                </div>
-
-                {/* Escrow breakdown — real math */}
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/60">🔒 Escrow (BTC gross)</span>
-                    <span className="font-black text-white">₿ {fmtBtc(btcGross)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/50">PRAQEN fee (0.5%)</span>
-                    <span className="text-white/60">−₿ {fmtBtc(feeBtc)}</span>
-                  </div>
-                  <div className="w-full h-px bg-white/20"/>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 font-bold">
-                      {isBuyer?'✅ You Receive':'✅ Buyer Gets'}
-                    </span>
-                    <span className="font-black" style={{color:C.gold}}>₿ {fmtBtc(btcNet)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/50">Fee (USD equiv.)</span>
-                    <span className="text-white/50">{fmtUsd(feeUsd)}</span>
-                  </div>
+                  <TradeDisplay
+                    usdAmount={usdAmt}
+                    sellerRate={rateLocal > 0 ? (usdAmt / btcGross) * usdRate : 85221}
+                    paymentMethod={payMethod}
+                    localCurrency={cur}
+                    exchangeRate={usdRate}
+                    showBreakdown={true}
+                  />
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
@@ -1242,6 +1230,7 @@ export default function TradeDetail({user}) {
 
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
       {profUser&&<ProfilePopup user={profUser} label={profLabel} onClose={()=>setProfUser(null)}/>}
+      {showSuccessModal&&<FeedbackModal name={cp?.username} onClose={()=>setShowSuccessModal(false)} onSubmit={submitFeedback} submitting={fbSub}/>}
       {showFb&&<FeedbackModal name={cp?.username} onClose={()=>setShowFb(false)} onSubmit={submitFeedback} submitting={fbSub}/>}
       {showCancel&&<CancelModal onClose={()=>setShowCancel(false)} onConfirm={cancelTrade} submitting={submitting}/>}
       {imgSrc&&<ImgModal src={imgSrc} onClose={()=>setImgSrc(null)}/>}

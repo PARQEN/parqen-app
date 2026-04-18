@@ -5,9 +5,11 @@ import {
   Bitcoin, ChevronDown, CheckCircle, RefreshCw,
   AlertTriangle, BadgeCheck, Star, Timer, Eye,
   Heart, X, Info, Shield, ArrowRight, PlusCircle,
-  DollarSign, TrendingUp, Lock
+  DollarSign, TrendingUp, Lock, Search
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import CountryFlag from '../components/CountryFlag';
+import TradeDisplay from '../components/TradeDisplay';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -18,7 +20,7 @@ const C = {
   g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
   g300:'#CBD5E1', g400:'#94A3B8', g500:'#64748B',
   g600:'#475569', g700:'#334155', g800:'#1E293B',
-  success:'#10B981', danger:'#EF4444', online:'#22C55E',
+  success:'#10B981', danger:'#FF0000', online:'#22C55E',
   warn:'#F59E0B', paid:'#3B82F6', purple:'#8B5CF6',
   sell:'#D97706', sellBg:'#FFFBEB',
 };
@@ -33,15 +35,23 @@ function isoToFlag(code) {
 
 // ─── Trust badges — real from profile.badge field ────────────────────────────
 const TRUST_MAP = {
-  LEGEND:     {label:'LEGEND',    icon:'👑', color:'#7C3AED'},
-  AMBASSADOR: {label:'AMBASSADOR',icon:'🌟', color:'#8B5CF6'},
-  EXPERT:     {label:'EXPERT',    icon:'💎', color:'#0EA5E9'},
-  PRO:        {label:'PRO',       icon:'⭐', color:'#10B981'},
-  ACTIVE:     {label:'ACTIVE',    icon:'🔥', color:'#F59E0B'},
-  BEGINNER:   {label:'NEW',       icon:'🆕', color:'#94A3B8'},
+  LEGEND:     {label:'Legend',    icon:'👑', color:'#7C3AED'},
+  AMBASSADOR: {label:'Ambassador',icon:'🌟', color:'#8B5CF6'},
+  EXPERT:     {label:'Expert',    icon:'💎', color:'#0EA5E9'},
+  PRO:        {label:'Pro',       icon:'⭐', color:'#10B981'},
+  ACTIVE:     {label:'Active',    icon:'🔥', color:'#F59E0B'},
+  BEGINNER:   {label:'New',       icon:'🆕', color:'#94A3B8'},
 };
 function deriveBadge(u) {
-  if (u?.badge && TRUST_MAP[u.badge]) return TRUST_MAP[u.badge];
+  if (u?.badge) {
+    const badgeUpper = String(u.badge).toUpperCase();
+    if (TRUST_MAP[badgeUpper]) return TRUST_MAP[badgeUpper];
+  }
+  
+  for (const key in TRUST_MAP) {
+    if (u?.[key.toLowerCase()]) return TRUST_MAP[key];
+  }
+  
   const t = parseInt(u?.total_trades ?? u?.trade_count ?? 0);
   const r = parseFloat(u?.average_rating ?? 0);
   if (t >= 500 && r >= 4.8) return TRUST_MAP.LEGEND;
@@ -107,11 +117,6 @@ const getPayInfo = (l) => {
   const raw = l.payment_method||(Array.isArray(l.payment_methods)?l.payment_methods[0]:'')||'';
   return PAYMENT_MAP[String(raw).toLowerCase().trim()]||{name:raw||'Payment',icon:'💳',short:raw||'Pay'};
 };
-// Real country flag using ISO code → emoji
-const getListingFlag = (l) => {
-  const code = l.country||l.country_code||getUser(l.users)?.country||'';
-  return isoToFlag(code);
-};
 const isVerified = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
 const getTrades  = (u) => parseInt(u?.total_trades??u?.trade_count??0);
 const getLastSeen= (u) => {
@@ -119,9 +124,9 @@ const getLastSeen= (u) => {
   if (!d) return {label:'—',online:false};
   const s = (Date.now()-new Date(d))/1000;
   if (s<300)   return {label:'● Active',online:true};
-  if (s<3600)  return {label:`${~~(s/60)}m ago`,online:false};
-  if (s<86400) return {label:`${~~(s/3600)}h ago`,online:false};
-  return {label:`${~~(s/86400)}d ago`,online:false};
+  if (s<3600)  return {label:`Last seen ${~~(s/60)}m ago`,online:false};
+  if (s<86400) return {label:`Last seen ${~~(s/3600)}h ago`,online:false};
+  return {label:`Last seen ${~~(s/86400)}d ago`,online:false};
 };
 const getRateUSD = (l,btcPrice) => {
   if (l.pricing_type==='fixed'){const s=parseFloat(l.bitcoin_price||0);if(s>100)return s;}
@@ -157,8 +162,6 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
   const fb      = parseInt(u.total_feedback_count??u.feedback_count??0);
   const verif   = isVerified(u);
   const payInfo = getPayInfo(listing||{});
-  // Real flag from ISO code
-  const listingFlag = getListingFlag(listing||{});
   const margin  = parseFloat(listing?.margin||0);
   const cur     = listing?.currency||'USD';
   const sym     = listing?.currency_symbol||CUR_SYM[cur]||'$';
@@ -196,9 +199,9 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                   style={{backgroundColor:badge.color,color:'#fff'}}>
                   {badge.icon} {badge.label}
                 </span>
-                {/* Real country flag from ISO code */}
+                {/* Real country flag */}
                 <span className="text-xs text-white/60">
-                  {listingFlag} {u.country||listing?.country_name||''}
+                  <CountryFlag className="w-3 h-2 inline-block mr-1" /> {u.country||listing?.country_name||''}
                 </span>
               </div>
             </div>
@@ -217,11 +220,16 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
               </div>
             ))}
           </div>
+          <div className="mt-2 text-center">
+            <p className="text-white font-black text-xs">
+              👍 {fmt(u.positive_feedback||0)} · 👎 {fmt(u.negative_feedback||0)} · {fmt(trades)} Trades
+            </p>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b" style={{borderColor:C.g200}}>
-          {[['rules','📋 Trade Rules'],['offer','📊 Offer']].map(([t,l])=>(
+          {[['rules','📋 Trade Rules'],['offer','📊 Offer'],['trade','💱 Trade Display']].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)}
               className="flex-1 py-2.5 text-xs font-bold transition"
               style={{color:tab===t?C.sell:C.g500,borderBottom:tab===t?`2px solid ${C.sell}`:'2px solid transparent',backgroundColor:tab===t?`${C.sell}05`:'transparent'}}>
@@ -255,8 +263,8 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                 {[
                   {label:'Trades',  value:fmt(trades),                color:C.green},
                   {label:'Rating',  value:`${rating.toFixed(1)} / 5`, color:C.warn},
-                  {label:'Complete',value:`${u.completion_rate||98}%`,color:C.success},
-                  {label:'Reviews', value:fmt(fb),                    color:C.paid},
+                  {label:'👍 Positive',value:fmt(u.positive_feedback||0),color:C.success},
+                  {label:'👎 Negative', value:fmt(u.negative_feedback||0), color:C.danger},
                 ].map(({label,value,color})=>(
                   <div key={label} className="p-2 rounded-xl" style={{backgroundColor:C.g50}}>
                     <p className="text-[9px] text-gray-400">{label}</p>
@@ -269,14 +277,14 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                 <p className="text-[9px] text-red-600">Never release BTC before confirming payment. Escrow protects every trade.</p>
               </div>
             </div>
-          ):(
+          ):tab==='offer'?(
             <div className="space-y-2">
               {[
                 {label:'Offer Type',  value:'🔵 Buy Bitcoin'},
-                {label:'Country',     value:`${listingFlag} ${listing?.country_name||u.country||'—'}`},
+                {label:'Country',     value:<><CountryFlag className="w-4 h-3 inline-block mr-1" />{listing?.country_name||u.country||'—'}</>},
                 {label:'Payment',     value:`${payInfo.icon} ${payInfo.name}`},
                 {label:'Rate / BTC',  value:`${sym}${fmt(rateLocal)} ${cur}`},
-                {label:'Margin',      value:margin===0?'Market rate':margin>0?`+${margin}% above market`:`${margin}% below market`},
+                {label:'Margin',      value:margin===0?'At market':margin>0?`+${margin}% above market`:`${margin}% below market`},
                 {label:'Trade range', value:listing?.min_limit_local&&listing?.max_limit_local
                   ?`${sym}${fmt(listing.min_limit_local)} — ${sym}${fmt(listing.max_limit_local)} ${cur}`
                   :`$${listing?.min_limit_usd||10} — $${listing?.max_limit_usd||1000}`},
@@ -287,6 +295,16 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                   <span className="font-bold" style={{color:C.g800}}>{value}</span>
                 </div>
               ))}
+            </div>
+          ):(
+            <div className="space-y-3">
+              <TradeDisplay
+                usdAmount={100}
+                sellerRate={getRateUSD(listing||{},68000)}
+                paymentMethod={listing?.payment_method || 'mtn'}
+                localCurrency={cur}
+                exchangeRate={usdRate}
+              />
             </div>
           )}
         </div>
@@ -327,8 +345,6 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell, liked, onToggleLi
   const trades   = getTrades(u);
   const rating   = parseFloat(u.average_rating||0);
   const payInfo  = getPayInfo(listing);
-  // Real emoji flag from ISO code via isoToFlag
-  const listingFlag = getListingFlag(listing);
   const margin   = parseFloat(listing.margin||0);
   const cur      = listing.currency||'USD';
   const sym      = listing.currency_symbol||CUR_SYM[cur]||'$';
@@ -370,22 +386,23 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell, liked, onToggleLi
                 className="font-black text-xs hover:underline" style={{color:C.g800}}>
                 {u.username||'Buyer'}
               </button>
-              {/* Real emoji flag from ISO code */}
-              <span className="text-sm leading-none">{listingFlag}</span>
+              <CountryFlag className="w-4 h-3" />
               {/* Real badge — from profile.badge or derived */}
               <span className="text-[8px] font-black px-1.5 py-0.5 rounded-sm"
                 style={{backgroundColor:badge.color,color:'#fff'}}>
-                {badge.label}
+                {badge.icon} {badge.label}
               </span>
               {verif&&<BadgeCheck size={10} style={{color:C.paid}}/>}
             </div>
             {/* Real live data from DB */}
-            <div className="flex items-center gap-1 text-[9px] mt-0.5 text-gray-500">
-              <span style={{color:C.success}}>👍 {completion.toFixed(0)}%</span>
-              <span className="text-gray-300">·</span>
-              <span>{fmt(trades)} Trades</span>
-              <span className="text-gray-300">·</span>
-              <span style={{color:seen.online?C.online:C.g400}}>{seen.label}</span>
+            <div className="flex items-center gap-1.5 text-[9px] mt-1 text-gray-700 flex-wrap font-black">
+              <span className="font-black" style={{color:C.success}}>👍 {u.positive_feedback || 0}</span>
+              <span style={{color:C.g300}}>·</span>
+              <span className="font-black" style={{color:C.danger}}>👎 {u.negative_feedback || 0}</span>
+              <span style={{color:C.g300}}>·</span>
+              <span className="font-black text-gray-700">{fmt(trades)} Trades</span>
+              <span style={{color:C.g300}}>·</span>
+              <span style={{color:seen.online?C.online:C.g400}} className="font-black">{seen.label}</span>
             </div>
           </div>
 
@@ -400,9 +417,9 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell, liked, onToggleLi
       {/* ── ROW 2: Send BTC / Receive local ───────────────────────────── */}
       <div className="px-3 py-2 border-b grid grid-cols-2 gap-2" style={{borderColor:C.g100}}>
         <div>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Send BTC</p>
+          <p className="text-[8px] text-gray-700 font-black uppercase tracking-wide mb-0.5">Send BTC</p>
           <div className="flex items-center gap-1">
-            <span className="text-[10px] font-semibold" style={{color:C.g500}}>₿</span>
+            <span className="text-[10px] font-black" style={{color:C.g500}}>₿</span>
             <input
               type="number"
               value={sellAmt}
@@ -413,8 +430,8 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell, liked, onToggleLi
           </div>
         </div>
         <div className="border-l pl-2" style={{borderColor:C.g100}}>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Receive {payInfo.short}</p>
-          <p className="text-xs font-black" style={{color:C.g700}}>
+          <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:'#000000'}}>Receive <span className="font-black text-xs">{payInfo.short}</span></p>
+          <p className="text-xs font-black" style={{color:C.g800}}>
             {sym}{fmt(recvLocal)}
           </p>
         </div>
@@ -423,7 +440,7 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell, liked, onToggleLi
       {/* ── ROW 3: Rate + margin + range ──────────────────────────────── */}
       <div className="px-3 py-2 border-b" style={{borderColor:C.g100}}>
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-xs font-black" style={{color:C.g800}}>
+          <span className="text-xs font-black" style={{color:'#FF0000'}}>
             ₿ {sym}{fmt(rateLocal)} {cur}
           </span>
           <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm"
@@ -472,6 +489,7 @@ export default function SellBitcoin({user}) {
   const [sellAmt, setSellAmt]         = useState('');
   const [activeTab, setActiveTab]     = useState('all');
   const countryRef = useRef(null);
+  const [search, setSearch]           = useState('');
 
   // Detect user's country from IP on load
   useEffect(()=>{
@@ -530,6 +548,7 @@ export default function SellBitcoin({user}) {
       const a=parseFloat(sellAmt);
       list=list.filter(l=>a>=(l.min_limit_btc||0)&&a<=(l.max_limit_btc||999));
     }
+    if (search) list = list.filter(l => (l.users?.username||'').toLowerCase().includes(search.toLowerCase()));
     if (sortBy==='rate_high') list.sort((a,b)=>parseFloat(b.margin||0)-parseFloat(a.margin||0));
     else if(sortBy==='rate_low') list.sort((a,b)=>parseFloat(a.margin||0)-parseFloat(b.margin||0));
     else if(sortBy==='rating')   list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
@@ -611,6 +630,17 @@ export default function SellBitcoin({user}) {
         {/* ── FILTER BAR ──────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border p-3" style={{borderColor:C.g200}}>
           <div className="flex flex-wrap gap-2 items-end">
+            {/* Search */}
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Search Buyer</label>
+              <div className="relative mt-0.5">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:C.g400}}/>
+                <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buyer name"
+                  className="w-full pl-8 pr-2 py-2 text-xs border-2 rounded-lg focus:outline-none"
+                  style={{borderColor:search?C.sell:C.g200}}/>
+              </div>
+            </div>
+
             {/* BTC amount */}
             <div className="flex-1 min-w-[120px]">
               <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Sell BTC Amount</label>

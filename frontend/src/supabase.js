@@ -1,10 +1,10 @@
-// src/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
-// Your Supabase credentials - get these from your Supabase project settings
-// Go to: https://app.supabase.com/project/YOUR_PROJECT_ID/settings/api
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'your-anon-key-here';
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Create and export the Supabase client
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('❌ Missing Supabase environment variables. Check your .env file and restart the server.');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

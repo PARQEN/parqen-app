@@ -1,439 +1,635 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  User, Lock, Mail, Phone, CreditCard, Bell, 
+import {
+  User, Lock, Mail, Phone, CreditCard, Bell,
   Shield, Globe, Save, Eye, EyeOff, CheckCircle,
-  AlertCircle, Smartphone, Banknote, LogOut
+  AlertCircle, Smartphone, LogOut, ChevronRight,
+  Camera, BadgeCheck, Clock, Upload, RefreshCw,
+  FileText, DollarSign, Languages, MapPin, X,
+  ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_URL = 'http://localhost:5000/api';
 
-const PRAQEN = {
-  primary: '#2D5F4F',
-  secondary: '#FFD700',
-  darkBg: '#1a3a2a',
-  lightBg: '#f0f8f5',
+const C = {
+  forest: '#1B4332', green: '#2D6A4F', mint: '#40916C',
+  gold: '#F4A422', mist: '#F0FAF5', white: '#FFFFFF',
+  g50: '#F8FAFC', g100: '#F1F5F9', g200: '#E2E8F0',
+  g400: '#94A3B8', g500: '#64748B', g600: '#475569', g700: '#334155', g800: '#1E293B',
+  success: '#10B981', danger: '#EF4444', warn: '#F59E0B', paid: '#3B82F6',
 };
+
+const authH = () => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : {}; };
+
+// ─── Verification Step ────────────────────────────────────────────────────────
+function VerifStep({ n, title, desc, done, active, badge }) {
+  return (
+    <div className={`flex items-start gap-4 p-4 rounded-xl border transition ${done ? 'bg-green-50 border-green-200' : active ? 'border-blue-200 bg-blue-50' : 'bg-gray-50 border-gray-100'}`}>
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${done ? 'bg-green-500 text-white' : active ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+        {done ? <CheckCircle size={18} /> : n}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className={`font-bold text-sm ${done ? 'text-green-800' : active ? 'text-blue-800' : 'text-gray-600'}`}>{title}</p>
+          {badge && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${done ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>{badge}</span>}
+        </div>
+        <p className={`text-xs mt-0.5 ${done ? 'text-green-600' : active ? 'text-blue-600' : 'text-gray-400'}`}>{desc}</p>
+      </div>
+      {done ? <CheckCircle size={16} className="text-green-500 flex-shrink-0 mt-0.5" /> :
+        active ? <span className="text-xs font-bold text-blue-600 flex-shrink-0 mt-0.5">Required →</span> :
+        <Clock size={16} className="text-gray-300 flex-shrink-0 mt-0.5" />}
+    </div>
+  );
+}
+
+// ─── Toggle Switch ────────────────────────────────────────────────────────────
+function Toggle({ checked, onChange }) {
+  return (
+    <button onClick={() => onChange(!checked)} className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-green-500' : 'bg-gray-200'}`}>
+      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+    </button>
+  );
+}
 
 export default function Settings({ user, setUser }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('account');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  
-  // Profile form
-  const [profileForm, setProfileForm] = useState({
-    username: '',
-    fullName: '',
-    email: '',
+
+  // Account info
+  const [accountForm, setAccountForm] = useState({ username: '', fullName: '', email: '', phone: '', bio: '' });
+
+  // Security
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
+
+  // Preferences
+  const [prefs, setPrefs] = useState({
+    nameDisplay: 'full',      // full | initial | hide
+    currency: 'GHS',
+    language: 'en',
+    timezone: 'Africa/Accra',
   });
-  
-  // Password form
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+
+  // Notifications
+  const [notifs, setNotifs] = useState({
+    email_trades: true, email_security: true, email_marketing: false,
+    push_trades: true, push_messages: true, push_disputes: true,
   });
-  
+
   // Payment methods
-  const [paymentMethods, setPaymentMethods] = useState({
-    bankAccount: '',
-    mobileMoney: '',
-    mobileMoneyNumber: '',
-  });
+  const [payments, setPayments] = useState({ bankName: '', accountNumber: '', mobileProvider: '', mobileNumber: '' });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    loadUserData();
+    if (!user) { navigate('/login'); return; }
+    setAccountForm({ username: user.username || '', fullName: user.full_name || '', email: user.email || '', phone: user.phone || '', bio: user.bio || '' });
   }, [user]);
 
-  const loadUserData = () => {
-    setProfileForm({
-      username: user?.username || '',
-      fullName: user?.full_name || '',
-      email: user?.email || '',
-    });
-  };
+  // Derived verification status
+  const emailVerified = user?.email_verified || !!user?.email;
+  const phoneVerified = user?.phone_verified || !!user?.phone;
+  const kycVerified   = user?.kyc_verified || false;
+  const verLevel = kycVerified ? 3 : phoneVerified ? 2 : emailVerified ? 1 : 0;
 
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleAccountUpdate = async (e) => {
+    e.preventDefault(); setLoading(true);
     try {
-      await axios.put(`${API_URL}/users/profile`, {
-        username: profileForm.username,
-        fullName: profileForm.fullName,
-      });
-      toast.success('Profile updated successfully!');
-      // Update user context
-      if (setUser) {
-        setUser({ ...user, username: profileForm.username, full_name: profileForm.fullName });
-      }
-    } catch (error) {
-      console.error('Update error:', error);
-      toast.error(error?.response?.data?.error || 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
+      const r = await axios.put(`${API_URL}/users/profile`, { username: accountForm.username, fullName: accountForm.fullName, phone: accountForm.phone, bio: accountForm.bio }, { headers: authH() });
+      if (setUser) setUser({ ...user, username: accountForm.username, full_name: accountForm.fullName, phone: accountForm.phone });
+      // Persist to localStorage
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...stored, username: accountForm.username, full_name: accountForm.fullName, phone: accountForm.phone }));
+      window.dispatchEvent(new Event('userUpdated'));
+      toast.success('Account updated!');
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to update'); }
+    finally { setLoading(false); }
   };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
-    
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    
-    if (passwordForm.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast.error('Passwords do not match'); return; }
+    if (passwordForm.newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/auth/change-password`, {
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-      });
-      toast.success('Password changed successfully!');
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-    } catch (error) {
-      console.error('Password error:', error);
-      toast.error(error?.response?.data?.error || 'Failed to change password');
-    } finally {
-      setLoading(false);
-    }
+      await axios.post(`${API_URL}/auth/change-password`, { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }, { headers: authH() });
+      toast.success('Password changed!');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to change password'); }
+    finally { setLoading(false); }
   };
 
   const handlePaymentUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault(); setLoading(true);
     try {
-      await axios.put(`${API_URL}/users/payment-methods`, paymentMethods);
-      toast.success('Payment methods updated!');
-    } catch (error) {
-      console.error('Payment update error:', error);
-      toast.error('Failed to update payment methods');
-    } finally {
-      setLoading(false);
-    }
+      await axios.put(`${API_URL}/users/payment-methods`, payments, { headers: authH() });
+      toast.success('Payment methods saved!');
+    } catch { toast.error('Failed to save payment methods'); }
+    finally { setLoading(false); }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    toast.info('Logged out successfully');
-    navigate('/login');
+    localStorage.removeItem('token'); localStorage.removeItem('user');
+    toast.info('Logged out'); navigate('/login');
   };
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'security', label: 'Security', icon: Lock },
-    { id: 'payment', label: 'Payment Methods', icon: CreditCard },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+  const TABS = [
+    { id: 'account',       icon: User,     label: 'Account' },
+    { id: 'verification',  icon: Shield,   label: 'Verification' },
+    { id: 'security',      icon: Lock,     label: 'Security' },
+    { id: 'preferences',   icon: Globe,    label: 'Preferences' },
+    { id: 'payment',       icon: CreditCard, label: 'Payment' },
+    { id: 'notifications', icon: Bell,     label: 'Notifications' },
   ];
 
+  const inputCls = "w-full px-4 py-2.5 border-2 rounded-xl text-sm focus:outline-none transition";
+  const inputStyle = (active) => ({ borderColor: active ? C.green : C.g200, color: C.g800 });
+  const labelCls = "block text-sm font-bold mb-1.5 text-gray-700";
+
   return (
-    <div className="min-h-screen py-8 px-4" style={{ backgroundColor: PRAQEN.lightBg }}>
-      <div className="max-w-5xl mx-auto">
-        
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
+
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-black" style={{ color: PRAQEN.primary }}>Settings</h1>
-          <p style={{ color: PRAQEN.primary }} className="opacity-70 mt-1">
-            Manage your account settings and preferences
-          </p>
+          <h1 className="text-3xl font-black" style={{ color: C.forest, fontFamily: "'Syne',sans-serif" }}>Settings</h1>
+          <p className="text-sm mt-1" style={{ color: C.g500 }}>Manage your account, security and preferences</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b overflow-x-auto pb-2" style={{ borderColor: PRAQEN.gray?.[200] || '#e5e7eb' }}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg font-semibold transition ${
-                  isActive ? 'text-white' : 'hover:bg-gray-100'
-                }`}
-                style={{ backgroundColor: isActive ? PRAQEN.primary : 'transparent', color: isActive ? 'white' : PRAQEN.gray?.[600] || '#4b5563' }}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="flex flex-col md:flex-row gap-6">
 
-        {/* Profile Tab */}
-        {activeTab === 'profile' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-black mb-6" style={{ color: PRAQEN.primary }}>Profile Information</h2>
-            
-            <form onSubmit={handleProfileUpdate} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.username}
-                  onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none transition"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={profileForm.fullName}
-                  onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none transition"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={profileForm.email}
-                  disabled
-                  className="w-full px-4 py-2 border-2 rounded-lg bg-gray-100 cursor-not-allowed"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[600] || '#4b5563' }}
-                />
-                <p className="text-xs mt-1" style={{ color: PRAQEN.gray?.[500] || '#6b7280' }}>Email cannot be changed</p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 rounded-lg text-white font-semibold transition hover:opacity-80"
-                style={{ backgroundColor: PRAQEN.primary }}
-              >
-                <Save size={18} />
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Security Tab */}
-        {activeTab === 'security' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-black mb-6" style={{ color: PRAQEN.primary }}>Change Password</h2>
-            
-            <form onSubmit={handlePasswordChange} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none pr-10"
-                    style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none pr-10"
-                    style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-2.5"
-                  >
-                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 rounded-lg text-white font-semibold transition hover:opacity-80"
-                style={{ backgroundColor: PRAQEN.primary }}
-              >
-                <Lock size={18} />
-                {loading ? 'Updating...' : 'Update Password'}
-              </button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t" style={{ borderColor: PRAQEN.gray?.[200] || '#e5e7eb' }}>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-6 py-2 rounded-lg text-white font-semibold transition hover:opacity-80"
-                style={{ backgroundColor: '#ef4444' }}
-              >
-                <LogOut size={18} />
-                Log Out
+          {/* Sidebar tabs */}
+          <div className="md:w-52 flex-shrink-0">
+            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden" style={{ borderColor: C.g200 }}>
+              {TABS.map(({ id, icon: Icon, label }) => (
+                <button key={id} onClick={() => setActiveTab(id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition border-b last:border-0 hover:bg-gray-50"
+                  style={{ borderColor: C.g100, backgroundColor: activeTab === id ? `${C.green}10` : 'transparent', borderLeft: activeTab === id ? `3px solid ${C.green}` : '3px solid transparent' }}>
+                  <Icon size={16} style={{ color: activeTab === id ? C.green : C.g400 }} />
+                  <span className="text-sm font-bold" style={{ color: activeTab === id ? C.green : C.g600 }}>{label}</span>
+                </button>
+              ))}
+              {/* Logout */}
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-left transition hover:bg-red-50" style={{ borderTop: `1px solid ${C.g100}` }}>
+                <LogOut size={16} className="text-red-400" />
+                <span className="text-sm font-bold text-red-500">Log Out</span>
               </button>
             </div>
           </div>
-        )}
 
-        {/* Payment Methods Tab */}
-        {activeTab === 'payment' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-black mb-6" style={{ color: PRAQEN.primary }}>Payment Methods</h2>
-            
-            <form onSubmit={handlePaymentUpdate} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  <Banknote size={16} className="inline mr-1" />
-                  Bank Account
-                </label>
-                <input
-                  type="text"
-                  value={paymentMethods.bankAccount}
-                  onChange={(e) => setPaymentMethods({ ...paymentMethods, bankAccount: e.target.value })}
-                  placeholder="Bank Name - Account Number"
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                />
+          {/* Main content */}
+          <div className="flex-1 min-w-0 space-y-5">
+
+            {/* ── ACCOUNT ─────────────────────────────────────────── */}
+            {activeTab === 'account' && (
+              <>
+                {/* Account information */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Account Information</h2>
+                  <form onSubmit={handleAccountUpdate} className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>Username</label>
+                        <input type="text" value={accountForm.username} onChange={e => setAccountForm({ ...accountForm, username: e.target.value })}
+                          className={inputCls} style={inputStyle(accountForm.username)} required />
+                        <p className="text-xs mt-1 text-gray-400">Your public display name on trades</p>
+                      </div>
+                      <div>
+                        <label className={labelCls}>Full Name</label>
+                        <input type="text" value={accountForm.fullName} onChange={e => setAccountForm({ ...accountForm, fullName: e.target.value })}
+                          className={inputCls} style={inputStyle(accountForm.fullName)} />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelCls}>Email Address</label>
+                        <input type="email" value={accountForm.email} disabled className={inputCls} style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g400 }} />
+                        <p className="text-xs mt-1 text-gray-400">Email cannot be changed</p>
+                      </div>
+                      <div>
+                        <label className={labelCls}>Phone Number</label>
+                        <input type="tel" value={accountForm.phone} onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
+                          placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(accountForm.phone)} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Bio <span className="font-normal text-gray-400">(optional)</span></label>
+                      <textarea value={accountForm.bio} onChange={e => setAccountForm({ ...accountForm, bio: e.target.value })}
+                        placeholder="Tell traders a bit about yourself…" rows={2}
+                        className={inputCls + " resize-none"} style={inputStyle(accountForm.bio)} />
+                    </div>
+
+                    <button type="submit" disabled={loading}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90 disabled:opacity-50"
+                      style={{ backgroundColor: C.green }}>
+                      {loading ? <><RefreshCw size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Changes</>}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Name display preferences */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-1" style={{ color: C.forest }}>Name Display</h2>
+                  <p className="text-xs text-gray-400 mb-4">How your name appears to other traders on the platform</p>
+                  <div className="space-y-2">
+                    {[
+                      { val: 'full', label: 'Show full name', desc: 'e.g. Samuel Kwame', example: accountForm.fullName || 'Samuel Kwame' },
+                      { val: 'initial', label: 'Show first name and last initial', desc: 'e.g. Samuel K.', example: accountForm.fullName ? accountForm.fullName.split(' ').map((w, i) => i === 0 ? w : w[0] + '.').join(' ') : 'Samuel K.' },
+                      { val: 'hide', label: 'Hide full name', desc: 'Only username is shown', example: accountForm.username || 'samuel123' },
+                    ].map(({ val, label, desc, example }) => (
+                      <label key={val} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${prefs.nameDisplay === val ? 'border-green-300 bg-green-50' : 'border-gray-100 hover:border-gray-200'}`}>
+                        <input type="radio" name="nameDisplay" value={val} checked={prefs.nameDisplay === val} onChange={() => setPrefs({ ...prefs, nameDisplay: val })} className="accent-green-600" />
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-gray-800">{label}</p>
+                          <p className="text-xs text-gray-500">{desc}</p>
+                        </div>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600">{example}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── VERIFICATION ────────────────────────────────────── */}
+            {activeTab === 'verification' && (
+              <div className="space-y-5">
+                {/* Verification level banner */}
+                <div className="rounded-2xl p-5 border"
+                  style={{ background: `linear-gradient(135deg,${C.forest},${C.green})`, borderColor: C.green }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+                      <Shield size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-black text-lg">Verification Level {verLevel}/3</p>
+                      <p className="text-white/70 text-xs">
+                        {verLevel === 3 ? '✅ Fully verified — maximum trade limits' :
+                          verLevel === 2 ? '⚡ KYC required for higher limits' :
+                          verLevel === 1 ? '⚠️ Add phone to unlock more features' :
+                          '🔴 Start verification to begin trading'}
+                      </p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-white/70 text-xs mb-1">Trade limit</p>
+                      <p className="text-white font-black text-sm">
+                        {verLevel >= 3 ? 'Unlimited' : verLevel >= 2 ? '$2,000' : verLevel >= 1 ? '$500' : '$100'}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-2 rounded-full bg-white/20">
+                    <div className="h-2 rounded-full transition-all" style={{ width: `${(verLevel / 3) * 100}%`, backgroundColor: C.gold }} />
+                  </div>
+                </div>
+
+                {/* Verification steps */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Verification Steps</h2>
+                  <div className="space-y-3">
+                    <VerifStep n={1} title="Email Verified" badge="Basic" done={emailVerified} active={!emailVerified}
+                      desc={emailVerified ? `${accountForm.email} is verified` : 'Verify your email address to start trading'} />
+                    <VerifStep n={2} title="Phone Number" badge="Standard" done={phoneVerified} active={emailVerified && !phoneVerified}
+                      desc={phoneVerified ? `${accountForm.phone || 'Phone'} verified` : 'Add and verify your phone number for $2,000 limit'} />
+                    <VerifStep n={3} title="Identity (KYC)" badge="Advanced" done={kycVerified} active={phoneVerified && !kycVerified}
+                      desc={kycVerified ? 'Identity verified — full access unlocked' : 'Upload government ID for unlimited trading'} />
+                  </div>
+                </div>
+
+                {/* Benefits table */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-4" style={{ color: C.forest }}>Verification Benefits</h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b" style={{ borderColor: C.g100 }}>
+                          <th className="text-left pb-3 font-bold text-gray-500">Feature</th>
+                          <th className="text-center pb-3 font-bold text-gray-500">Basic</th>
+                          <th className="text-center pb-3 font-bold text-gray-500">Standard</th>
+                          <th className="text-center pb-3 font-bold text-gray-500">Advanced</th>
+                        </tr>
+                      </thead>
+                      <tbody className="space-y-2">
+                        {[
+                          { feat: 'Trade limit', b: '$100', s: '$2,000', a: 'Unlimited' },
+                          { feat: 'Create offers', b: '✅', s: '✅', a: '✅' },
+                          { feat: 'P2P Trading', b: '✅', s: '✅', a: '✅' },
+                          { feat: 'Gift cards', b: '✅', s: '✅', a: '✅' },
+                          { feat: 'Affiliate program', b: '❌', s: '✅', a: '✅' },
+                          { feat: 'VIP badge', b: '❌', s: '❌', a: '✅' },
+                        ].map(({ feat, b, s, a }) => (
+                          <tr key={feat} className="border-b last:border-0" style={{ borderColor: C.g50 }}>
+                            <td className="py-2.5 font-semibold text-gray-700">{feat}</td>
+                            <td className="py-2.5 text-center text-gray-600">{b}</td>
+                            <td className="py-2.5 text-center text-gray-600">{s}</td>
+                            <td className="py-2.5 text-center font-bold" style={{ color: C.green }}>{a}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* KYC upload — only if not verified */}
+                {!kycVerified && (
+                  <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                    <h2 className="text-lg font-black mb-2" style={{ color: C.forest }}>Submit KYC Documents</h2>
+                    <p className="text-xs text-gray-400 mb-4">Upload a valid government-issued ID. Reviewed within 24 hours.</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {['National ID / Passport', 'Selfie with ID'].map(doc => (
+                        <div key={doc} className="border-2 border-dashed rounded-2xl p-6 text-center hover:border-green-400 transition cursor-pointer" style={{ borderColor: C.g200 }}>
+                          <Upload size={28} className="mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm font-bold text-gray-700">{doc}</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG or PDF · Max 5MB</p>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="mt-4 flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90"
+                      style={{ backgroundColor: C.green }}>
+                      <Upload size={15} /> Submit for Review
+                    </button>
+                  </div>
+                )}
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  <Smartphone size={16} className="inline mr-1" />
-                  Mobile Money Provider
-                </label>
-                <select
-                  value={paymentMethods.mobileMoney}
-                  onChange={(e) => setPaymentMethods({ ...paymentMethods, mobileMoney: e.target.value })}
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                >
-                  <option value="">Select Provider</option>
-                  <option value="mtn">MTN Mobile Money</option>
-                  <option value="vodafone">Vodafone Cash</option>
-                  <option value="airteltigo">AirtelTigo Money</option>
-                </select>
+            {/* ── SECURITY ────────────────────────────────────────── */}
+            {activeTab === 'security' && (
+              <div className="space-y-5">
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Change Password</h2>
+                  <form onSubmit={handlePasswordChange} className="space-y-4">
+                    {[
+                      { key: 'currentPassword', label: 'Current Password', show: showPw.current, toggle: () => setShowPw({ ...showPw, current: !showPw.current }) },
+                      { key: 'newPassword',      label: 'New Password',     show: showPw.new,     toggle: () => setShowPw({ ...showPw, new: !showPw.new }) },
+                      { key: 'confirmPassword',  label: 'Confirm New Password', show: showPw.confirm, toggle: () => setShowPw({ ...showPw, confirm: !showPw.confirm }) },
+                    ].map(({ key, label, show, toggle }) => (
+                      <div key={key}>
+                        <label className={labelCls}>{label}</label>
+                        <div className="relative">
+                          <input type={show ? 'text' : 'password'} value={passwordForm[key]}
+                            onChange={e => setPasswordForm({ ...passwordForm, [key]: e.target.value })}
+                            className={inputCls + " pr-10"} style={inputStyle(passwordForm[key])} required />
+                          <button type="button" onClick={toggle} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Password strength */}
+                    {passwordForm.newPassword && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Password strength</p>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4].map(i => {
+                            const len = passwordForm.newPassword.length;
+                            const hasUpper = /[A-Z]/.test(passwordForm.newPassword);
+                            const hasNum = /\d/.test(passwordForm.newPassword);
+                            const hasSpec = /[^a-zA-Z0-9]/.test(passwordForm.newPassword);
+                            const score = (len >= 8 ? 1 : 0) + (len >= 12 ? 1 : 0) + (hasUpper && hasNum ? 1 : 0) + (hasSpec ? 1 : 0);
+                            const color = score <= 1 ? C.danger : score === 2 ? C.warn : score === 3 ? C.paid : C.success;
+                            return <div key={i} className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: i <= score ? color : C.g200 }} />;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <button type="submit" disabled={loading}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90 disabled:opacity-50"
+                      style={{ backgroundColor: C.green }}>
+                      {loading ? <><RefreshCw size={15} className="animate-spin" /> Updating…</> : <><Lock size={15} /> Update Password</>}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Active sessions */}
+                <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                  <h2 className="text-lg font-black mb-4" style={{ color: C.forest }}>Account Actions</h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl border" style={{ borderColor: C.g100 }}>
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">Two-Factor Authentication</p>
+                        <p className="text-xs text-gray-400">Add extra security to your account</p>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-100 text-orange-700">Coming Soon</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-red-100 bg-red-50">
+                      <div>
+                        <p className="text-sm font-bold text-red-700">Log Out</p>
+                        <p className="text-xs text-red-400">Sign out of your account on this device</p>
+                      </div>
+                      <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold" style={{ backgroundColor: C.danger }}>
+                        <LogOut size={13} /> Log Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-semibold mb-2" style={{ color: PRAQEN.gray?.[700] || '#374151' }}>
-                  Mobile Money Number
-                </label>
-                <input
-                  type="tel"
-                  value={paymentMethods.mobileMoneyNumber}
-                  onChange={(e) => setPaymentMethods({ ...paymentMethods, mobileMoneyNumber: e.target.value })}
-                  placeholder="+233 XX XXX XXXX"
-                  className="w-full px-4 py-2 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: PRAQEN.gray?.[300] || '#d1d5db', color: PRAQEN.gray?.[900] || '#111827' }}
-                />
+            {/* ── PREFERENCES ─────────────────────────────────────── */}
+            {activeTab === 'preferences' && (
+              <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Account Preferences</h2>
+                <div className="space-y-5">
+                  {/* Currency */}
+                  <div>
+                    <label className={labelCls}><DollarSign size={14} className="inline mr-1" /> Preferred Currency</label>
+                    <select value={prefs.currency} onChange={e => setPrefs({ ...prefs, currency: e.target.value })}
+                      className={inputCls} style={inputStyle(true)}>
+                      {[['GHS', 'Ghana Cedi (₵)'], ['NGN', 'Nigerian Naira (₦)'], ['KES', 'Kenyan Shilling (KSh)'], ['ZAR', 'South African Rand (R)'], ['USD', 'US Dollar ($)'], ['EUR', 'Euro (€)'], ['GBP', 'British Pound (£)']].map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Language */}
+                  <div>
+                    <label className={labelCls}><Languages size={14} className="inline mr-1" /> Language</label>
+                    <select value={prefs.language} onChange={e => setPrefs({ ...prefs, language: e.target.value })}
+                      className={inputCls} style={inputStyle(true)}>
+                      {[['en', 'English'], ['fr', 'French'], ['pt', 'Portuguese'], ['sw', 'Swahili'], ['ha', 'Hausa']].map(([v, l]) => (
+                        <option key={v} value={v}>{l}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Timezone */}
+                  <div>
+                    <label className={labelCls}><MapPin size={14} className="inline mr-1" /> Timezone</label>
+                    <select value={prefs.timezone} onChange={e => setPrefs({ ...prefs, timezone: e.target.value })}
+                      className={inputCls} style={inputStyle(true)}>
+                      {[
+                        ['Africa/Accra', 'Africa/Accra (GMT+0)'], ['Africa/Lagos', 'Africa/Lagos (GMT+1)'],
+                        ['Africa/Nairobi', 'Africa/Nairobi (GMT+3)'], ['Africa/Johannesburg', 'Africa/Johannesburg (GMT+2)'],
+                        ['Europe/London', 'Europe/London (GMT+0/+1)'], ['America/New_York', 'America/New_York (GMT-5/-4)'],
+                        ['America/Los_Angeles', 'America/Los_Angeles (GMT-8/-7)'],
+                      ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+
+                  <button onClick={() => toast.success('Preferences saved!')}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90"
+                    style={{ backgroundColor: C.green }}>
+                    <Save size={15} /> Save Preferences
+                  </button>
+                </div>
               </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-2 rounded-lg text-white font-semibold transition hover:opacity-80"
-                style={{ backgroundColor: PRAQEN.primary }}
-              >
-                <Save size={18} />
-                {loading ? 'Saving...' : 'Save Payment Methods'}
-              </button>
-            </form>
+            {/* ── PAYMENT METHODS ──────────────────────────────────── */}
+            {activeTab === 'payment' && (
+              <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                <h2 className="text-lg font-black mb-2" style={{ color: C.forest }}>Payment Methods</h2>
+                <p className="text-xs text-gray-400 mb-5">These details are shared with buyers/sellers during a trade</p>
+                <form onSubmit={handlePaymentUpdate} className="space-y-4">
+                  <div>
+                    <label className={labelCls}>Bank Name</label>
+                    <input type="text" value={payments.bankName} onChange={e => setPayments({ ...payments, bankName: e.target.value })}
+                      placeholder="e.g. GCB Bank, GTBank, Ecobank" className={inputCls} style={inputStyle(payments.bankName)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Bank Account Number</label>
+                    <input type="text" value={payments.accountNumber} onChange={e => setPayments({ ...payments, accountNumber: e.target.value })}
+                      placeholder="Enter account number" className={inputCls} style={inputStyle(payments.accountNumber)} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Mobile Money Provider</label>
+                    <select value={payments.mobileProvider} onChange={e => setPayments({ ...payments, mobileProvider: e.target.value })}
+                      className={inputCls} style={inputStyle(payments.mobileProvider)}>
+                      <option value="">Select provider</option>
+                      <option value="mtn">MTN Mobile Money</option>
+                      <option value="vodafone">Vodafone Cash</option>
+                      <option value="airteltigo">AirtelTigo Money</option>
+                      <option value="mpesa">M-Pesa</option>
+                      <option value="opay">OPay</option>
+                      <option value="palmpay">PalmPay</option>
+                      <option value="wave">Wave</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Mobile Money Number</label>
+                    <input type="tel" value={payments.mobileNumber} onChange={e => setPayments({ ...payments, mobileNumber: e.target.value })}
+                      placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(payments.mobileNumber)} />
+                  </div>
+                  <div className="p-3 rounded-xl text-xs font-semibold flex items-start gap-2" style={{ backgroundColor: `${C.warn}12`, color: '#92400E' }}>
+                    <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                    Your payment details are only shared with your trade partner during an active trade. Never share outside the platform.
+                  </div>
+                  <button type="submit" disabled={loading}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: C.green }}>
+                    {loading ? <><RefreshCw size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> Save Payment Methods</>}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* ── NOTIFICATIONS ───────────────────────────────────── */}
+            {activeTab === 'notifications' && (
+              <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
+                <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Notification Preferences</h2>
+                <div className="space-y-4">
+                  {[
+                    { section: '📧 Email Notifications', items: [
+                      { key: 'email_trades',   label: 'Trade Updates',     desc: 'New trades, payments, releases' },
+                      { key: 'email_security', label: 'Security Alerts',   desc: 'Login attempts, password changes' },
+                      { key: 'email_marketing',label: 'News & Promotions', desc: 'Platform updates and offers' },
+                    ]},
+                    { section: '🔔 Push Notifications', items: [
+                      { key: 'push_trades',   label: 'Trade Alerts',   desc: 'Real-time trade status updates' },
+                      { key: 'push_messages', label: 'Chat Messages',  desc: 'New messages in trade chat' },
+                      { key: 'push_disputes', label: 'Dispute Alerts', desc: 'Dispute opened or resolved' },
+                    ]},
+                  ].map(({ section, items }) => (
+                    <div key={section}>
+                      <p className="text-sm font-black text-gray-700 mb-2">{section}</p>
+                      <div className="space-y-2">
+                        {items.map(({ key, label, desc }) => (
+                          <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border" style={{ borderColor: C.g100 }}>
+                            <div>
+                              <p className="text-sm font-bold text-gray-800">{label}</p>
+                              <p className="text-xs text-gray-500">{desc}</p>
+                            </div>
+                            <Toggle checked={notifs[key]} onChange={v => setNotifs({ ...notifs, [key]: v })} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => toast.success('Notification preferences saved!')}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90"
+                    style={{ backgroundColor: C.green }}>
+                    <Save size={15} /> Save Preferences
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-black mb-6" style={{ color: PRAQEN.primary }}>Notification Preferences</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold">Email Notifications</p>
-                  <p className="text-sm text-gray-500">Receive trade updates via email</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold">Push Notifications</p>
-                  <p className="text-sm text-gray-500">Get real-time trade alerts</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold">Marketing Emails</p>
-                  <p className="text-sm text-gray-500">Receive promotions and updates</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
+      <footer style={{ backgroundColor: C.forest }}>
+        <div className="max-w-5xl mx-auto px-4 pt-10 pb-6">
+          <div className="grid md:grid-cols-3 gap-8 mb-6">
+            <div>
+              <span className="text-xl font-black" style={{ fontFamily: "'Syne',sans-serif" }}>
+                <span className="text-white">PRA</span><span style={{ color: C.gold }}>QEN</span>
+              </span>
+              <p className="text-xs leading-relaxed my-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                Africa's most trusted P2P Bitcoin platform. Escrow-protected. 0.5% fee only.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { href: 'https://x.com/praqenapp?s=21', label: '𝕏' },
+                  { href: 'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr', label: '📸' },
+                  { href: 'https://www.linkedin.com/in/pra-qen-045373402/', label: '💼' },
+                  { href: 'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t', label: '💬' },
+                  { href: 'https://discord.gg/V6zCZxfdy', label: '🎮' },
+                ].map(({ href, label }) => (
+                  <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:scale-110 transition"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                    <span className="text-white">{label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-white font-black text-sm mb-3">Account</p>
+              <div className="space-y-2">
+                {[['Profile', '/profile'], ['My Trades', '/my-trades'], ['My Listings', '/my-listings'], ['Wallet', '/wallet'], ['Dashboard', '/dashboard']].map(([l, h]) => (
+                  <a key={l} href={h} className="block text-xs hover:text-white transition" style={{ color: 'rgba(255,255,255,0.4)' }}>{l}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-white font-black text-sm mb-3">Support</p>
+              <div className="space-y-2">
+                {[
+                  ['💬 WhatsApp', 'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t'],
+                  ['🎮 Discord', 'https://discord.gg/V6zCZxfdy'],
+                  ['📧 support@praqen.com', 'mailto:support@praqen.com'],
+                ].map(([l, h]) => (
+                  <a key={l} href={h} target="_blank" rel="noopener noreferrer" className="block text-xs hover:text-white transition" style={{ color: 'rgba(255,255,255,0.4)' }}>{l}</a>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
+            <p className="text-[10px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <Shield size={10} /> Escrow Protected · 0.5% fee on completion only
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

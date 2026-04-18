@@ -112,9 +112,9 @@ function BuyerOfferCard({ offer, onSelect, user }) {
                   <span className="font-semibold">{rating.toFixed(1)}</span>
                 </div>
                 <span className="text-gray-400">•</span>
-                <span className="text-gray-500">{totalTrades} trades</span>
+                <span style={{color:PRAQEN.primary}}>👍 {buyer.positive_feedback || 0}</span>
                 <span className="text-gray-400">•</span>
-                <span className="text-green-600 text-xs font-semibold">{completionRate}%</span>
+                <span style={{color:'#EF4444'}}>👎 {buyer.negative_feedback || 0}</span>
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
                 <Clock size={12} />

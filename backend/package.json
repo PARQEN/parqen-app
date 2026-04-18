@@ -9,9 +9,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@coinbase/coinbase-sdk": "^0.25.0",
     "@supabase/supabase-js": "^2.26.0",
-    "axios": "^1.4.0",
+    "axios": "^1.15.0",
     "bcryptjs": "^2.4.3",
+    "coinbase-commerce-node": "^1.0.4",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.0.3",

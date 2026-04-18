@@ -8,6 +8,8 @@ import {
   Tag, Zap, TrendingUp
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import CountryFlag from '../components/CountryFlag';
+import TradeDisplay from '../components/TradeDisplay';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -29,7 +31,7 @@ const C = {
   g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
   g300:'#CBD5E1', g400:'#94A3B8', g500:'#64748B',
   g600:'#475569', g700:'#334155', g800:'#1E293B',
-  success:'#10B981', danger:'#EF4444', online:'#22C55E',
+  success:'#10B981', danger:'#FF0000', online:'#22C55E',
   warn:'#F59E0B', paid:'#3B82F6', purple:'#8B5CF6',
 };
 
@@ -43,15 +45,21 @@ function isoToFlag(code) {
 
 // ─── Trust badges — real from profile.badge ──────────────────────────────────
 const TRUST_MAP = {
-  LEGEND:     { label:'LEGEND',     icon:'👑', color:'#7C3AED' },
-  AMBASSADOR: { label:'AMBASSADOR', icon:'🌟', color:'#8B5CF6' },
-  EXPERT:     { label:'EXPERT',     icon:'💎', color:'#0D9488' },
-  PRO:        { label:'PRO',        icon:'⭐', color:'#10B981' },
-  ACTIVE:     { label:'ACTIVE',     icon:'🔥', color:'#F59E0B' },
-  BEGINNER:   { label:'NEW',        icon:'🆕', color:'#94A3B8' },
+  LEGEND:     { label:'Legend',     icon:'👑', color:'#7C3AED' },
+  AMBASSADOR: { label:'Ambassador', icon:'🌟', color:'#8B5CF6' },
+  EXPERT:     { label:'Expert',     icon:'💎', color:'#0D9488' },
+  PRO:        { label:'Pro',        icon:'⭐', color:'#10B981' },
+  ACTIVE:     { label:'Active',     icon:'🔥', color:'#F59E0B' },
+  BEGINNER:   { label:'New',        icon:'🆕', color:'#94A3B8' },
 };
 function deriveBadge(u) {
-  if (u?.badge && TRUST_MAP[u.badge]) return TRUST_MAP[u.badge];
+  // First priority: check explicit badge field from profile
+  if (u?.badge) {
+    const badgeUpper = String(u.badge).toUpperCase();
+    if (TRUST_MAP[badgeUpper]) return TRUST_MAP[badgeUpper];
+  }
+  
+  // Second priority: calculate from trades + rating
   const t = parseInt(u?.total_trades ?? u?.trade_count ?? 0);
   const r = parseFloat(u?.average_rating ?? 0);
   if (t >= 500 && r >= 4.8) return TRUST_MAP.LEGEND;
@@ -113,9 +121,9 @@ const getLastSeen = (u) => {
   if(!d)return{label:'—',online:false};
   const s=(Date.now()-new Date(d))/1000;
   if(s<300)  return{label:'● Active',online:true};
-  if(s<3600) return{label:`${~~(s/60)}m ago`,online:false};
-  if(s<86400)return{label:`${~~(s/3600)}h ago`,online:false};
-  return{label:`${~~(s/86400)}d ago`,online:false};
+  if(s<3600) return{label:`Last seen ${~~(s/60)}m ago`,online:false};
+  if(s<86400)return{label:`Last seen ${~~(s/3600)}h ago`,online:false};
+  return{label:`Last seen ${~~(s/86400)}d ago`,online:false};
 };
 
 // Resolve gift card brand from listing fields
@@ -161,7 +169,6 @@ function SellerModal({seller,listing,onClose,onTrade}) {
   const fb=parseInt(u.total_feedback_count??u.feedback_count??0);
   const verif=isVerified(u);
   const brand=getGCBrand(listing||{});
-  const listingFlag=getListingFlag(listing||{});
   const cur=listing?.currency||'USD';
   const sym=listing?.currency_symbol||CUR_SYM[cur]||'$';
   const usdRate=USD_RATES[cur]||1;
@@ -195,9 +202,8 @@ function SellerModal({seller,listing,onClose,onTrade}) {
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
                   style={{backgroundColor:badge.color,color:'#fff'}}>
-                  {badge.icon} {badge.label}
+                  {badge.icon} {badge.label} <CountryFlag className="w-3 h-2 inline-block mx-1" /> {fmt(trades)} Trades {rating.toFixed(1)}★ Rating {fmt(fb)} Reviews {u.completion_rate||98}%
                 </span>
-                <span className="text-xs text-white/60">{listingFlag} {u.country||listing?.country_name||''}</span>
                 {/* Gift card brand chip */}
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                   style={{backgroundColor:'rgba(255,255,255,0.2)',color:'#fff'}}>
@@ -218,6 +224,11 @@ function SellerModal({seller,listing,onClose,onTrade}) {
                 <p className="text-white/50 text-[9px]">{s.label}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-2 text-center">
+            <p className="text-white font-black text-xs">
+              👍 {fmt(u.positive_feedback||0)} · 👎 {fmt(u.negative_feedback||0)} · {fmt(trades)} Trades
+            </p>
           </div>
         </div>
 
@@ -256,11 +267,11 @@ function SellerModal({seller,listing,onClose,onTrade}) {
                 {[
                   {label:'Trades',  value:fmt(trades),               color:C.teal},
                   {label:'Rating',  value:`${rating.toFixed(1)} / 5`,color:C.warn},
-                  {label:'Complete',value:`${u.completion_rate||98}%`,color:C.success},
-                  {label:'Reviews', value:fmt(fb),                   color:C.paid},
+                  {label:'👍 Positive',value:fmt(u.positive_feedback||0),color:C.success},
+                  {label:'👎 Negative', value:fmt(u.negative_feedback||0), color:C.danger},
                 ].map(({label,value,color})=>(
                   <div key={label} className="p-2 rounded-xl" style={{backgroundColor:C.g50}}>
-                    <p className="text-[9px] text-gray-400">{label}</p>
+                    <p className="text-[9px] font-bold text-gray-400">{label}</p>
                     <p className="text-xs font-black" style={{color}}>{value}</p>
                   </div>
                 ))}
@@ -274,7 +285,7 @@ function SellerModal({seller,listing,onClose,onTrade}) {
             <div className="space-y-2">
               {[
                 {label:'Card Brand',  value:`${brand.emoji} ${brand.name}`},
-                {label:'Country',     value:`${listingFlag} ${listing?.country_name||u.country||'—'}`},
+                {label:'Country',     value:<><CountryFlag className="w-4 h-3 inline-block mr-1" />{listing?.country_name||u.country||'—'}</>},
                 {label:'Card Value',  value:listing?.card_value?`$${listing.card_value}`:'Varies'},
                 {label:'Rate',        value:`${sym}${fmt(rate)} ${cur}/BTC`},
                 {label:'Margin',      value:margin===0?'Market rate':margin>0?`+${margin}%`:`${margin}% below`},
@@ -327,7 +338,6 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLik
   const verif      = isVerified(u);
   const trades     = getTrades(u);
   const rating     = parseFloat(u.average_rating||0);
-  const listingFlag= getListingFlag(listing);
   const brand      = getGCBrand(listing);
   const margin     = parseFloat(listing.margin||0);
   const cur        = listing.currency||'USD';
@@ -378,19 +388,20 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLik
                 className="font-black text-xs hover:underline" style={{color:C.g800}}>
                 {u.username||'Seller'}
               </button>
-              <span className="text-sm leading-none">{listingFlag}</span>
+              <CountryFlag className="w-4 h-3" />
               <span className="text-[8px] font-black px-1.5 py-0.5 rounded-sm"
                 style={{backgroundColor:badge.color,color:'#fff'}}>
-                {badge.label}
+                {badge.icon} {badge.label}
               </span>
               {verif&&<BadgeCheck size={10} style={{color:C.teal}}/>}
             </div>
-            <div className="flex items-center gap-1 text-[9px] mt-0.5" style={{color:C.g500}}>
-              <span style={{color:C.success}}>👍 {completion.toFixed(0)}%</span>
+            <div className="flex items-center gap-1.5 text-[9px] mt-1 text-gray-700 flex-wrap font-black">
+              <span className="font-black" style={{color:C.success}}>👍 {u.positive_feedback || 0}</span>
+              <span className="font-black" style={{color:C.danger}}>👎 {u.negative_feedback || 0}</span>
               <span style={{color:C.g300}}>·</span>
-              <span>{fmt(trades)} Trades</span>
+              <span className="font-black text-gray-700">{fmt(trades)} Trades</span>
               <span style={{color:C.g300}}>·</span>
-              <span style={{color:seen.online?C.online:C.g400}}>{seen.label}</span>
+              <span style={{color:seen.online?C.online:C.g400}} className="font-black">{seen.label}</span>
             </div>
           </div>
           <button onClick={onToggleLike}
@@ -404,9 +415,9 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLik
       {/* ── ROW 2: Pay / Receive ────────────────────────────────────── */}
       <div className="px-3 py-2 border-b grid grid-cols-2 gap-2" style={{borderColor:C.g100}}>
         <div>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Pay {sym}</p>
+          <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:'#000000'}}>Pay <span className="font-black">{sym}</span></p>
           <div className="flex items-center gap-1">
-            <span className="text-[10px]" style={{color:C.g500}}>{sym}</span>
+            <span className="text-[10px] font-black" style={{color:C.g500}}>{sym}</span>
             <input
               type="number"
               value={payAmt}
@@ -417,15 +428,15 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLik
           </div>
         </div>
         <div className="border-l pl-2" style={{borderColor:C.g100}}>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Receive BTC</p>
-          <p className="text-xs font-black" style={{color:C.g700}}>₿ {fBtc(btcOut)}</p>
+          <p className="text-[8px] text-gray-700 font-black uppercase tracking-wide mb-0.5">Receive BTC</p>
+          <p className="text-xs font-black" style={{color:C.g800}}>₿ {fBtc(btcOut)}</p>
         </div>
       </div>
 
       {/* ── ROW 3: Rate + range ─────────────────────────────────────── */}
       <div className="px-3 py-2 border-b" style={{borderColor:C.g100}}>
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-xs font-black" style={{color:C.g800}}>
+          <span className="text-xs font-black" style={{color:'#FF0000'}}>
             {sym}{fmt(rateLocal)} {cur}/₿
           </span>
           <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm"

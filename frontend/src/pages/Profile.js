@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
 import { supabase } from '../lib/supabaseClient';
+import ProfileFlag from '../components/ProfileFlag';
+import CountryFlag from '../components/CountryFlag';
 import {
   Star, MapPin, Calendar, Award, Shield, CheckCircle,
   Users, Clock, MessageCircle, Camera, Copy, Globe,
@@ -237,7 +239,10 @@ export default function Profile({userId:propUserId}){
               ):(
                 <>
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    <h1 className="text-2xl md:text-3xl font-black text-white" style={{fontFamily:"'Syne',sans-serif"}}>{user.username}</h1>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-2xl md:text-3xl font-black text-white" style={{fontFamily:"'Syne',sans-serif"}}>{user.username}</h1>
+                      <CountryFlag className="w-5 h-4" />
+                    </div>
                     <span className="text-[11px] font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:statusColor}}>{status}</span>
                     {kycOk&&<BadgeCheck size={20} style={{color:'#93C5FD'}} title="KYC Verified"/>}
                   </div>
@@ -246,7 +251,9 @@ export default function Profile({userId:propUserId}){
                       ID: #{String(user.id||'').slice(0,8).toUpperCase()}
                       <button onClick={()=>{navigator.clipboard.writeText(user.id||'');toast.success('ID copied!');}} className="hover:text-white"><Copy size={10}/></button>
                     </span>
-                    {user.country&&<span className="flex items-center gap-1">{flag} {user.country}</span>}
+                    <div className="flex items-center gap-1">
+                      <ProfileFlag />
+                    </div>
                     <span className="flex items-center gap-1"><MapPin size={11}/>{user.location||'Ghana'}</span>
                     <span className="flex items-center gap-1"><Calendar size={11}/>Joined {fmtAge(user.created_at)}</span>
                   </div>
@@ -270,19 +277,27 @@ export default function Profile({userId:propUserId}){
             </div>
           </div>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-4 border-t text-center" style={{borderColor:'rgba(255,255,255,0.15)'}}>
-            {[
-              {label:'Trades',   value:fmt(trades),              color:'#fff'},
-              {label:'Rating',   value:`${rating.toFixed(1)}★`,  color:C.gold},
-              {label:'Reviews',  value:fmt(reviews.length),       color:'#93C5FD'},
-              {label:'Positive', value:`${posPct}%`,              color:'#6EE7B7'},
-            ].map(({label,value,color})=>(
-              <div key={label} className="py-3">
-                <p className="font-black text-lg" style={{color}}>{value}</p>
-                <p className="text-[10px] text-white/50">{label}</p>
+          {/* Stats Grid with REAL Feedback Counts */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t" style={{borderColor:'rgba(255,255,255,0.15)'}}>
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">{fmt(user.total_trades || 0)}</p>
+              <p className="text-xs text-white/60 mt-0.5">Trades</p>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <Star size={16} className="fill-yellow-400 text-yellow-400" />
+                <p className="text-2xl font-black" style={{color:C.gold}}>{parseFloat(user.average_rating || 0).toFixed(1)}</p>
               </div>
-            ))}
+              <p className="text-xs text-white/60 mt-0.5">Rating</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">{fmt(user.total_feedback_count || ((user.positive_feedback||0) + (user.negative_feedback||0)))}</p>
+              <p className="text-xs text-white/60 mt-0.5">Feedback</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">{parseFloat(user.completion_rate || 0).toFixed(0)}%</p>
+              <p className="text-xs text-white/60 mt-0.5">Complete</p>
+            </div>
           </div>
         </div>
       </div>

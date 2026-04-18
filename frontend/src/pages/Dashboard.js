@@ -38,8 +38,8 @@ const BADGES = {
 const BADGE_THRESHOLDS = {
   PRO:        { trades:10,  referrals:0 },
   EXPERT:     { trades:50,  referrals:3 },
-  AMBASSADOR: { trades:200, referrals:10 },
-  LEGEND:     { trades:500, referrals:25 },
+  AMBASSADOR: { trades:500, referrals:25 },
+  LEGEND:     { trades:1000, referrals:50 },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -185,10 +185,10 @@ function ProfileSummary({ user, profile, stats }) {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
-            {label:'Trades',      value:fmt(stats.totalTrades||0),              color:C.green},
-            {label:'Completion',  value:fmtPct(profile?.completion_rate),        color:C.success},
-            {label:'Rating',      value:`${parseFloat(profile?.average_rating||0).toFixed(1)}★`, color:C.amber},
-            {label:'Blocked',     value:fmt(profile?.blocked_count||0),           color:C.danger},
+            {label:'Trades',   value:fmt(stats.totalTrades||0), color:C.green},
+            {label:'Rating',   value:`${parseFloat(stats.averageRating||0).toFixed(1)}★`, color:C.amber},
+            {label:'Feedback', value:fmt(profile?.total_feedback_count || profile?.feedback_count || 0), color:C.paid},
+            {label:'Complete', value:`${parseFloat(profile?.completion_rate||0).toFixed(0)}%`, color:C.success},
           ].map(({label,value,color})=>(
             <div key={label} className="text-center p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
               <p className="font-black text-base" style={{color}}>{value}</p>
@@ -243,10 +243,10 @@ function ProfileSummary({ user, profile, stats }) {
 }
 
 // ─── Affiliate Section — Premium Design ───────────────────────────────────────
-function AffiliateSection({ profile, earnings }) {
+function AffiliateSection({ user, profile, earnings }) {
   const [copied, setCopied] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const referralLink = `https://praqen.com/signup?ref=${profile?.referral_code||'PRAQEN'}`;
+  const referralLink = `https://praqen.com/signup?ref=${user?.referral_code || profile?.referral_code || 'PRAQEN'}`;
 
   const totalEarnings  = earnings.reduce((s,e)=>s+parseFloat(e.commission_btc||0),0);
   const totalReferrals = new Set(earnings.map(e=>e.referred_user_id)).size;
@@ -573,6 +573,7 @@ export default function Dashboard({ user }) {
   const [stats, setStats]           = useState({
     totalTrades:0, completedTrades:0, pendingTrades:0,
     totalVolume:0, activeListings:0, totalReferrals:0,
+    totalFeedback:0, positiveFeedback:0, negativeFeedback:0,
   });
   const [recentTrades, setRecentTrades]   = useState([]);
   const [activeTrades, setActiveTrades]   = useState([]);
@@ -584,68 +585,48 @@ export default function Dashboard({ user }) {
   const [activeTab, setActiveTab]         = useState('overview');
   const [lastRefresh, setLastRefresh]     = useState(null);
 
-  const load = useCallback(async () => {
-    if (!user) { navigate('/login'); return; }
+  const loadDashboardData = async () => {
     try {
-      const [tradesRes, balanceRes, profileRes, earningsRes] = await Promise.allSettled([
-        axios.get(`${API_URL}/my-trades`, { headers:authH() }),
-        axios.get(`${API_URL}/user/balance`, { headers:authH() }),
-        axios.get(`${API_URL}/users/${user.id}`, { headers:authH() }),
-        axios.get(`${API_URL}/affiliate/earnings`, { headers:authH() }),
-      ]);
-
-      // Trades
-      const trades = tradesRes.status==='fulfilled' ? tradesRes.value.data.trades||[] : [];
-      const completed   = trades.filter(t=>t.status==='COMPLETED');
-      const pending     = trades.filter(t=>['ESCROW','PAID','FUNDS_LOCKED','PAYMENT_SENT'].includes(t.status));
-      const totalVolume = completed.reduce((s,t)=>s+parseFloat(t.amount_usd||0),0);
-      setRecentTrades(trades.slice(0,6));
-      setActiveTrades(pending.slice(0,5));
-
-      // Balance
-      const bal = balanceRes.status==='fulfilled' ? balanceRes.value.data.balance_btc||0 : 0;
-      setWalletBalance(bal);
-
-      // Profile
-      const prof = profileRes.status==='fulfilled' ? profileRes.value.data.user||profileRes.value.data||null : null;
-      setProfile(prof);
-
-      // Affiliate earnings
-      const earn = earningsRes.status==='fulfilled' ? earningsRes.value.data.earnings||[] : [];
-      setEarnings(earn);
-      const totalReferrals = new Set(earn.map(e=>e.referred_user_id)).size;
-
-      // Listings count
-      let activeListings = 0;
-      try {
-        const listRes = await axios.get(`${API_URL}/my-listings`, { headers:authH() });
-        activeListings = (listRes.data.listings||[]).filter(l=>l.status==='ACTIVE').length;
-      } catch {}
-
-      setStats({
-        totalTrades:    trades.length,
-        completedTrades:completed.length,
-        pendingTrades:  pending.length,
-        totalVolume,
-        activeListings,
-        totalReferrals,
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/users/${user.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      setLastRefresh(new Date());
-    } catch (e) {
-      console.error('Dashboard load error:', e);
-      toast.error('Failed to load dashboard');
-    } finally {
-      setLoading(false);
+      
+      const userData = response.data.user;
+      console.log('🔍 Dashboard Data Loaded:', {
+        trades: userData.total_trades,
+        positive: userData.positive_feedback,
+        negative: userData.negative_feedback,
+        rating: userData.average_rating
+      });
+      
+      setProfile(userData);
+      setStats({
+        totalTrades: userData.total_trades || 0,
+        positiveFeedback: userData.positive_feedback || 0,
+        negativeFeedback: userData.negative_feedback || 0,
+        averageRating: userData.average_rating || 0,
+        totalVolume: (userData.total_trades || 0) * 100,
+        completionRate: userData.completion_rate || 100,
+        rating: userData.average_rating || 0,
+        referralCode: userData.referral_code || '',
+        totalReferrals: userData.total_referrals || 0,
+        referralEarnings: userData.referral_earnings_btc || 0,
+        badge: userData.badge || 'BEGINNER'
+      });
+    } catch (error) {
+      console.error('Failed to load dashboard:', error);
+      toast.error('Failed to load dashboard data');
     }
-  }, [user, navigate]);
+  };
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadDashboardData(); setLoading(false); }, [user]);
 
   // Auto-refresh every 60s
   useEffect(() => {
-    const iv = setInterval(load, 60000);
+    const iv = setInterval(() => loadDashboardData(), 60000);
     return () => clearInterval(iv);
-  }, [load]);
+  }, [user]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
@@ -681,7 +662,7 @@ export default function Dashboard({ user }) {
               </p>
             )}
           </div>
-          <button onClick={load}
+          <button onClick={loadDashboardData}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border hover:bg-gray-50 transition"
             style={{borderColor:C.g200, color:C.g600}}>
             <RefreshCw size={12}/> Refresh
@@ -974,7 +955,7 @@ export default function Dashboard({ user }) {
 
         {/* ── AFFILIATE TAB ─────────────────────────────────────────────────── */}
         {activeTab==='affiliate' && (
-          <AffiliateSection profile={profile} earnings={earnings}/>
+          <AffiliateSection user={displayUser} profile={profile} earnings={earnings}/>
         )}
 
       </div>
@@ -1095,7 +1076,7 @@ export default function Dashboard({ user }) {
         <WithdrawModal
           balance={walletBalance}
           onClose={()=>setShowWithdraw(false)}
-          onSuccess={()=>{ setShowWithdraw(false); load(); }}
+          onSuccess={()=>{ setShowWithdraw(false); loadDashboardData(); }}
         />
       )}
     </div>

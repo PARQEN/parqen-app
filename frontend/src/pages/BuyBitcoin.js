@@ -5,9 +5,18 @@ import {
   Bitcoin, ChevronDown, CheckCircle, RefreshCw,
   AlertTriangle, BadgeCheck, Star, Timer, Eye,
   Heart, X, Info, Shield, ArrowRight, PlusCircle,
-  Copy, Clock, Phone, FileText
+  Copy, Clock, Phone, FileText, Search
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import CountryFlag from '../components/CountryFlag';
+import TradeDisplay from '../components/TradeDisplay';
+
+const PAYMENT_FILTERS = [
+  {value:'all', label:'All Methods', icon:'💳'},
+  {value:'mtn', label:'MTN Mobile Money', icon:'📱'},
+  {value:'vodafone', label:'Vodafone Cash', icon:'📱'},
+  {value:'airteltigo', label:'AirtelTigo', icon:'📱'},
+];
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -18,22 +27,33 @@ const C = {
   g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
   g300:'#CBD5E1', g400:'#94A3B8', g500:'#64748B',
   g600:'#475569', g700:'#334155', g800:'#1E293B',
-  success:'#10B981', danger:'#EF4444', online:'#22C55E',
+  success:'#10B981', danger:'#FF0000', online:'#22C55E',
   warn:'#F59E0B', paid:'#3B82F6', purple:'#8B5CF6',
 };
 
 // ─── Trust badges — real badge from profile.badge field ──────────────────────
 const TRUST_MAP = {
-  LEGEND:     { label:'LEGEND',     icon:'👑', color:'#7C3AED' },
-  AMBASSADOR: { label:'AMBASSADOR', icon:'🌟', color:'#8B5CF6' },
-  EXPERT:     { label:'EXPERT',     icon:'💎', color:'#0EA5E9' },
-  PRO:        { label:'PRO',        icon:'⭐', color:'#10B981' },
-  ACTIVE:     { label:'ACTIVE',     icon:'🔥', color:'#F59E0B' },
-  BEGINNER:   { label:'NEW',        icon:'🆕', color:'#94A3B8' },
+  LEGEND:     { label:'Legend',     icon:'👑', color:'#7C3AED' },
+  AMBASSADOR: { label:'Ambassador', icon:'🌟', color:'#8B5CF6' },
+  EXPERT:     { label:'Expert',     icon:'💎', color:'#0EA5E9' },
+  PRO:        { label:'Pro',        icon:'⭐', color:'#10B981' },
+  ACTIVE:     { label:'Active',     icon:'🔥', color:'#F59E0B' },
+  BEGINNER:   { label:'New',        icon:'🆕', color:'#94A3B8' },
 };
 // Fallback: derive from trade count if badge field missing
 function deriveBadge(u) {
-  if (u?.badge && TRUST_MAP[u.badge]) return TRUST_MAP[u.badge];
+  // First priority: check explicit badge field from profile
+  if (u?.badge) {
+    const badgeUpper = String(u.badge).toUpperCase();
+    if (TRUST_MAP[badgeUpper]) return TRUST_MAP[badgeUpper];
+  }
+  
+  // Second priority: check if user object has a badge key with proper casing
+  for (const key in TRUST_MAP) {
+    if (u?.[key.toLowerCase()]) return TRUST_MAP[key];
+  }
+  
+  // Third priority: calculate from trades + rating
   const t = parseInt(u?.total_trades ?? u?.trade_count ?? 0);
   const r = parseFloat(u?.average_rating ?? 0);
   if (t >= 500 && r >= 4.8) return TRUST_MAP.LEGEND;
@@ -43,37 +63,14 @@ function deriveBadge(u) {
   return TRUST_MAP.BEGINNER;
 }
 
-const FLAGS    = { GH:'🇬🇭',NG:'🇳🇬',KE:'🇰🇪',ZA:'🇿🇦',UG:'🇺🇬',TZ:'🇹🇿',US:'🇺🇸',GB:'🇬🇧',EU:'🇪🇺',CM:'🇨🇲',SN:'🇸🇳' };
 const USD_RATES= { GHS:11.85,NGN:1580,KES:130,ZAR:18.5,UGX:3720,TZS:2680,USD:1,GBP:0.79,EUR:0.92,XAF:612,XOF:612 };
 const CUR_SYM  = { GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',TZS:'TSh',USD:'$',GBP:'£',EUR:'€',XAF:'CFA',XOF:'CFA' };
 
-const PAYMENT_MAP = {
-  'mtn mobile money':{ name:'MTN Mobile Money',icon:'📱',short:'MTN MoMo' },
-  'mtn momo':        { name:'MTN Mobile Money',icon:'📱',short:'MTN MoMo' },
-  mtn:               { name:'MTN Mobile Money',icon:'📱',short:'MTN MoMo' },
-  'vodafone cash':   { name:'Vodafone Cash',   icon:'📱',short:'Vodafone' },
-  vodafone:          { name:'Vodafone Cash',   icon:'📱',short:'Vodafone' },
-  'airteltigo money':{ name:'AirtelTigo',      icon:'📱',short:'AirtelTigo' },
-  airteltigo:        { name:'AirtelTigo',      icon:'📱',short:'AirtelTigo' },
-  'bank transfer':   { name:'Bank Transfer',   icon:'🏦',short:'Bank' },
-  bank:              { name:'Bank Transfer',   icon:'🏦',short:'Bank' },
-  paypal:            { name:'PayPal',          icon:'💰',short:'PayPal' },
-  mpesa:             { name:'M-Pesa',          icon:'📱',short:'M-Pesa' },
-  'm-pesa':          { name:'M-Pesa',          icon:'📱',short:'M-Pesa' },
-  opay:              { name:'OPay',            icon:'💳',short:'OPay' },
-  palmpay:           { name:'PalmPay',         icon:'💳',short:'PalmPay' },
-  zelle:             { name:'Zelle',           icon:'💳',short:'Zelle' },
-};
-
-const PAYMENT_FILTERS = [
+const PAYMENT_MAP = [
   {value:'all',       label:'All Methods',      icon:'💳'},
   {value:'mtn',       label:'MTN Mobile Money', icon:'📱'},
   {value:'vodafone',  label:'Vodafone Cash',    icon:'📱'},
   {value:'airteltigo',label:'AirtelTigo',       icon:'📱'},
-  {value:'bank',      label:'Bank Transfer',    icon:'🏦'},
-  {value:'paypal',    label:'PayPal',           icon:'💰'},
-  {value:'mpesa',     label:'M-Pesa',           icon:'📱'},
-  {value:'opay',      label:'OPay',             icon:'💳'},
 ];
 
 const COUNTRIES = [
@@ -99,7 +96,6 @@ const getPayInfo = (l) => {
   const key = String(raw).toLowerCase().trim();
   return PAYMENT_MAP[key] || {name:raw||'Payment',icon:'💳',short:raw||'Pay'};
 };
-const getFlag    = (l) => FLAGS[(l.country||l.country_code||l.users?.country||'').toUpperCase()]||'🌍';
 const isVerified = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
 const getTrades  = (u) => parseInt(u?.total_trades??u?.trade_count??0);
 const getLastSeen= (u) => {
@@ -107,9 +103,9 @@ const getLastSeen= (u) => {
   if (!d) return {label:'—',online:false};
   const s = (Date.now()-new Date(d))/1000;
   if (s<300)   return {label:'● Active',online:true};
-  if (s<3600)  return {label:`${~~(s/60)}m ago`,online:false};
-  if (s<86400) return {label:`${~~(s/3600)}h ago`,online:false};
-  return {label:`${~~(s/86400)}d ago`,online:false};
+  if (s<3600)  return {label:`Last seen ${~~(s/60)}m ago`,online:false};
+  if (s<86400) return {label:`Last seen ${~~(s/3600)}h ago`,online:false};
+  return {label:`Last seen ${~~(s/86400)}d ago`,online:false};
 };
 const getRateUSD = (l, btcPrice) => {
   if (l.pricing_type==='fixed') { const s=parseFloat(l.bitcoin_price||0); if(s>100) return s; }
@@ -147,7 +143,6 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
   const fb      = parseInt(u.total_feedback_count??u.feedback_count??0);
   const verif   = isVerified(u);
   const payInfo = getPayInfo(listing||{});
-  const flag    = getFlag(listing||{});
   const margin  = parseFloat(listing?.margin||0);
   const cur     = listing?.currency||'USD';
   const sym     = listing?.currency_symbol||CUR_SYM[cur]||'$';
@@ -185,7 +180,9 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
                   style={{backgroundColor:badge.color, color:'#fff'}}>
                   {badge.icon} {badge.label}
                 </span>
-                <span className="text-xs text-white/60">{flag} {u.country||listing?.country_name||''}</span>
+                <span className="text-xs text-white/60">
+                  <CountryFlag className="w-3 h-2 inline-block mr-1" /> {u.country||listing?.country_name||''}
+                </span>
               </div>
             </div>
           </div>
@@ -203,11 +200,16 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
               </div>
             ))}
           </div>
+          <div className="mt-2 text-center">
+            <p className="text-white font-black text-xs">
+              👍 {fmt(u.positive_feedback||0)} · 👎 {fmt(u.negative_feedback||0)} · {fmt(trades)} Trades
+            </p>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b" style={{borderColor:C.g200}}>
-          {[['rules','📋 Trade Rules'],['offer','📊 Offer']].map(([t,l])=>(
+          {[['rules','📋 Trade Rules'],['offer','📊 Offer'],['trade','💱 Trade Display']].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)}
               className="flex-1 py-2.5 text-xs font-bold transition"
               style={{color:tab===t?C.green:C.g500, borderBottom:tab===t?`2px solid ${C.green}`:'2px solid transparent', backgroundColor:tab===t?`${C.green}05`:'transparent'}}>
@@ -257,14 +259,14 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
                 <p className="text-[9px] text-red-600">Never pay outside the platform. Escrow protects every trade.</p>
               </div>
             </div>
-          ) : (
+          ) : tab==='offer' ? (
             <div className="space-y-2">
               {[
                 {label:'Offer Type',  value:'🟢 Sell Bitcoin'},
-                {label:'Country',     value:`${flag} ${listing?.country_name||u.country||'—'}`},
+                {label:'Country',     value:<><CountryFlag className="w-4 h-3 inline-block mr-1" />{listing?.country_name||u.country||'—'}</>},
                 {label:'Payment',     value:`${payInfo.icon} ${payInfo.name}`},
                 {label:'Rate / BTC',  value:`${sym}${fmt(rateUSD*usdRate)} ${cur}`},
-                {label:'Margin',      value:margin===0?'Market rate':margin>0?`+${margin}% above market`:`${margin}% below market`},
+                {label:'Margin',      value:margin===0?'At market':margin>0?`+${margin}% above market`:`${margin}% below market`},
                 {label:'Trade range', value:listing?.min_limit_local&&listing?.max_limit_local
                   ? `${sym}${fmt(listing.min_limit_local)} — ${sym}${fmt(listing.max_limit_local)} ${cur}`
                   : `$${listing?.min_limit_usd||10} — $${listing?.max_limit_usd||1000}`},
@@ -276,6 +278,16 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
                   <span className="font-bold" style={{color:C.g800}}>{value}</span>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <TradeDisplay
+                usdAmount={100}
+                sellerRate={rateUSD}
+                paymentMethod={listing?.payment_method || 'mtn'}
+                localCurrency={cur}
+                exchangeRate={usdRate}
+              />
             </div>
           )}
         </div>
@@ -317,7 +329,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
   const trades  = getTrades(u);
   const rating  = parseFloat(u.average_rating||0);
   const payInfo = getPayInfo(listing);
-  const flag    = getFlag(listing);
   const margin  = parseFloat(listing.margin||0);
   const cur     = listing.currency||'USD';
   const sym     = listing.currency_symbol||CUR_SYM[cur]||'$';
@@ -358,21 +369,23 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
                 className="font-black text-xs hover:underline" style={{color:C.g800}}>
                 {u.username||'Seller'}
               </button>
-              <span className="text-sm leading-none">{flag}</span>
+              <CountryFlag className="w-4 h-3" />
               {/* Real badge — from profile.badge or derived from trades */}
               <span className="text-[8px] font-black px-1.5 py-0.5 rounded-sm"
                 style={{backgroundColor:badge.color, color:'#fff'}}>
-                {badge.label}
+                {badge.icon} {badge.label}
               </span>
               {verif && <BadgeCheck size={10} style={{color:C.paid}}/>}
             </div>
-            {/* Real data from DB */}
-            <div className="flex items-center gap-1 text-[9px] mt-0.5 text-gray-500">
-              <span style={{color:C.success}}>👍 {completion.toFixed(0)}%</span>
-              <span className="text-gray-300">·</span>
-              <span>{fmt(trades)} Trades</span>
-              <span className="text-gray-300">·</span>
-              <span style={{color:seen.online?C.online:C.g400}}>{seen.label}</span>
+            {/* Real data from DB with feedback counts */}
+            <div className="flex items-center gap-1.5 text-[9px] mt-1 text-gray-700 flex-wrap font-black">
+              <span className="font-black" style={{color:C.success}}>👍 {u.positive_feedback || 0}</span>
+              <span className="text-gray-400">·</span>
+              <span className="font-black" style={{color:C.danger}}>👎 {u.negative_feedback || 0}</span>
+              <span className="text-gray-400">·</span>
+              <span className="font-black text-gray-700">{fmt(trades)} Trades</span>
+              <span className="text-gray-400">·</span>
+              <span style={{color:seen.online?C.online:C.g400}} className="font-black">{seen.label}</span>
             </div>
           </div>
 
@@ -387,9 +400,9 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
       {/* ── ROW 2: Pay / Receive ─────────────────────────────────────────── */}
       <div className="px-3 py-2 border-b grid grid-cols-2 gap-2" style={{borderColor:C.g100}}>
         <div>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Pay {payInfo.short}</p>
+          <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:'#000000'}}>Pay <span className="font-black text-xs">{payInfo.short}</span></p>
           <div className="flex items-center gap-1">
-            <span className="text-[10px] font-semibold" style={{color:C.g500}}>{sym}</span>
+            <span className="text-[10px] font-black" style={{color:C.g500}}>{sym}</span>
             <input
               type="number"
               value={payAmt}
@@ -400,15 +413,15 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
           </div>
         </div>
         <div className="border-l pl-2" style={{borderColor:C.g100}}>
-          <p className="text-[8px] text-gray-400 uppercase tracking-wide mb-0.5">Receive BTC</p>
-          <p className="text-xs font-black" style={{color:C.g700}}>₿ {fBtc(btcOut)}</p>
+          <p className="text-[8px] text-gray-700 font-black uppercase tracking-wide mb-0.5">Receive BTC</p>
+          <p className="text-xs font-black" style={{color:C.g800}}>₿ {fBtc(btcOut)}</p>
         </div>
       </div>
 
       {/* ── ROW 3: Rate + margin + range ─────────────────────────────────── */}
       <div className="px-3 py-2 border-b" style={{borderColor:C.g100}}>
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-xs font-black" style={{color:C.g800}}>
+          <span className="text-xs font-black" style={{color:'#FF0000'}}>
             ₿ {sym}{fmt(rateLocal)} {cur}
           </span>
           <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm"
@@ -456,6 +469,7 @@ export default function BuyBitcoin({user}) {
   const [liked, setLiked]             = useState(new Set());
   const [buyAmt, setBuyAmt]           = useState('');
   const countryRef = useRef(null);
+  const [search, setSearch]           = useState('');
 
   useEffect(()=>{ fetchRates(); loadListings(); },[]);
   useEffect(()=>{
@@ -495,6 +509,7 @@ export default function BuyBitcoin({user}) {
     if (buyAmt && parseFloat(buyAmt)>0) {
       const a=parseFloat(buyAmt); list=list.filter(l=>a>=(l.min_limit_usd||0)&&a<=(l.max_limit_usd||999999));
     }
+    if (search) list = list.filter(l => (l.users?.username||'').toLowerCase().includes(search.toLowerCase()));
     const rate=l=>getRateUSD(l,btcPrice);
     if (sortBy==='rate_low')  list.sort((a,b)=>rate(a)-rate(b));
     else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
@@ -570,6 +585,17 @@ export default function BuyBitcoin({user}) {
         {/* ── FILTER BAR ─────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border p-3" style={{borderColor:C.g200}}>
           <div className="flex flex-wrap gap-2 items-end">
+            {/* Search */}
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Search Seller</label>
+              <div className="relative mt-0.5">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:C.g400}}/>
+                <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Seller name"
+                  className="w-full pl-8 pr-2 py-2 text-xs border-2 rounded-lg focus:outline-none"
+                  style={{borderColor:search?C.green:C.g200}}/>
+              </div>
+            </div>
+
             {/* Amount */}
             <div className="flex-1 min-w-[120px]">
               <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Amount (USD)</label>
@@ -612,14 +638,21 @@ export default function BuyBitcoin({user}) {
             </div>
 
             {/* Payment */}
-            <div>
-              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Payment</label>
-              <select value={selPayment} onChange={e=>setSelPayment(e.target.value)}
-                className="mt-0.5 px-2.5 py-2 text-xs border-2 rounded-lg focus:outline-none block"
-                style={{borderColor:selPayment!=='all'?C.green:C.g200}}>
-                {PAYMENT_FILTERS.map(p=><option key={p.value} value={p.value}>{p.icon} {p.label}</option>)}
-              </select>
-            </div>
+          
+<div>
+  <label className="text-[9px] font-black uppercase tracking-wide" style={{color: C.g500}}>Payment</label>
+  <select 
+    value={selPayment} 
+    onChange={e => setSelPayment(e.target.value)}
+    className="mt-0.5 px-2.5 py-2 text-xs border-2 rounded-lg focus:outline-none block"
+    style={{borderColor: selPayment !== 'all' ? C.green : C.g200}}
+  >
+    <option value="all">💳 All Methods</option>
+    <option value="mtn">📱 MTN Mobile Money</option>
+    <option value="vodafone">📱 Vodafone Cash</option>
+    <option value="airteltigo">📱 AirtelTigo</option>
+  </select>
+</div>
 
             {/* Sort */}
             <div>

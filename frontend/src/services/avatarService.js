@@ -1,12 +1,12 @@
 ﻿// src/services/avatarService.js
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabaseClient';
 
 export const uploadAvatar = async (userId, file) => {
   try {
     // Create unique file name
     const fileExt = file.name.split('.').pop();
-    const fileName = ${userId}_.;
-    const filePath = vatars/;
+    const fileName = `${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
     
     console.log('Uploading to path:', filePath);
     

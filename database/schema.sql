@@ -395,3 +395,136 @@ AFTER UPDATE ON trades
 FOR EACH ROW
 WHEN (OLD.status != 'COMPLETED' AND NEW.status = 'COMPLETED')
 EXECUTE FUNCTION trigger_update_trade_count();
+
+-- ============================================
+-- ADD MISSING USER FIELDS FOR FEEDBACK SYSTEM
+-- ============================================
+
+-- Add feedback fields to users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS positive_feedback INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS negative_feedback INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS total_feedback_count INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS badge VARCHAR(50) DEFAULT 'BEGINNER';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(100) UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS total_referrals INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings_btc DECIMAL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS website VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_moderator BOOLEAN DEFAULT false;
+
+-- ============================================
+-- AFFILIATE SYSTEM TABLES
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS affiliate_earnings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  referred_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  trade_id UUID REFERENCES trades(id) ON DELETE SET NULL,
+  commission_btc DECIMAL NOT NULL,
+  commission_usd DECIMAL NOT NULL,
+  status VARCHAR(50) DEFAULT 'PENDING', -- PENDING, COMPLETED, CANCELLED
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  paid_at TIMESTAMP
+);
+
+-- Indexes for affiliate system
+CREATE INDEX idx_affiliate_earnings_referrer_id ON affiliate_earnings(referrer_id);
+CREATE INDEX idx_affiliate_earnings_referred_user_id ON affiliate_earnings(referred_user_id);
+CREATE INDEX idx_affiliate_earnings_status ON affiliate_earnings(status);
+
+-- ============================================
+-- FUNCTIONS FOR FEEDBACK CALCULATION
+-- ============================================
+
+-- Function to update user feedback counts
+CREATE OR REPLACE FUNCTION update_user_feedback_counts(user_id UUID)
+RETURNS VOID AS $$
+DECLARE
+  pos_count INT;
+  neg_count INT;
+BEGIN
+  -- Count positive reviews (rating >= 4)
+  SELECT COUNT(*) INTO pos_count FROM reviews 
+  WHERE reviewee_id = user_id AND rating >= 4;
+  
+  -- Count negative reviews (rating <= 2)
+  SELECT COUNT(*) INTO neg_count FROM reviews 
+  WHERE reviewee_id = user_id AND rating <= 2;
+  
+  -- Update user feedback counts
+  UPDATE users 
+  SET positive_feedback = pos_count,
+      negative_feedback = neg_count,
+      total_feedback_count = pos_count + neg_count
+  WHERE id = user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update feedback counts when review is created
+CREATE OR REPLACE FUNCTION trigger_update_feedback_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM update_user_feedback_counts(NEW.reviewee_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_review_created_update_feedback
+AFTER INSERT ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION trigger_update_feedback_counts();
+
+-- ============================================
+-- UPDATE EXISTING USER 'ken' WITH FEEDBACK DATA
+-- ============================================
+
+-- Update the user 'ken' with feedback data
+UPDATE users 
+SET 
+  positive_feedback = 5000,
+  negative_feedback = 0,
+  total_feedback_count = 5000,
+  total_trades = 100,
+  average_rating = 4.8,
+  completion_rate = 98.5,
+  badge = 'AMBASSADOR',
+  referral_code = CASE WHEN referral_code IS NULL THEN CONCAT(username, '_', SUBSTRING(MD5(RANDOM()::TEXT), 1, 6)) ELSE referral_code END,
+  total_referrals = 25,
+  referral_earnings_btc = 0.025
+WHERE username = 'ken';
+
+-- If user 'ken' doesn't exist, create them
+INSERT INTO users (
+  email, password_hash, username, positive_feedback, negative_feedback, 
+  total_feedback_count, total_trades, average_rating, completion_rate, 
+  badge, referral_code, total_referrals, referral_earnings_btc
+)
+VALUES (
+  'ken@example.com', 
+  '$2b$10$dummy.hash.for.ken', 
+  'ken', 
+  5000, 
+  0, 
+  5000, 
+  100, 
+  4.8, 
+  98.5, 
+  'AMBASSADOR', 
+  'ken_' || SUBSTRING(MD5(RANDOM()::TEXT), 1, 6), 
+  25, 
+  0.025
+)
+ON CONFLICT (username) DO UPDATE SET
+  positive_feedback = EXCLUDED.positive_feedback,
+  negative_feedback = EXCLUDED.negative_feedback,
+  total_feedback_count = EXCLUDED.total_feedback_count,
+  total_trades = EXCLUDED.total_trades,
+  average_rating = EXCLUDED.average_rating,
+  completion_rate = EXCLUDED.completion_rate,
+  badge = EXCLUDED.badge,
+  total_referrals = EXCLUDED.total_referrals,
+  referral_earnings_btc = EXCLUDED.referral_earnings_btc;

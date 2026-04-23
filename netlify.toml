@@ -5,8 +5,9 @@
 
 [build.environment]
   CI = "false"
+  SECRETS_SCAN_OMIT_KEYS = "REACT_APP_SUPABASE_ANON_KEY,REACT_APP_SUPABASE_URL,REACT_APP_EXCHANGE_RATE_API_KEY"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200 
+  status = 200

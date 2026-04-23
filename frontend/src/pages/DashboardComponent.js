@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 const C = {
@@ -86,7 +86,7 @@ export default function Dashboard({ user }) {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const response = await fetch("http://localhost:5000/api/hd-wallet/wallet", {
+        const response = await fetch(`${API_URL}/hd-wallet/wallet`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await response.json();

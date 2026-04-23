@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const PRAQEN = {
   primary: '#2D5F4F', secondary: '#FFD700', darkBg: '#1a3a2a', lightBg: '#f0f8f5',

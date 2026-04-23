@@ -19,7 +19,7 @@ const PAYMENT_FILTERS = [
   {value:'airteltigo', label:'AirtelTigo', icon:'📱'},
 ];
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // ─── Minimal color palette — whites, grays, one green accent ─────────────────
 const C = {

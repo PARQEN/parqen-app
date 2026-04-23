@@ -242,7 +242,7 @@ export default function CreateOffer() {
     // Fetch wallet balance so we can enforce limits
     const token = localStorage.getItem('token');
     if (token) {
-      axios.get('http://localhost:5000/api/user/balance', {
+      axios.get(`${API_URL}/user/balance`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => setWalletBal({ btc: parseFloat(r.data.balance_btc||0), usd: parseFloat(r.data.balance_usd||0) }))
         .catch(() => {});

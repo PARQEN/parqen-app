@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Shield, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const C = {
   forest: '#1B4332',

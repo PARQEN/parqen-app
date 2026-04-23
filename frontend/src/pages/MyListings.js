@@ -12,7 +12,7 @@ import {
   AlertTriangle, Copy, Zap, Minus, Share2,
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const C = {
   forest:'#1B4332', green:'#2D6A4F', mint:'#40916C', sage:'#52B788',

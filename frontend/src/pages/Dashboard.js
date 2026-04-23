@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // ─── Color palette ─────────────────────────────────────────────────────────────
 const C = {

@@ -12,7 +12,7 @@ import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 import ActiveTradeBanner from '../components/ActiveTradeBanner';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // ── Clean neutral palette — no excessive colors ───────────────────────────────
 const C = {

@@ -1,208 +1,619 @@
-const { Coinbase, Wallet } = require("@coinbase/coinbase-sdk");
-const db = require('../config/database');
+// services/tradeEscrowService.js
+// PRAQEN — Trade Escrow Service (Production Ready)
+// Replaces old Coinbase SDK with HD Wallet system
+// Handles: lock, release, refund, cancel, expired trades
+
+require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const hdWallet = require('./hdWalletService');
+
+// ── Supabase admin (bypasses RLS) ─────────────────────────────────────────────
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+);
+
+const FEE_RATE = 0.005; // 0.5% platform fee
 
 class TradeEscrowService {
-    constructor() {
-        this.masterWallet = null;
-        this.feePercent = 0.5; // 0.5% platform fee
+
+  constructor() {
+    this.feeRate = FEE_RATE;
+  }
+
+  // ── Helper: send in-app notification ───────────────────────────────────────
+  async notify(userId, type, title, message, action) {
+    try {
+      await supabaseAdmin.from('notifications').insert({
+        user_id:    userId,
+        type,
+        title,
+        message,
+        action:     action || '/my-trades',
+        is_read:    false,
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('[Escrow] Notification error:', e.message);
+    }
+  }
+
+  // ── Helper: log trade event to wallet_transactions ─────────────────────────
+  async logTransaction(userId, type, amountBtc, txHash, notes) {
+    try {
+      await supabaseAdmin.from('wallet_transactions').insert({
+        user_id:    userId,
+        type,
+        amount_btc: amountBtc,
+        status:     'CONFIRMED',
+        tx_hash:    txHash || null,
+        notes:      notes  || null,
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('[Escrow] Log transaction error:', e.message);
+    }
+  }
+
+  // ============================================================
+  // LOCK FUNDS IN ESCROW
+  // Called when trade is created
+  // Deducts from seller's PRAQEN wallet balance
+  // Generates unique escrow address for this trade
+  // ============================================================
+  async lockFundsInEscrow(tradeId, btcProviderId, amountBtc) {
+    console.log(`\n🔒 lockFundsInEscrow — Trade: ${tradeId.slice(0,8)}, BTC Provider: ${btcProviderId.slice(0,8)}, Amount: ${amountBtc} BTC`);
+
+    const amount = parseFloat(amountBtc);
+    if (!amount || amount <= 0) throw new Error('Invalid escrow amount');
+
+    // ── 1. Get BTC provider's current balance ──────────────────────────────
+    const { data: providerBal, error: balErr } = await supabaseAdmin
+      .from('user_balances')
+      .select('balance_btc')
+      .eq('user_id', btcProviderId)
+      .single();
+
+    if (balErr || !providerBal) throw new Error('BTC provider balance not found');
+
+    const currentBalance = parseFloat(providerBal.balance_btc || 0);
+
+    if (currentBalance < amount) {
+      throw new Error(
+        `Insufficient balance. Provider has ${currentBalance.toFixed(8)} BTC, needs ${amount.toFixed(8)} BTC`
+      );
     }
 
-    async initialize() {
-        if (this.masterWallet) return this.masterWallet;
-        
-        Coinbase.configure({
-            apiKeyName: process.env.CDP_API_KEY_NAME,
-            privateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    // ── 2. Generate unique escrow address for this trade ───────────────────
+    const escrowData    = hdWallet.generateEscrowAddress(tradeId);
+    const escrowAddress = escrowData.address;
+    const feeBtc        = parseFloat((amount * this.feeRate).toFixed(8));
+
+    console.log(`   Escrow address: ${escrowAddress}`);
+    console.log(`   Fee (0.5%):     ${feeBtc} BTC`);
+
+    // ── 3. Deduct from BTC provider's balance (locked into escrow) ─────────
+    const newBalance = parseFloat((currentBalance - amount).toFixed(8));
+
+    const { error: deductErr } = await supabaseAdmin
+      .from('user_balances')
+      .update({
+        balance_btc: newBalance,
+        updated_at:  new Date().toISOString(),
+      })
+      .eq('user_id', btcProviderId);
+
+    if (deductErr) throw new Error(`Failed to lock funds: ${deductErr.message}`);
+
+    // ── 4. Generate deterministic lock reference ────────────────────────────
+    const crypto = require('crypto');
+    const lockTxHash = 'ESCROW_LOCK_' + crypto
+      .createHash('sha256')
+      .update(`${tradeId}:${btcProviderId}:${amount}:${Date.now()}`)
+      .digest('hex')
+      .slice(0, 32)
+      .toUpperCase();
+
+    console.log(`🔒 Escrow lock reference: ${lockTxHash}`);
+
+    // ── 5. Create escrow_locks record ──────────────────────────────────────
+    const { error: lockErr } = await supabaseAdmin
+      .from('escrow_locks')
+      .insert({
+        trade_id:       tradeId,
+        seller_id:      btcProviderId,  // field name in DB; holds whoever provided BTC
+        amount_btc:     amount,
+        escrow_address: escrowAddress,
+        tx_hash:        lockTxHash,
+        status:         'LOCKED',
+        locked_at:      new Date().toISOString(),
+      });
+
+    if (lockErr) {
+      // Revert balance deduction if record creation fails
+      await supabaseAdmin.from('user_balances')
+        .update({ balance_btc: currentBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', btcProviderId);
+      throw new Error(`Failed to create escrow record: ${lockErr.message}`);
+    }
+
+    // ── 6. Update trade with escrow details ────────────────────────────────
+    const { error: tradeUpdateErr } = await supabaseAdmin
+      .from('trades')
+      .update({
+        status:                'FUNDS_LOCKED',
+        escrow_wallet_address: escrowAddress,
+        seller_btc_txhash:     lockTxHash,
+        escrow_amount:         amount,
+        platform_fee_btc:      feeBtc,
+        escrow_locked_at:      new Date().toISOString(),
+        expires_at:            new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      })
+      .eq('id', tradeId);
+
+    if (tradeUpdateErr) throw new Error(`Failed to update trade: ${tradeUpdateErr.message}`);
+
+    // ── 7. Log the lock ────────────────────────────────────────────────────
+    await this.logTransaction(btcProviderId, 'ESCROW_LOCK', amount, lockTxHash,
+      `Funds locked for trade #${tradeId.slice(0,8)}`);
+
+    console.log(`✅ Funds locked — ${amount} BTC from provider ${btcProviderId.slice(0,8)}`);
+
+    return {
+      success:      true,
+      escrowAddress,
+      lockTxHash,
+      amountLocked: amount,
+      feeBtc,
+      newBalance,
+      expiresAt:    new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    };
+  }
+
+  // ============================================================
+  // MARK AS PAID
+  // Called when buyer/seller marks payment as sent or received
+  // For BTC trades: buyer marks after sending fiat payment
+  // For gift card trades: seller marks after sending gift card code
+  // ============================================================
+  async markAsPaid(tradeId, userId) {
+    console.log(`\n💰 markAsPaid — Trade: ${tradeId.slice(0,8)}, User: ${userId.slice(0,8)}`);
+
+    const { data: trade, error } = await supabaseAdmin
+      .from('trades')
+      .select('*')
+      .eq('id', tradeId)
+      .single();
+
+    if (error || !trade) throw new Error('Trade not found');
+
+    // Determine if this is a gift card trade
+    let listingType = '';
+    if (trade.listing_id) {
+      const { data: listing } = await supabaseAdmin.from('listings').select('listing_type').eq('id', trade.listing_id).single();
+      listingType = listing?.listing_type || '';
+    }
+    const isGiftCardTrade = listingType.includes('GIFT_CARD');
+    
+    // Verify authorization
+    // For gift card: seller marks as paid (after sending code)
+    // For BTC: buyer marks as paid (after sending payment)
+    const authorizedId = isGiftCardTrade ? trade.seller_id : trade.buyer_id;
+    
+    if (String(userId) !== String(authorizedId)) {
+      throw new Error(
+        isGiftCardTrade 
+          ? 'Only the seller can mark as sent (gift card trades)'
+          : 'Only the buyer can mark as paid'
+      );
+    }
+
+    const allowed = ['CREATED', 'FUNDS_LOCKED', 'ESCROW', 'ACTIVE', 'OPEN'];
+    if (!allowed.includes(trade.status)) {
+      throw new Error(`Cannot mark as paid — trade status is ${trade.status}`);
+    }
+
+    await supabaseAdmin
+      .from('trades')
+      .update({
+        status:              'PAYMENT_SENT',
+        buyer_confirmed:     true,
+        buyer_confirmed_at:  new Date().toISOString(),
+      })
+      .eq('id', tradeId);
+
+    // Notify the other party
+    const notifyId = isGiftCardTrade ? trade.buyer_id : trade.seller_id;
+    const notifyMsg = isGiftCardTrade
+      ? `Seller sent the gift card code. Verify and release Bitcoin!`
+      : `Buyer confirmed payment. Please verify and release Bitcoin.`;
+    
+    await this.notify(
+      notifyId,
+      'trade',
+      '✅ Payment/Code Sent',
+      notifyMsg,
+      `/trade/${tradeId}`
+    );
+
+    console.log(`✅ Trade ${tradeId.slice(0,8)} marked as PAYMENT_SENT`);
+
+    return {
+      success: true,
+      message: 'Payment marked. Waiting for seller to verify and release Bitcoin.',
+    };
+  }
+
+  // ============================================================
+  // RELEASE BITCOIN TO BUYER
+  // Called when seller clicks "Release Bitcoin"
+  // Splits: 99.5% to buyer's PRAQEN wallet + 0.5% to PRAQEN fee wallet
+  // This is INTERNAL transfer (balance to balance) — no on-chain TX needed
+  // ============================================================
+  async releaseBitcoinToBuyer(tradeId, releaserId) {
+    const { data: tradeData, error: tradeError } = await supabaseAdmin
+        .from('trades')
+        .select('*')
+        .eq('id', tradeId)
+        .single();
+
+    if (tradeError || !tradeData) {
+        throw new Error('Trade not found');
+    }
+
+    // Detect gift card trade
+    let listingType = '';
+    if (tradeData.listing_id) {
+        const { data: listing } = await supabaseAdmin.from('listings').select('listing_type').eq('id', tradeData.listing_id).single();
+        listingType = listing?.listing_type || '';
+    }
+    // Simple rule: if listing includes GIFT_CARD, buyer (gift card purchaser) provides BTC
+    const isGiftCardTrade = listingType.includes('GIFT_CARD');
+
+
+
+    // Gift card trade: BUYER (Alice, BTC holder) releases after confirming code works
+    // BTC trade:       SELLER releases after confirming fiat payment received
+    const authorizedId = isGiftCardTrade ? tradeData.buyer_id : tradeData.seller_id;
+
+    console.log(`[release] trade=${tradeId.slice(0,8)} isGiftCard=${isGiftCardTrade} authorizedId=${String(authorizedId).slice(0,8)} releaserId=${String(releaserId).slice(0,8)} status=${tradeData.status}`);
+
+    if (String(authorizedId) !== String(releaserId)) {
+        throw new Error(
+            isGiftCardTrade
+                ? 'Unauthorized — only the card buyer can release Bitcoin'
+                : 'Unauthorized — only the seller can release Bitcoin'
+        );
+    }
+
+    const allowedStatuses = ['PAYMENT_SENT', 'PAID', 'FUNDS_LOCKED'];
+    if (!allowedStatuses.includes(tradeData.status)) {
+        throw new Error(`Cannot release — trade status is "${tradeData.status}". ${
+            isGiftCardTrade ? 'Card seller must send the code first.' : 'Buyer must confirm payment first.'
+        }`);
+    }
+
+    // Gift card trade: BTC goes to card SELLER (Kenneth)
+    // BTC trade:       BTC goes to BTC BUYER
+    const btcReceiverId = isGiftCardTrade ? tradeData.seller_id : tradeData.buyer_id;
+
+    if (!btcReceiverId) throw new Error('Cannot determine BTC receiver — trade has no buyer_id/seller_id');
+    if (!tradeData.amount_btc || parseFloat(tradeData.amount_btc) <= 0) {
+        throw new Error(`Invalid trade amount: ${tradeData.amount_btc}`);
+    }
+
+    const amount      = parseFloat(tradeData.amount_btc);
+    const buyerGets   = parseFloat((amount * 0.995).toFixed(8));
+    const platformFee = parseFloat((amount * 0.005).toFixed(8));
+
+    console.log(`💰 Releasing ${buyerGets} BTC → receiver: ${btcReceiverId.slice(0, 8)}`);
+
+    const crypto = require('crypto');
+    const releaseTxHash = 'ESCROW_RELEASE_' + crypto
+      .createHash('sha256')
+      .update(`${tradeId}:${btcReceiverId}:${buyerGets}:${Date.now()}`)
+      .digest('hex')
+      .slice(0, 32)
+      .toUpperCase();
+
+    console.log(`🔓 Release reference: ${releaseTxHash}`);
+
+    // ── Credit the BTC receiver's balance ─────────────────────────────────
+    const { data: currentBal } = await supabaseAdmin
+        .from('user_balances')
+        .select('balance_btc')
+        .eq('user_id', btcReceiverId)
+        .single();
+
+    const newReceiverBalance = parseFloat(
+        (parseFloat(currentBal?.balance_btc || 0) + buyerGets).toFixed(8)
+    );
+
+    const { error: balError } = await supabaseAdmin
+        .from('user_balances')
+        .upsert({
+            user_id:     btcReceiverId,
+            balance_btc: newReceiverBalance,
+            updated_at:  new Date().toISOString(),
         });
-        
-        this.masterWallet = await Wallet.fetch(process.env.MASTER_WALLET_ID);
-        return this.masterWallet;
+
+    if (balError) throw new Error(`Balance update failed: ${balError.message}`);
+
+    // ── Mark escrow lock as released ───────────────────────────────────────
+    await supabaseAdmin
+        .from('escrow_locks')
+        .update({ status: 'RELEASED', released_at: new Date().toISOString() })
+        .eq('trade_id', tradeId);
+
+    // ── Complete the trade ─────────────────────────────────────────────────
+    // NOTE: A DB trigger on trades may reference trades.referred_by (doesn't exist).
+    // Catch so the funds move succeeds regardless.
+    const { error: tradeUpdateError } = await supabaseAdmin
+        .from('trades')
+        .update({
+            status:            'COMPLETED',
+            completed_at:      new Date().toISOString(),
+            buyer_btc_txhash:  releaseTxHash,
+        })
+        .eq('id', tradeId);
+
+    if (tradeUpdateError) {
+        console.warn('⚠️  Trade status update failed (DB trigger issue):', tradeUpdateError.message);
     }
 
-    // Lock seller's funds in escrow when trade is created
-    async lockFundsInEscrow(tradeId, sellerId, amountBtc) {
-        await this.initialize();
-        
-        const sellerWallet = await db.query(
-            'SELECT btc_address FROM user_wallets WHERE user_id = $1',
-            [sellerId]
-        );
-        
-        if (!sellerWallet.rows[0]) {
-            throw new Error('Seller wallet not found');
-        }
+    // ── Log transaction for receiver ───────────────────────────────────────
+    await this.logTransaction(
+        btcReceiverId, 'ESCROW_RELEASE', buyerGets, releaseTxHash,
+        `Trade #${tradeId.slice(0, 8)} completed — BTC received`
+    );
 
-        // Create escrow address for this trade
-        const escrowAddress = await this.masterWallet.createAddress();
-        
-        // Calculate fee
-        const feeAmount = (amountBtc * this.feePercent) / 100;
-        
-        // Update trade with escrow details (using YOUR column names)
-        await db.query(
-            `UPDATE trades SET 
-                status = 'FUNDS_LOCKED',
-                escrow_wallet_address = $1,
-                escrow_amount = $2,
-                platform_fee_btc = $3,
-                expires_at = NOW() + INTERVAL '30 minutes',
-                escrow_locked_at = NOW()
-            WHERE id = $4`,
-            [escrowAddress.address, amountBtc, feeAmount, tradeId]
-        );
+    // ── Notify both parties ────────────────────────────────────────────────
+    await this.notify(
+        btcReceiverId, 'trade', '🎉 Bitcoin Released!',
+        `Trade #${tradeId.slice(0, 8).toUpperCase()} complete! ₿${buyerGets.toFixed(8)} added to your wallet.`,
+        `/trade/${tradeId}`
+    );
+    await this.notify(
+        releaserId, 'trade', '✅ Trade Complete',
+        `Trade #${tradeId.slice(0, 8).toUpperCase()} completed. 0.5% platform fee applied.`,
+        `/trade/${tradeId}`
+    );
 
-        return {
-            escrowAddress: escrowAddress.address,
-            feeAmount,
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000)
-        };
+    console.log(`✅ Trade ${tradeId.slice(0, 8)} COMPLETED — buyer received ${buyerGets} BTC`);
+
+    return {
+        success:          true,
+        txHash:           releaseTxHash,
+        btcReceived:      buyerGets,
+        platformFee:      platformFee,
+        receiverBalance:  newReceiverBalance,
+    };
+  }
+
+  // ============================================================
+  // CANCEL TRADE — refund seller
+  // Called by buyer cancel, auto-cancel, or dispute resolution
+  // ============================================================
+  async cancelTrade(tradeId, reason) {
+    console.log(`\n❌ cancelTrade — Trade: ${tradeId.slice(0,8)}, Reason: ${reason}`);
+
+    const { data: trade, error } = await supabaseAdmin
+      .from('trades')
+      .select('*')
+      .eq('id', tradeId)
+      .single();
+
+    if (error || !trade) throw new Error('Trade not found');
+
+    const cancellable = ['CREATED', 'FUNDS_LOCKED', 'ESCROW', 'ACTIVE', 'OPEN', 'PAYMENT_SENT'];
+    if (!cancellable.includes(trade.status)) {
+      return { success: false, message: `Trade cannot be cancelled — status is ${trade.status}` };
     }
 
-    // Buyer marks as paid
-    async markAsPaid(tradeId, buyerId) {
-        const trade = await db.query(
-            'SELECT * FROM trades WHERE id = $1 AND buyer_id = $2',
-            [tradeId, buyerId]
-        );
+    // ── Refund seller if funds were locked ─────────────────────────────────
+    const { data: escrow } = await supabaseAdmin
+      .from('escrow_locks')
+      .select('*')
+      .eq('trade_id', tradeId)
+      .single();
 
-        if (!trade.rows[0]) {
-            throw new Error('Trade not found or unauthorized');
-        }
+    if (escrow && escrow.status === 'LOCKED') {
+      const refundAmount = parseFloat(escrow.amount_btc || trade.escrow_amount || trade.amount_btc || 0);
 
-        await db.query(
-            `UPDATE trades SET 
-                status = 'PAID',
-                paid_at = NOW()
-            WHERE id = $1`,
-            [tradeId]
-        );
+      // escrow.seller_id holds the btcProviderId (buyer in gift card trades, seller in BTC trades)
+      const btcProviderId = escrow.seller_id || trade.seller_id;
 
-        return { success: true, message: 'Marked as paid. Waiting for seller confirmation.' };
+      const { data: providerBal } = await supabaseAdmin
+        .from('user_balances')
+        .select('balance_btc')
+        .eq('user_id', btcProviderId)
+        .single();
+
+      const newProviderBalance = parseFloat((parseFloat(providerBal?.balance_btc || 0) + refundAmount).toFixed(8));
+
+      await supabaseAdmin
+        .from('user_balances')
+        .update({
+          balance_btc: newProviderBalance,
+          updated_at:  new Date().toISOString(),
+        })
+        .eq('user_id', btcProviderId);
+
+      // Mark escrow as refunded
+      await supabaseAdmin
+        .from('escrow_locks')
+        .update({ status: 'REFUNDED', released_at: new Date().toISOString() })
+        .eq('trade_id', tradeId);
+
+      await this.logTransaction(btcProviderId, 'ESCROW_RELEASE', refundAmount, null,
+        `Refund for cancelled trade #${tradeId.slice(0,8)}`);
+
+      console.log(`   Refunded ${refundAmount} BTC to provider ${btcProviderId.slice(0,8)}`);
     }
 
-    // Seller confirms payment - release Bitcoin to buyer
-    async releaseBitcoinToBuyer(tradeId, sellerId) {
-        await this.initialize();
-        
-        const trade = await db.query(
-            `SELECT t.*, uw.btc_address as buyer_address 
-            FROM trades t
-            JOIN user_wallets uw ON uw.user_id = t.buyer_id
-            WHERE t.id = $1 AND t.seller_id = $2`,
-            [tradeId, sellerId]
-        );
+    // ── Update trade status ────────────────────────────────────────────────
+    await supabaseAdmin
+      .from('trades')
+      .update({
+        status:        'CANCELLED',
+        cancel_reason: reason || 'Trade cancelled',
+        cancelled_at:  new Date().toISOString(),
+      })
+      .eq('id', tradeId);
 
-        if (!trade.rows[0]) {
-            throw new Error('Trade not found or unauthorized');
-        }
-
-        if (trade.rows[0].status !== 'PAID') {
-            throw new Error('Buyer has not marked as paid yet');
-        }
-
-        const tradeData = trade.rows[0];
-        const buyerGets = tradeData.amount_btc;
-        const platformFee = tradeData.platform_fee_btc || 0;
-
-        // Send Bitcoin to buyer
-        const buyerTransfer = await this.masterWallet.createTransfer({
-            amount: buyerGets,
-            assetId: Coinbase.assets.Btc,
-            destination: tradeData.buyer_address,
-        });
-
-        // Update trade status
-        await db.query(
-            `UPDATE trades SET 
-                status = 'COMPLETED',
-                completed_at = NOW(),
-                buyer_btc_txhash = $1,
-                fee_status = 'COLLECTED',
-                fee_collected_at = NOW()
-            WHERE id = $2`,
-            [buyerTransfer.transactionHash, tradeId]
-        );
-
-        // Update buyer balance
-        await db.query(
-            `UPDATE user_wallets SET 
-                balance_btc = balance_btc + $1,
-                updated_at = NOW()
-            WHERE user_id = $2`,
-            [buyerGets, tradeData.buyer_id]
-        );
-
-        return {
-            success: true,
-            buyerTxHash: buyerTransfer.transactionHash,
-            buyerReceived: buyerGets,
-            platformFee: platformFee
-        };
+    // Notify both parties
+    for (const uid of [trade.buyer_id, trade.seller_id]) {
+      await this.notify(uid, 'trade', '❌ Trade Cancelled',
+        `Trade #${tradeId.slice(0,8).toUpperCase()} cancelled. ${reason || ''}`,
+        `/trade/${tradeId}`);
     }
 
-    // Cancel expired trade - return funds to seller
-    async cancelExpiredTrade(tradeId) {
-        await this.initialize();
-        
-        const trade = await db.query(
-            `SELECT t.*, uw.btc_address as seller_address 
-            FROM trades t
-            JOIN user_wallets uw ON uw.user_id = t.seller_id
-            WHERE t.id = $1 
-            AND t.status IN ('CREATED', 'FUNDS_LOCKED', 'PAID') 
-            AND t.expires_at < NOW()`,
-            [tradeId]
-        );
+    console.log(`✅ Trade ${tradeId.slice(0,8)} cancelled`);
 
-        if (!trade.rows[0]) {
-            return { success: false, message: 'Trade not found or not expired' };
-        }
+    return {
+      success: true,
+      message: `Trade cancelled. ${escrow ? 'Funds returned to seller.' : ''}`,
+    };
+  }
 
-        const tradeData = trade.rows[0];
-        const refundAmount = tradeData.escrow_amount || tradeData.amount_btc;
+  // ============================================================
+  // CANCEL EXPIRED TRADE (auto-cancel)
+  // Called by timer or manual trigger
+  // ============================================================
+  async cancelExpiredTrade(tradeId) {
+    return this.cancelTrade(tradeId, 'Trade expired — time limit reached');
+  }
 
-        // Refund Bitcoin to seller
-        const refundTransfer = await this.masterWallet.createTransfer({
-            amount: refundAmount,
-            assetId: Coinbase.assets.Btc,
-            destination: tradeData.seller_address,
-        });
+  // ============================================================
+  // PROCESS ALL EXPIRED TRADES
+  // Called by a cron job or on server startup
+  // ============================================================
+  async processExpiredTrades() {
+    const { data: expired, error } = await supabaseAdmin
+      .from('trades')
+      .select('id')
+      .in('status', ['CREATED', 'FUNDS_LOCKED', 'PAYMENT_SENT'])
+      .lt('expires_at', new Date().toISOString());
 
-        // Update trade status
-        await db.query(
-            `UPDATE trades SET 
-                status = 'CANCELLED',
-                cancelled_at = NOW(),
-                cancel_reason = 'Trade expired',
-                seller_btc_txhash = $1
-            WHERE id = $2`,
-            [refundTransfer.transactionHash, tradeId]
-        );
+    if (error || !expired || expired.length === 0) return 0;
 
-        return {
-            success: true,
-            message: 'Trade expired. Funds returned to seller.',
-            refundTxHash: refundTransfer.transactionHash
-        };
+    console.log(`[Escrow] Processing ${expired.length} expired trades...`);
+
+    let count = 0;
+    for (const t of expired) {
+      try {
+        await this.cancelExpiredTrade(t.id);
+        count++;
+        console.log(`✅ [Escrow] Trade ${t.id.slice(0,8)} auto-cancelled`);
+      } catch (e) {
+        console.error(`[Escrow] Failed to cancel ${t.id.slice(0,8)}:`, e.message);
+      }
     }
 
-    // Process all expired trades
-    async processExpiredTrades() {
-        const expiredTrades = await db.query(
-            `SELECT id FROM trades 
-            WHERE status IN ('CREATED', 'FUNDS_LOCKED', 'PAID') 
-            AND expires_at < NOW()`
-        );
+    return count;
+  }
 
-        for (const trade of expiredTrades.rows) {
-            await this.cancelExpiredTrade(trade.id);
-            console.log(`✅ Trade ${trade.id} expired and refunded`);
-        }
+  // ============================================================
+  // DISPUTE RESOLUTION
+  // Called by moderator — either buyer wins or seller wins
+  // ============================================================
+  async resolveDispute(tradeId, resolution, moderatorId, notes) {
+    console.log(`\n👨‍⚖️ resolveDispute — Trade: ${tradeId.slice(0,8)}, Resolution: ${resolution}`);
 
-        return expiredTrades.rows.length;
+    const { data: trade } = await supabaseAdmin
+      .from('trades')
+      .select('*')
+      .eq('id', tradeId)
+      .single();
+
+    if (!trade) throw new Error('Trade not found');
+
+    if (resolution === 'BUYER_WINS') {
+      // Release to buyer — same as normal release
+      await this.releaseBitcoinToBuyer(tradeId, trade.seller_id);
+
+      await supabaseAdmin.from('trades').update({
+        dispute_resolution: 'BUYER_WINS',
+        dispute_notes:      notes,
+        resolved_by:        moderatorId,
+        resolved_at:        new Date().toISOString(),
+      }).eq('id', tradeId);
+
+    } else if (resolution === 'SELLER_WINS') {
+      // Refund to seller — same as cancel
+      await this.cancelTrade(tradeId, `Dispute resolved — SELLER WINS. ${notes || ''}`);
+
+      await supabaseAdmin.from('trades').update({
+        status:             'COMPLETED',
+        dispute_resolution: 'SELLER_WINS',
+        dispute_notes:      notes,
+        resolved_by:        moderatorId,
+        resolved_at:        new Date().toISOString(),
+      }).eq('id', tradeId);
+
+    } else {
+      throw new Error(`Unknown resolution: ${resolution}. Use BUYER_WINS or SELLER_WINS`);
     }
+
+    console.log(`✅ Dispute resolved: ${resolution}`);
+    return { success: true, resolution, tradeId };
+  }
+
+  // ── Update trade stats for a user ─────────────────────────────────────────
+  async updateTradeStats(userId) {
+    try {
+      const { data: all } = await supabaseAdmin
+        .from('trades')
+        .select('status')
+        .or(`seller_id.eq.${userId},buyer_id.eq.${userId}`);
+
+      const total    = (all || []).filter(t => t.status === 'COMPLETED').length;
+      const rate     = all?.length > 0 ? Math.round((total / all.length) * 100) : 100;
+
+      await supabaseAdmin
+        .from('users')
+        .update({ total_trades: total, completion_rate: rate })
+        .eq('id', userId);
+    } catch (e) {
+      console.error('[Escrow] updateTradeStats error:', e.message);
+    }
+  }
+
+  // ── Handle affiliate commission ────────────────────────────────────────────
+  async createAffiliateEarning(tradeId, buyerId, amountBtc) {
+    try {
+      const { data: buyer } = await supabaseAdmin
+        .from('users').select('referred_by').eq('id', buyerId).single();
+      if (!buyer?.referred_by) return;
+
+      const { data: referrer } = await supabaseAdmin
+        .from('users').select('total_referrals').eq('id', buyer.referred_by).single();
+
+      let rate = 0.1;
+      const count = referrer?.total_referrals || 0;
+      if (count >= 100) rate = 0.3;
+      else if (count >= 50) rate = 0.25;
+      else if (count >= 25) rate = 0.2;
+      else if (count >= 10) rate = 0.15;
+
+      const commissionBtc = parseFloat(amountBtc) * (rate / 100);
+
+      await supabaseAdmin.from('affiliate_earnings').insert({
+        referrer_id:       buyer.referred_by,
+        referred_user_id:  buyerId,
+        trade_id:          tradeId,
+        commission_btc:    commissionBtc,
+        trade_amount_btc:  amountBtc,
+        commission_rate:   rate,
+        status:            'COMPLETED',
+        created_at:        new Date().toISOString(),
+      });
+
+      console.log(`✅ [Escrow] Affiliate: ${commissionBtc.toFixed(8)} BTC to ${buyer.referred_by.slice(0,8)}`);
+    } catch (e) {
+      console.error('[Escrow] Affiliate error:', e.message);
+    }
+  }
 }
 
 module.exports = new TradeEscrowService();

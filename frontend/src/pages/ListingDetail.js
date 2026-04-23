@@ -1,48 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Star, Shield, Clock, AlertTriangle, Info, Bitcoin,
-  CheckCircle, ArrowRight, BadgeCheck, RefreshCw,
-  Lock, MessageCircle, Eye, CreditCard, Smartphone,
-  Building2, ChevronRight, X, Timer, Copy, Gift,
-  TrendingUp, DollarSign, MapPin, Calendar, Zap
+  Shield, Info,
+  ArrowRight, BadgeCheck, RefreshCw,
+  Lock, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import CountryFlag from '../components/CountryFlag';
 
 const API_URL = 'http://localhost:5000/api';
 
-// ─── Brand palette ────────────────────────────────────────────────────────────
 const C = {
   forest:'#1B4332', green:'#2D6A4F', mint:'#40916C', sage:'#52B788',
-  gold:'#F4A422', amber:'#F59E0B', mist:'#F0FAF5', white:'#FFFFFF',
+  gold:'#F4A422', mist:'#F0FAF5', white:'#FFFFFF',
   g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
   g300:'#CBD5E1', g400:'#94A3B8', g500:'#64748B',
   g600:'#475569', g700:'#334155', g800:'#1E293B',
   success:'#10B981', danger:'#EF4444', online:'#22C55E',
-  warn:'#F59E0B', paid:'#3B82F6', purple:'#8B5CF6',
-  teal:'#0D9488', coral:'#E85D4A',
+  warn:'#F59E0B', paid:'#3B82F6', teal:'#0D9488',
 };
 
-// ─── ISO → emoji flag ─────────────────────────────────────────────────────────
-function isoToFlag(code) {
-  if (!code || code.length !== 2) return '🌍';
-  return code.toUpperCase().replace(/./g, c =>
-    String.fromCodePoint(0x1F1E0 + c.charCodeAt(0) - 65)
-  );
-}
 
-// ─── Trust badge ──────────────────────────────────────────────────────────────
 const TRUST_MAP = {
-  LEGEND:     {label:'LEGEND',    icon:'👑', color:'#7C3AED'},
-  AMBASSADOR: {label:'AMBASSADOR',icon:'🌟', color:'#8B5CF6'},
-  EXPERT:     {label:'EXPERT',    icon:'💎', color:'#0EA5E9'},
-  PRO:        {label:'PRO',       icon:'⭐', color:'#10B981'},
-  ACTIVE:     {label:'ACTIVE',    icon:'🔥', color:'#F59E0B'},
-  BEGINNER:   {label:'NEW',       icon:'🆕', color:'#94A3B8'},
+  LEGEND:     { label:'LEGEND',     icon:'♛', iconColor:'#F4A422', textColor:'#1B4332', borderColor:'#A7F3D0', bg:'#ECFDF5' },
+  AMBASSADOR: { label:'AMBASSADOR', icon:'◈', iconColor:null,      textColor:'#FFFFFF',  borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#2D6A4F)' },
+  EXPERT:     { label:'EXPERT',     icon:'▲', iconColor:null,      textColor:'#FFFFFF',  borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#134E4A)' },
+  PRO:        { label:'PRO',        icon:'●', iconColor:null,      textColor:'#1B4332',  borderColor:'#2D6A4F', bg:'linear-gradient(135deg,#D1FAE5,#A7F3D0)' },
+  ACTIVE:     { label:'Active',     icon:'○', iconColor:null,      textColor:'#1B4332',  borderColor:'#6EE7B7', bg:'#F0FDF4' },
+  BEGINNER:   { label:'New',        icon:'·', iconColor:null,      textColor:'#64748B',  borderColor:'#CBD5E1', bg:'#F8FAFC' },
 };
 function deriveBadge(u) {
-  if (u?.badge && TRUST_MAP[u.badge]) return TRUST_MAP[u.badge];
+  if (u?.badge) {
+    const b = String(u.badge).toUpperCase();
+    if (TRUST_MAP[b]) return TRUST_MAP[b];
+  }
   const t = parseInt(u?.total_trades ?? 0), r = parseFloat(u?.average_rating ?? 0);
   if (t >= 500 && r >= 4.8) return TRUST_MAP.LEGEND;
   if (t >= 200 && r >= 4.5) return TRUST_MAP.EXPERT;
@@ -51,117 +44,109 @@ function deriveBadge(u) {
   return TRUST_MAP.BEGINNER;
 }
 
-const USD_RATES = {GHS:11.85,NGN:1580,KES:130,ZAR:18.5,UGX:3720,USD:1,GBP:0.79,EUR:0.92};
-const CUR_SYM   = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'};
-const fmt = (n,d=0) => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
-const fmtBtc = (n) => parseFloat(n||0).toFixed(8);
-const fmtAge = (d) => {
-  if (!d) return '—';
-  const s=(Date.now()-new Date(d))/1000;
-  if(s<300) return 'Active now';
-  if(s<3600) return `${~~(s/60)}m ago`;
-  if(s<86400) return `${~~(s/3600)}h ago`;
-  return `${~~(s/86400)}d ago`;
-};
+// USD_RATES is now provided by RatesContext — do NOT define a static object here
+const CUR_SYM   = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',TZS:'TSh',USD:'$',GBP:'£',EUR:'€',XAF:'CFA',XOF:'CFA'};
+const fmt    = (n,d=0) => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
+const fmtBtc = n => parseFloat(n||0).toFixed(8);
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-function Avatar({user, size=48, radius='rounded-2xl'}) {
-  const [err,setErr]=useState(false);
-  if(user?.avatar_url&&!err) return(
+function fmtAge(d) {
+  if (!d) return '—';
+  const s = (Date.now() - new Date(d)) / 1000;
+  if (s < 60)    return 'Active now';
+  if (s < 3600)  return `${~~(s/60)}m ago`;
+  if (s < 86400) return `${~~(s/3600)}h ago`;
+  return `${~~(s/86400)}d ago`;
+}
+
+function Avatar({ user, size=48 }) {
+  const [err, setErr] = useState(false);
+  if (user?.avatar_url && !err) return (
     <img src={user.avatar_url} alt={user.username||'user'} onError={()=>setErr(true)}
-      className={`object-cover flex-shrink-0 ${radius}`} style={{width:size,height:size}}/>
+      className="object-cover flex-shrink-0 rounded-2xl" style={{width:size,height:size}}/>
   );
-  return(
-    <div className={`flex-shrink-0 flex items-center justify-center font-black text-white ${radius}`}
+  return (
+    <div className="flex-shrink-0 flex items-center justify-center font-black text-white rounded-2xl"
       style={{width:size,height:size,backgroundColor:C.green,fontSize:size*0.38}}>
       {(user?.username||'?').charAt(0).toUpperCase()}
     </div>
   );
 }
 
-// ─── Payment icon resolver ────────────────────────────────────────────────────
-function getPaymentIcon(method) {
-  const m = String(method||'').toLowerCase();
-  if(m.includes('mtn')||m.includes('mobile')) return {icon:Smartphone,label:method,color:C.warn};
-  if(m.includes('vodafone'))                   return {icon:Smartphone,label:method,color:'#E50914'};
-  if(m.includes('mpesa')||m.includes('m-pesa'))return {icon:Smartphone,label:method,color:'#27AE60'};
-  if(m.includes('bank'))                       return {icon:Building2, label:method,color:C.paid};
-  if(m.includes('paypal'))                     return {icon:CreditCard, label:method,color:'#003087'};
-  if(m.includes('card')||m.includes('visa')||m.includes('physical'))
-                                               return {icon:CreditCard, label:method,color:C.purple};
-  return {icon:CreditCard,label:method||'Payment',color:C.g500};
-}
-
-// ─── Listing type config ──────────────────────────────────────────────────────
 function getListingConfig(listing) {
-  const type = listing?.listing_type||'';
-  const brand= listing?.gift_card_brand||listing?.giftCardBrand||'';
-  if(type.includes('GIFT')||brand) return {
-    label:'Gift Card Trade', color:C.teal, bg:C.tealLight||'#CCFBF1', icon:'🎁',
-    action:'Trade Gift Card', isBtcBuy:false,
-    tealLight:'#CCFBF1',
-  };
-  if(type==='SELL'||type==='SELL_BITCOIN') return {
-    label:'Buy Bitcoin', color:C.green, bg:C.mist, icon:'₿',
-    action:'Buy BTC', isBtcBuy:true,
-    tealLight:C.mist,
-  };
-  return {
-    label:'Sell Bitcoin', color:'#D97706', bg:'#FFFBEB', icon:'💰',
-    action:'Sell BTC', isBtcBuy:false,
-    tealLight:'#FFFBEB',
-  };
+  const type  = listing?.listing_type||'';
+  const brand = listing?.gift_card_brand||'';
+  if (type.includes('GIFT')||brand) return { label:'Gift Card Trade', color:C.teal,  bg:'#CCFBF1', icon:'🎁', action:'Trade Gift Card' };
+  if (type==='SELL'||type==='SELL_BITCOIN') return { label:'Buy Bitcoin', color:C.green, bg:C.mist,    icon:'₿',   action:'Buy BTC' };
+  return { label:'Sell Bitcoin', color:'#D97706', bg:'#FFFBEB', icon:'💰', action:'Sell BTC' };
 }
 
-export default function ListingDetail({user}) {
-  const {id}      = useParams();
-  const navigate  = useNavigate();
-  const [listing, setListing]     = useState(null);
-  const [seller,  setSeller]      = useState(null);
-  const [btcPrice,setBtcPrice]    = useState(68000);
-  const [loading, setLoading]     = useState(true);
-  const [payAmt,  setPayAmt]      = useState('');
-  const [submitting,setSubmitting]= useState(false);
-  const [showRules,setShowRules]  = useState(false);
+function pmLabel(raw) {
+  const m = String(raw||'').toLowerCase();
+  if (m.includes('mtn'))           return { icon:'📱', label:raw||'MTN Mobile Money' };
+  if (m.includes('vodafone'))      return { icon:'📱', label:raw||'Vodafone Cash' };
+  if (m.includes('mpesa')||m.includes('m-pesa')) return { icon:'📱', label:raw||'M-Pesa' };
+  if (m.includes('bank'))          return { icon:'🏦', label:raw||'Bank Transfer' };
+  if (m.includes('paypal'))        return { icon:'💰', label:raw||'PayPal' };
+  if (m.includes('opay'))          return { icon:'💳', label:'OPay' };
+  if (m.includes('palmpay'))       return { icon:'💳', label:'PalmPay' };
+  return { icon:'💳', label:raw||'Mobile Money' };
+}
+
+export default function ListingDetail({ user }) {
+  const { id }     = useParams();
+  const navigate   = useNavigate();
+  const { rates: USD_RATES, btcUsd: contextBtcUsd } = useRates();
+  const [listing,    setListing]    = useState(null);
+  const [seller,     setSeller]     = useState(null);
+  const [btcPrice,   setBtcPrice]   = useState(68000);
+  const [loading,    setLoading]    = useState(true);
+  const [payAmt,     setPayAmt]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [quote,       setQuote]       = useState(null);  // { quoteId, executableRate, expiresAt }
+  const [quoteFetching, setQuoteFetching] = useState(false);
 
   const isOwner = user && listing && user.id === listing.seller_id;
 
-  useEffect(()=>{ loadAll(); },[id]);
+  useEffect(() => { if (contextBtcUsd > 0) setBtcPrice(contextBtcUsd); }, [contextBtcUsd]);
+  useEffect(() => { loadAll(); }, [id]);
+
+  // Debounce quote fetch whenever the user changes the amount
+  useEffect(() => {
+    const num = parseFloat(payAmt) || 0;
+    if (!listing || num <= 0) { setQuote(null); return; }
+    const t = setTimeout(async () => {
+      setQuoteFetching(true);
+      try {
+        const r = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id });
+        setQuote({ quoteId: r.data.quoteId, executableRate: r.data.executableRate, expiresAt: Date.now() + r.data.expiresIn * 1000 });
+      } catch { setQuote(null); }
+      finally { setQuoteFetching(false); }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [payAmt, listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      // Load listing
       const r = await axios.get(`${API_URL}/listings/${id}`);
       const l = r.data.listing;
       setListing(l);
-
-      // Load seller profile
       if (l?.seller_id) {
-        try {
-          const sr = await axios.get(`${API_URL}/users/${l.seller_id}`);
-          setSeller(sr.data.user);
-        } catch {}
+        try { const sr = await axios.get(`${API_URL}/users/${l.seller_id}`); setSeller(sr.data.user); } catch {}
       }
-
-      // Fetch live BTC price
-      try {
-        const bp = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-        setBtcPrice(bp.data.bitcoin.usd);
-      } catch {}
-    } catch(e) {
-      toast.error('Failed to load listing');
-    } finally {
-      setLoading(false);
-    }
+      // Track marketplace view (fire-and-forget — never blocks page load)
+      axios.post(`${API_URL}/listings/${id}/view`).catch(() => {});
+      // BTC price is now managed by RatesContext (Coinbase, auto-refreshed)
+    } catch { toast.error('Failed to load listing'); }
+    finally { setLoading(false); }
   };
 
-  if(loading) return(
+  if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
-      <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{borderColor:C.sage,borderTopColor:'transparent'}}/>
+      <div className="w-10 h-10 border-4 rounded-full animate-spin" style={{borderColor:C.sage,borderTopColor:'transparent'}}/>
     </div>
   );
-  if(!listing) return(
+  if (!listing) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
       <div className="text-center">
         <p className="text-4xl mb-3">🔍</p>
@@ -171,83 +156,91 @@ export default function ListingDetail({user}) {
     </div>
   );
 
-  // ── Derived data ─────────────────────────────────────────────────────────────
-  const cfg       = getListingConfig(listing);
-  const badge     = deriveBadge(seller);
-  const flag      = isoToFlag(listing.country||seller?.country||'');
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const cfg    = getListingConfig(listing);
+  const badge  = deriveBadge(seller);
+  const countryCode = (seller?.country_code || seller?.country || 'gh').toLowerCase();
 
-  // Listing currency (what the seller priced in)
-  const cur       = listing.currency||'USD';
-  const sym       = listing.currency_symbol||CUR_SYM[cur]||'$';
-  const usdRate   = USD_RATES[cur]||1; // how many local = 1 USD
+  const cur      = listing.currency || 'USD';
+  const sym      = listing.currency_symbol || CUR_SYM[cur] || '$';
+  const usdRate  = USD_RATES[cur] || 1;
+  const margin   = parseFloat(listing.margin || 0);
 
-  // Always show GHS equivalent for African users
-  const GHS_RATE  = 11.85; // 1 USD = 11.85 GHS
-  const ghsSym    = '₵';
-
-  const margin    = parseFloat(listing.margin||0);
-
-  // ── CORRECT RATE: seller's rate ALWAYS includes margin ─────────────────────
-  // market: live_price × (1 + margin/100)
-  // fixed:  listing.bitcoin_price × (1 + margin/100)  ← margin still applies!
-  const basePriceUSD = (listing.pricing_type==='fixed' && parseFloat(listing.bitcoin_price||0) > 100)
-    ? parseFloat(listing.bitcoin_price)
+  // Logic Sync: Calculate base price exactly as backend quotes endpoint should.
+  // If fixed, use the fixed price. If market, use live btcPrice.
+  const basePriceUSD    = (listing.pricing_type === 'fixed' && parseFloat(listing.bitcoin_price||0) > 100)
+    ? parseFloat(listing.bitcoin_price) 
     : btcPrice;
-  const sellerRateUSD   = basePriceUSD * (1 + margin / 100); // USD per BTC at seller's rate
-  const sellerRateLocal = sellerRateUSD * usdRate;            // local currency per BTC
+  
+  const sellerRateUSD   = basePriceUSD * (1 + margin / 100);
+  const sellerRateLocal = sellerRateUSD * usdRate;
 
-  // Limits — convert to BOTH local currency and USD for display
-  const minLocal  = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd * usdRate : 10 * usdRate);
-  const maxLocal  = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 1000 * usdRate);
-  const minUSD    = listing.min_limit_usd   || Math.round(minLocal / usdRate);
-  const maxUSD    = listing.max_limit_usd   || Math.round(maxLocal / usdRate);
+  const minLocal = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd * usdRate : 10 * usdRate);
+  const maxLocal = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 1000 * usdRate);
 
-  // ── AMOUNT INPUT ────────────────────────────────────────────────────────────
-  // User types in the LISTING currency (USD if listing.currency = 'USD')
   const payAmtNum = parseFloat(payAmt) || 0;
 
-  // BTC = localAmount ÷ sellerRate  (DIVIDE, never multiply)
-  // e.g. $100 ÷ $85,084/BTC = 0.001175 BTC ✓  (at +5% margin)
-  const btcGross    = payAmtNum > 0 && sellerRateLocal > 0 ? payAmtNum / sellerRateLocal : 0;
-  const feeBtc      = btcGross * 0.005;
-  const btcAfterFee = btcGross - feeBtc;
+  // Use the frozen quote rate when available; fall back to live rate for preview if no quote yet
+  const activeRate   = quote ? quote.executableRate : sellerRateLocal;
 
-  // Dual-currency conversions for display
-  const payInUSD  = cur === 'USD' ? payAmtNum : payAmtNum / usdRate; // convert local → USD
-  const payInGHS  = payInUSD * GHS_RATE;                              // USD → GHS
-  const recvInUSD = btcAfterFee * sellerRateUSD;                      // BTC → USD at seller rate
-  const recvInGHS = recvInUSD * GHS_RATE;                             // USD → GHS
+  const btcGross    = payAmtNum > 0 && activeRate > 0 ? payAmtNum / activeRate : 0;
+  const btcAfterFee = btcGross * 0.995;
 
-  // Payment method
-  const pmRaw  = listing.payment_method||(Array.isArray(listing.payment_methods)?listing.payment_methods[0]:'')||'';
-  const pmInfo = getPaymentIcon(pmRaw);
-  const PmIcon = pmInfo.icon;
+  // CORRECT fiat equivalent calculation: localAmount / (1 + margin/100)
+  const fiatEquivalent = payAmtNum > 0 ? payAmtNum / (1 + margin / 100) : 0;
 
-  // Seller stats
-  const sellerTrades   = parseInt(seller?.total_trades||0);
-  const sellerRating   = parseFloat(seller?.average_rating||0);
-  const completionRate = parseFloat(seller?.completion_rate||98);
-  const lastSeen       = fmtAge(seller?.last_login||seller?.updated_at);
-  const isOnline       = seller?.last_login && (Date.now()-new Date(seller.last_login))/1000 < 300;
-  const positivePct    = Math.round(completionRate);
+  const pm       = pmLabel(listing.payment_method || (Array.isArray(listing.payment_methods) ? listing.payment_methods[0] : ''));
+  const pmRaw    = listing.payment_method || (Array.isArray(listing.payment_methods) ? listing.payment_methods[0] : '') || '';
+
+  const trades         = parseInt(seller?.total_trades || 0);
+  const reviews        = parseInt(seller?.review_count || seller?.total_reviews || trades);
+  const lastSeen       = fmtAge(seller?.last_login || seller?.updated_at);
+  const isOnline       = seller?.last_login && (Date.now() - new Date(seller.last_login)) / 1000 < 300;
+  const posFeedback    = parseInt(seller?.positive_feedback || 0);
+  const negFeedback    = parseInt(seller?.negative_feedback || 0);
+  const responseTime   = seller?.avg_response_time || '<1m';
+
 
   const handleStartTrade = async () => {
-    if (!user) { toast.info('Please login to start trading'); navigate('/login'); return; }
-    if (isOwner) { toast.info('This is your listing'); return; }
-    if (!payAmt || payAmtNum <= 0) { toast.error('Enter an amount to trade'); return; }
-    if (payAmtNum < minLocal) { toast.error(`Minimum is ${sym}${fmt(minLocal)}`); return; }
-    if (payAmtNum > maxLocal) { toast.error(`Maximum is ${sym}${fmt(maxLocal)}`); return; }
-    if (user.id === listing.seller_id) { toast.error('You cannot trade with yourself'); return; }
-    if (btcGross <= 0 || !isFinite(btcGross)) { toast.error('Invalid amount — please try again'); return; }
+    if (!user)                           { toast.info('Please login to start trading'); navigate('/login'); return; }
+    if (isOwner)                         { toast.info('This is your listing'); return; }
+    if (!payAmt || payAmtNum <= 0)       { toast.error('Enter an amount to trade'); return; }
+    if (payAmtNum < minLocal)            { toast.error(`Minimum is ${sym}${fmt(minLocal)}`); return; }
+    if (payAmtNum > maxLocal)            { toast.error(`Maximum is ${sym}${fmt(maxLocal)}`); return; }
+    if (btcGross <= 0 || !isFinite(btcGross)) { toast.error('Invalid amount'); return; }
 
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+
+      // Ensure we have a fresh, valid quote before creating the trade
+      let activeQuote = (quote && Date.now() < quote.expiresAt) ? quote : null;
+      if (!activeQuote) {
+        try {
+          const qr = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id });
+          activeQuote = { quoteId: qr.data.quoteId, executableRate: qr.data.executableRate, expiresAt: Date.now() + qr.data.expiresIn * 1000 };
+          setQuote(activeQuote);
+        } catch {
+          toast.error('Could not fetch a rate quote. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const lockedBtcGross    = payAmtNum / activeQuote.executableRate;
+      const lockedBtcAfterFee = lockedBtcGross * 0.995;
+
       const r = await axios.post(`${API_URL}/trades`, {
-        listingId:     listing.id || id,
-        amountBtc:     parseFloat(btcGross.toFixed(8)),
-        paymentMethod: pmRaw,
-        trade_type:    listing.listing_type?.includes('BUY') ? 'SELL' : 'BUY',
+        listingId:       listing.id || id,
+        quoteId:         activeQuote.quoteId,
+        amountBtc:       parseFloat(lockedBtcAfterFee.toFixed(8)),
+        amountLocal:     payAmtNum,
+        currency:        cur,
+        currencySymbol:  sym,
+        paymentMethod:   pmRaw,
+        trade_type:      (listing.listing_type === 'SELL' || listing.listing_type === 'SELL_GIFT_CARD') ? 'BUY' : 'SELL',
+        sellerRateLocal: parseFloat(activeQuote.executableRate.toFixed(2)),
+        sellerRateUsd:   parseFloat(sellerRateUSD.toFixed(2)),
       }, { headers: { Authorization: `Bearer ${token}` } });
       if (r.data.success || r.data.trade) {
         toast.success('Trade opened! Escrow activated.');
@@ -258,16 +251,13 @@ export default function ListingDetail({user}) {
     } finally { setSubmitting(false); }
   };
 
-  const marginColor = margin>0?C.danger:margin<0?C.success:C.g500;
-  const marginLabel = margin===0?'Market rate':margin>0?`+${margin}% above market`:`${margin}% below market`;
-
-  return(
-    <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50,fontFamily:"'DM Sans',sans-serif"}}>
+  return (
+    <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50, fontFamily:"'DM Sans',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
 
-      <div className="flex-1 max-w-6xl mx-auto w-full px-3 py-4 space-y-4">
+      <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 space-y-3">
 
-        {/* ── BREADCRUMB ─────────────────────────────────────────────── */}
+        {/* ── BREADCRUMB ──────────────────────────────────────────────────── */}
         <div className="flex items-center gap-1.5 text-[11px]" style={{color:C.g400}}>
           <button onClick={()=>navigate('/')} className="hover:underline">Home</button>
           <ChevronRight size={10}/>
@@ -276,281 +266,143 @@ export default function ListingDetail({user}) {
           <span style={{color:C.g700}} className="font-semibold">Listing #{String(listing.id||id).slice(0,8).toUpperCase()}</span>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-4">
-          {/* ── LEFT (3/5) ────────────────────────────────────────────── */}
-          <div className="lg:col-span-3 space-y-4">
+        <div className="grid lg:grid-cols-5 gap-3">
 
-            {/* ── SELLER CARD ──────────────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border overflow-hidden shadow-sm" style={{borderColor:C.g200}}>
-              {/* Header bar */}
-              <div className="px-5 py-3 border-b flex items-center justify-between"
+          {/* ════════════════ LEFT COLUMN (3/5) ════════════════════════════ */}
+          <div className="lg:col-span-3 space-y-3">
+
+            {/* ── SELLER CARD ─────────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+
+              {/* Type strip */}
+              <div className="px-4 py-2 flex items-center justify-between border-b"
                 style={{borderColor:C.g100, background:`linear-gradient(90deg,${C.g50},${C.white})`}}>
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{cfg.icon}</span>
-                  <p className="font-black text-xs" style={{color:C.forest}}>{cfg.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">{cfg.icon}</span>
+                  <p className="font-black text-xs tracking-wide" style={{color:C.forest}}>{cfg.label}</p>
                 </div>
-                <span className="text-[10px] font-black px-2.5 py-1 rounded-full text-white"
-                  style={{backgroundColor:cfg.color}}>
-                  🟢 Active
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white flex items-center gap-1"
+                  style={{backgroundColor:C.success}}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white inline-block animate-pulse"/>
+                  Active
                 </span>
               </div>
 
-              <div className="p-5">
-                {/* Avatar + name + stats */}
-                <div className="flex items-start gap-4 mb-4">
+              <div className="p-4">
+                {/* ── Profile row ─────────────────────────────────────────── */}
+                <div className="flex items-center gap-3 mb-3">
                   <div className="relative flex-shrink-0">
-                    <Avatar user={seller} size={60}/>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
-                      style={{backgroundColor:isOnline?C.online:C.g400}}/>
+                    <Avatar user={seller} size={52}/>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                      style={{backgroundColor:isOnline?C.online:C.g300}}/>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h2 className="font-black text-xl" style={{color:C.forest,fontFamily:"'Syne',sans-serif"}}>
-                        {seller?.username||'Seller'}
+
+                  <div className="flex-1 min-w-0">
+                    {/* Name + badge + flag */}
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <h2 className="font-black text-base leading-tight" style={{color:C.forest, fontFamily:"'Syne',sans-serif"}}>
+                        {seller?.username || 'Seller'}
                       </h2>
-                      {seller?.kyc_verified&&<BadgeCheck size={16} style={{color:C.paid}}/>}
-                      {/* Real badge */}
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white"
-                        style={{backgroundColor:badge.color}}>
-                        {badge.icon} {badge.label}
+                      {seller?.kyc_verified && <BadgeCheck size={14} style={{color:C.paid}}/>}
+                      {/* Badge */}
+                      <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
+                        style={{background:badge.bg, borderColor:badge.borderColor}}>
+                        <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
+                        <span style={{color:badge.textColor}}>{badge.label}</span>
+                        <BadgeCheck size={7} style={{color:badge.textColor,opacity:0.9}}/>
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{color:C.g500}}>
-                      <span>{flag} {seller?.country||listing.country_name||''}</span>
-                      {seller?.location&&<span className="flex items-center gap-0.5"><MapPin size={10}/>{seller.location}</span>}
-                      <span className="flex items-center gap-0.5"><Calendar size={10}/>Joined {fmtAge(seller?.created_at)?.replace(' ago','')}</span>
+
+                    {/* Country + trades + reviews + online */}
+                    <div className="flex items-center gap-2 flex-wrap text-[11px]" style={{color:C.g500}}>
+                      <span className="flex items-center gap-1">
+                        <CountryFlag countryCode={countryCode} className="w-4 h-3"/>
+                        {seller?.country || listing?.country_name || ''}
+                      </span>
+                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="font-bold" style={{color:C.g700}}>{fmt(trades)} Trades</span>
+                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="font-bold" style={{color:C.g700}}>{fmt(reviews)} Reviews</span>
+                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="font-bold flex items-center gap-1"
+                        style={{color:isOnline?C.online:C.g400}}>
+                        <span className="w-1.5 h-1.5 rounded-full inline-block"
+                          style={{backgroundColor:isOnline?C.online:C.g400}}/>
+                        {isOnline ? 'Online Now' : lastSeen}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Trader stats grid — matches your spec */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                {/* ── Stats row ───────────────────────────────────────────── */}
+                <div className="grid grid-cols-4 gap-2">
                   {[
-                    {label:'Trading Score',    value:`${positivePct.toFixed(2)}%`, sub:'positive',        color:C.success, note:'👍'},
-                    {label:'Response Time',     value:lastSeen,                     sub:isOnline?'Online':'Last seen', color:isOnline?C.online:C.g500, note:'⏱'},
-                    {label:'Trades',           value:fmt(sellerTrades),            sub:'completed',       color:C.paid, note:'🔄'},
-                  ].map(s=>(
-                    <div key={s.label} className="text-center p-3 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                      <p className="text-[8px] text-gray-400 uppercase mb-0.5">{s.note} {s.label}</p>
-                      <p className="font-black text-sm" style={{color:s.color}}>{s.value}</p>
-                      <p className="text-[9px]" style={{color:C.g400}}>{s.sub}</p>
+                    { top:`👍${posFeedback} 👎${negFeedback}`, bot:'Feedback', color:C.success, icon:'💬' },
+                    { top:responseTime,    bot:'Response',     color:C.paid,                  icon:'⚡' },
+                    { top:fmt(trades),     bot:'Trades',       color:C.forest,                icon:'🔄' },
+                    { top:lastSeen,        bot:'Last Seen',    color:isOnline?C.online:C.g500, icon:'👁' },
+                  ].map(s => (
+                    <div key={s.bot} className="text-center p-2 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
+                      <p className="text-[9px] mb-0.5" style={{color:C.g400}}>{s.icon}</p>
+                      <p className="font-black text-sm leading-tight" style={{color:s.color}}>{s.top}</p>
+                      <p className="text-[9px] font-semibold" style={{color:C.g400}}>{s.bot}</p>
                     </div>
                   ))}
-                </div>
-
-                {/* Rating stars */}
-                <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{backgroundColor:C.g50}}>
-                  <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(i=>(
-                      <Star key={i} size={13} className={i<=Math.round(sellerRating)?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>
-                    ))}
-                  </div>
-                  <span className="font-black text-sm" style={{color:C.g800}}>{sellerRating.toFixed(1)}</span>
-                  <span className="text-xs" style={{color:C.g400}}>/5.0 rating</span>
-                  <span className="ml-auto text-xs font-bold" style={{color:isOnline?C.online:C.g400}}>
-                    <span className="w-2 h-2 rounded-full inline-block mr-1" style={{backgroundColor:isOnline?C.online:C.g400}}/>
-                    {isOnline?'Active Online':lastSeen}
-                  </span>
                 </div>
               </div>
             </div>
 
-            {/* ── OFFER DETAILS ────────────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{borderColor:C.g200}}>
-              <div className="px-5 py-3 border-b" style={{borderColor:C.g100}}>
-                <p className="font-black text-base" style={{color:C.forest}}>Offer Details</p>
+            {/* ── TRADE TERMS — always visible ────────────────────────────── */}
+            <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+              <div className="px-4 py-3 border-b flex items-center gap-2" style={{borderColor:C.g100}}>
+                <Info size={13} style={{color:C.green}}/>
+                <p className="font-black text-sm" style={{color:C.forest}}>Trade Terms</p>
               </div>
-              <div className="p-5 space-y-3">
-
-                {/* Seller rate — compact, not giant */}
-                <div className="flex items-center justify-between p-3 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                  <div className="flex items-center gap-2">
-                    <Bitcoin size={14} style={{color:C.gold}}/>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-500">Seller's Rate (with {margin>0?`+${margin}%`:margin<0?`${margin}%`:'0%'} margin)</p>
-                      <p className="text-sm font-black" style={{color:C.forest}}>
-                        1 BTC = ${fmt(sellerRateUSD)} USD
-                      </p>
-                      <p className="text-[10px]" style={{color:C.g400}}>
-                        ≈ {ghsSym}{fmt(sellerRateUSD * GHS_RATE)} GHS
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-black px-2.5 py-1 rounded-full"
-                    style={{color:marginColor,backgroundColor:`${marginColor}12`}}>
-                    {margin===0?'Market':margin>0?`+${margin}%`:`${margin}% off`}
-                  </span>
+              <div className="p-4 space-y-2">
+                <div className="p-3 rounded-xl text-xs leading-relaxed whitespace-pre-wrap"
+                  style={{backgroundColor:C.mist, color:C.g700, border:`1px solid ${C.g200}`}}>
+                  {listing.trade_instructions || listing.description || 'No special instructions — standard trade rules apply.'}
                 </div>
-
-                {/* YOU PAY → YOU RECEIVE — the most important block */}
-                <div className="rounded-2xl overflow-hidden border-2" style={{borderColor:C.g200}}>
-                  {/* You Pay */}
-                  <div className="px-4 py-3 border-b" style={{borderColor:C.g200,backgroundColor:'#FFFBEB'}}>
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <PmIcon size={13} style={{color:pmInfo.color}}/>
-                      <p className="text-xs font-black uppercase tracking-wide" style={{color:'#92400E'}}>
-                        You Pay via {pmRaw||'Mobile Money'}
-                      </p>
-                    </div>
-                    {payAmtNum > 0 ? (
-                      <>
-                        <p className="text-2xl font-black" style={{color:C.g800}}>
-                          {sym}{fmt(payAmtNum,2)} <span className="text-base font-bold text-gray-400">{cur}</span>
-                        </p>
-                        <p className="text-sm font-bold mt-0.5" style={{color:C.g500}}>
-                          ≈ {ghsSym}{fmt(payInGHS,0)} GHS &nbsp;·&nbsp; ${fmt(payInUSD,2)} USD
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm font-semibold text-gray-400">Enter amount in the trade box →</p>
-                    )}
-                  </div>
-                  {/* You Receive */}
-                  <div className="px-4 py-3" style={{backgroundColor:C.mist}}>
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Bitcoin size={13} style={{color:C.gold}}/>
-                      <p className="text-xs font-black uppercase tracking-wide" style={{color:C.green}}>
-                        You Receive (Bitcoin)
-                      </p>
-                    </div>
-                    {btcAfterFee > 0 ? (
-                      <>
-                        <p className="text-2xl font-black" style={{color:C.forest}}>
-                          ₿ {btcAfterFee.toFixed(8)}
-                        </p>
-                        <p className="text-sm font-bold mt-0.5" style={{color:C.g500}}>
-                          ≈ {ghsSym}{fmt(recvInGHS,0)} GHS &nbsp;·&nbsp; ${fmt(recvInUSD,2)} USD
-                        </p>
-                        <p className="text-[10px] mt-0.5" style={{color:C.g400}}>After 0.5% platform fee</p>
-                      </>
-                    ) : (
-                      <p className="text-sm font-semibold text-gray-400">—</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Trade limits + time */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-xl border" style={{borderColor:C.g100}}>
-                    <p className="text-[10px] font-bold text-gray-500 mb-0.5">Trade Range</p>
-                    <p className="text-sm font-black" style={{color:C.forest}}>{sym}{fmt(minLocal)} – {sym}{fmt(maxLocal)}</p>
-                    <p className="text-[10px] font-semibold" style={{color:C.g400}}>${fmt(minUSD)} – ${fmt(maxUSD)} USD</p>
-                  </div>
-                  <div className="p-3 rounded-xl border" style={{borderColor:C.g100}}>
-                    <p className="text-[10px] font-bold text-gray-500 mb-0.5">Payment Window</p>
-                    <p className="text-sm font-black flex items-center gap-1" style={{color:C.forest}}>
-                      <Timer size={11}/> {listing.time_limit||30} minutes
-                    </p>
-                    <p className="text-[10px] font-semibold" style={{color:C.g400}}>Auto-cancels after</p>
-                  </div>
-                </div>
-
-                {/* Gift card brand */}
-                {listing.gift_card_brand && (
-                  <div className="p-3 rounded-xl border flex items-center gap-3" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                    <span className="text-2xl">🎁</span>
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-500">Gift Card Brand</p>
-                      <p className="font-black text-sm" style={{color:C.forest}}>{listing.gift_card_brand}</p>
-                      {listing.card_value&&<p className="text-[10px] font-semibold" style={{color:C.g400}}>Value: ${listing.card_value}</p>}
-                    </div>
+                {listing.listing_terms && (
+                  <div className="p-3 rounded-xl text-[11px] leading-relaxed"
+                    style={{backgroundColor:'#F0F9FF', color:C.g600, border:`1px solid ${C.paid}20`}}>
+                    <p className="font-bold mb-1" style={{color:C.paid}}>Additional Terms</p>
+                    {listing.listing_terms}
                   </div>
                 )}
               </div>
             </div>
-
-            {/* ── TRADE RULES ──────────────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{borderColor:C.g200}}>
-              <button
-                onClick={()=>setShowRules(!showRules)}
-                className="w-full px-5 py-3 flex items-center justify-between border-b hover:bg-gray-50 transition"
-                style={{borderColor:C.g100}}>
-                <div className="flex items-center gap-2">
-                  <Info size={13} style={{color:C.green}}/>
-                  <p className="font-black text-sm" style={{color:C.forest}}>Trade Rules & Instructions</p>
-                </div>
-                <ChevronRight size={14} style={{color:C.g400, transform:showRules?'rotate(90deg)':'none', transition:'transform .2s'}}/>
-              </button>
-              {showRules&&(
-                <div className="p-5 space-y-3">
-                  {/* Real trade instructions */}
-                  <div className="p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap"
-                    style={{backgroundColor:C.mist,color:C.g700,border:`1px solid ${C.g200}`}}>
-                    {listing.trade_instructions||listing.description||
-                      'No special instructions — standard trade rules apply. Chat is available during the trade.'}
-                  </div>
-
-                  {listing.listing_terms&&(
-                    <div className="p-3 rounded-xl text-xs leading-relaxed"
-                      style={{backgroundColor:'#F0F9FF',color:C.g600,border:`1px solid ${C.paid}20`}}>
-                      <p className="font-bold mb-1" style={{color:C.paid}}>Terms</p>
-                      {listing.listing_terms}
-                    </div>
-                  )}
-
-                  {/* Receipt */}
-                  <div className="flex items-center gap-2 p-3 rounded-xl"
-                    style={{backgroundColor:`${C.success}10`,border:`1px solid ${C.success}20`}}>
-                    <CheckCircle size={13} style={{color:C.success,flexShrink:0}}/>
-                    <p className="text-[11px] font-semibold" style={{color:C.green}}>
-                      No receipt needed — escrow auto-confirms on payment
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── GIFT CARD WARNING ────────────────────────────────────── */}
-            {listing.gift_card_brand && (
-              <div className="flex items-start gap-3 p-4 rounded-2xl border"
-                style={{backgroundColor:'#FFFBEB',borderColor:'#FDE68A'}}>
-                <AlertTriangle size={15} style={{color:C.warn,flexShrink:0,marginTop:1}}/>
-                <div>
-                  <p className="text-xs font-black mb-0.5" style={{color:'#92400E'}}>Gift Card Trading Warning</p>
-                  <p className="text-[11px] leading-relaxed" style={{color:'#B45309'}}>
-                    Trading gift cards can be risky. Always keep proof of purchase, verify who you're dealing with, and trade carefully. PRAQEN isn't responsible for gift card losses — escrow only protects Bitcoin payments.
-                  </p>
-                </div>
-              </div>
-            )}
-
           </div>
 
-          {/* ── RIGHT (2/5) — Trade Box ─────────────────────────────────── */}
+          {/* ════════════════ RIGHT COLUMN — Trade Box ══════════════════════ */}
           <div className="lg:col-span-2">
             <div className="sticky top-4 space-y-3">
 
-              {/* ── OWNER VIEW ─────────────────────────────────────────── */}
               {isOwner ? (
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{borderColor:C.g200}}>
-                  <div className="px-5 py-3 border-b" style={{borderColor:C.g100,backgroundColor:`${C.green}08`}}>
+                /* ── Owner view ──────────────────────────────────────────── */
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+                  <div className="px-4 py-3 border-b" style={{borderColor:C.g100, backgroundColor:`${C.green}06`}}>
                     <p className="font-black text-sm" style={{color:C.forest}}>Your Listing</p>
                   </div>
-                  <div className="p-5 space-y-3">
-                    <div className="p-3 rounded-xl" style={{backgroundColor:`${C.success}10`,border:`1px solid ${C.success}20`}}>
+                  <div className="p-4 space-y-3">
+                    <div className="p-3 rounded-xl" style={{backgroundColor:`${C.success}10`, border:`1px solid ${C.success}20`}}>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.success}}/>
                         <p className="text-xs font-black" style={{color:C.success}}>Active — visible to buyers</p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs py-2 border-b" style={{borderColor:C.g100}}>
-                        <span style={{color:C.g500}}>Rate</span>
-                        <span className="font-bold" style={{color:C.g800}}>${fmt(sellerRateUSD)} USD</span>
+                    {[
+                      ['Rate',      `$${fmt(sellerRateUSD)} USD/BTC`],
+                      ['Range',     `${sym}${fmt(minLocal)} – ${sym}${fmt(maxLocal)}`],
+                      ['Payment',   pmRaw || '—'],
+                      ['Margin',    margin===0?'Market rate':margin>0?`+${margin}%`:`${margin}%`],
+                      ['Time limit',`${listing.time_limit||30} min`],
+                    ].map(([l,v])=>(
+                      <div key={l} className="flex justify-between text-xs py-1.5 border-b" style={{borderColor:C.g100}}>
+                        <span style={{color:C.g500}}>{l}</span>
+                        <span className="font-bold" style={{color:C.g800}}>{v}</span>
                       </div>
-                      <div className="flex justify-between text-xs py-2 border-b" style={{borderColor:C.g100}}>
-                        <span style={{color:C.g500}}>Range</span>
-                        <span className="font-bold" style={{color:C.g800}}>{sym}{fmt(minLocal)} – {sym}{fmt(maxLocal)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs py-2 border-b" style={{borderColor:C.g100}}>
-                        <span style={{color:C.g500}}>Payment</span>
-                        <span className="font-bold" style={{color:C.g800}}>{pmRaw||'—'}</span>
-                      </div>
-                      <div className="flex justify-between text-xs py-2" style={{borderColor:C.g100}}>
-                        <span style={{color:C.g500}}>Time limit</span>
-                        <span className="font-bold" style={{color:C.g800}}>{listing.time_limit||30} min</span>
-                      </div>
-                    </div>
+                    ))}
                     <button onClick={()=>navigate('/my-listings')}
                       className="w-full py-3 rounded-xl font-black text-sm text-white hover:opacity-90 transition"
                       style={{backgroundColor:C.green}}>
@@ -559,172 +411,175 @@ export default function ListingDetail({user}) {
                   </div>
                 </div>
               ) : (
-                /* ── TRADE BOX ─────────────────────────────────────────── */
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{borderColor:C.g200}}>
-                  {/* Box header */}
-                  <div className="px-5 py-3 border-b" style={{borderColor:C.g100}}>
+                /* ── Trade box ────────────────────────────────────────────── */
+                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+                  <div className="px-4 py-3 border-b" style={{borderColor:C.g100}}>
                     <p className="font-black text-sm" style={{color:C.forest}}>Start a Trade</p>
-                    <p className="text-[10px]" style={{color:C.g400}}>Funds held in escrow until confirmed</p>
+                    <p className="text-[10px]" style={{color:C.g400}}>Escrow locks BTC the moment you begin</p>
                   </div>
 
-                  <div className="p-5 space-y-3">
-                    {/* Seller quick info */}
-                    <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{backgroundColor:C.g50}}>
+                  <div className="p-4 space-y-3">
+
+                    {/* Seller mini row — avatar + name + online + range */}
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
                       <Avatar user={seller} size={32}/>
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-xs truncate" style={{color:C.forest}}>{seller?.username||'Seller'}</p>
-                        <p className="text-[9px]" style={{color:isOnline?C.online:C.g400}}>
-                          <span className="w-1.5 h-1.5 rounded-full inline-block mr-1" style={{backgroundColor:isOnline?C.online:C.g400}}/>
-                          {isOnline?'Active Now':lastSeen}
+                        <p className="text-[9px] flex items-center gap-1" style={{color:isOnline?C.online:C.g400}}>
+                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{backgroundColor:isOnline?C.online:C.g400}}/>
+                          {isOnline ? 'Active Now' : lastSeen}
                         </p>
                       </div>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-sm text-white flex-shrink-0"
-                        style={{backgroundColor:badge.color}}>
-                        {badge.label}
-                      </span>
+                      {/* Range pill instead of badge */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[8px] font-bold uppercase" style={{color:C.g400}}>Range</p>
+                        <p className="text-[10px] font-black leading-tight" style={{color:C.forest}}>
+                          {sym}{fmt(minLocal,0)}–{sym}{fmt(maxLocal,0)}
+                        </p>
+                        <p className="text-[8px]" style={{color:C.g400}}>{cur}</p>
+                      </div>
                     </div>
 
-                    {/* Pay row */}
+                    {/* YOU PAY */}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-sm font-black" style={{color:C.g700}}>
-                          You Pay ({cur}) via {pmRaw||'Mobile Money'}
-                        </label>
-                        <span className="text-xs font-bold" style={{color:C.g400}}>
-                          {sym}{fmt(minLocal)} – {sym}{fmt(maxLocal)} {cur}
-                        </span>
-                      </div>
-                      {cur !== 'GHS' && payAmtNum > 0 && (
-                        <p className="text-xs font-bold mb-1" style={{color:C.g500}}>
-                          ≈ {ghsSym}{fmt(payInGHS,0)} GHS
-                        </p>
-                      )}
+                      <p className="text-sm font-black mb-1.5" style={{color:C.forest}}>
+                        You Pay via <span style={{color:C.green}}>{pm.label}</span>
+                      </p>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{color:C.g400}}>{sym}</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black" style={{color:C.g500}}>{sym}</span>
                         <input
                           type="number"
                           value={payAmt}
                           onChange={e=>setPayAmt(e.target.value)}
-                          placeholder={fmt(minLocal)}
-                          className="w-full pl-7 pr-20 py-3 text-sm font-black border-2 rounded-xl focus:outline-none"
+                          placeholder="Enter amount…"
+                          className="w-full pl-8 pr-16 py-3.5 text-lg font-black border-2 rounded-xl focus:outline-none"
                           style={{
-                            borderColor: payAmtNum>0&&(payAmtNum<minLocal||payAmtNum>maxLocal)?C.danger:payAmtNum>0?C.green:C.g200,
-                            color:C.g800,
-                          }}/>
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black" style={{color:C.g400}}>{cur}</span>
+                            borderColor: payAmtNum>0 && (payAmtNum<minLocal||payAmtNum>maxLocal) ? C.danger
+                                       : payAmtNum>0 ? C.green : C.g200,
+                            color: C.g800,
+                          }}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black px-1.5 py-0.5 rounded"
+                          style={{color:C.g500, backgroundColor:C.g100}}>{cur}</span>
                       </div>
-                      {payAmtNum>0&&payAmtNum<minLocal&&(
-                        <p className="text-[10px] mt-0.5" style={{color:C.danger}}>Minimum is {sym}{fmt(minLocal)}</p>
+                      {payAmtNum>0 && payAmtNum<minLocal && (
+                        <p className="text-[10px] mt-1" style={{color:C.danger}}>Min {sym}{fmt(minLocal,0)} {cur}</p>
                       )}
-                      {payAmtNum>maxLocal&&(
-                        <p className="text-[10px] mt-0.5" style={{color:C.danger}}>Maximum is {sym}{fmt(maxLocal)}</p>
+                      {payAmtNum>maxLocal && (
+                        <p className="text-[10px] mt-1" style={{color:C.danger}}>Max {sym}{fmt(maxLocal,0)} {cur}</p>
                       )}
                     </div>
 
-                    {/* Receive row */}
-                    <div className="p-3 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-bold text-gray-500 mb-0.5">You Receive (Bitcoin)</p>
-                          <p className="font-black text-xl" style={{color:C.forest}}>
-                            ₿ {btcAfterFee > 0 ? btcAfterFee.toFixed(8) : '0.00000000'}
+                    {/* YOU RECEIVE — always visible, updates live */}
+                    <div className="rounded-xl border overflow-hidden" style={{borderColor:C.g200}}>
+                      {/* Header */}
+                      <div className="px-3 py-2 border-b flex items-center justify-between"
+                        style={{borderColor:C.g100, backgroundColor:C.g50}}>
+                        <p className="text-xs font-black" style={{color:C.g700}}>Receive</p>
+                        <div className="flex items-center gap-1.5">
+                          {/* BTC rate */}
+                          <p className="text-[10px] font-bold" style={{color:C.g500}}>
+                            {sym}{fmt(sellerRateLocal,2)}
                           </p>
-                          {btcAfterFee > 0 && (
-                            <>
-                              <p className="text-sm font-bold mt-0.5" style={{color:C.g500}}>≈ {ghsSym}{fmt(recvInGHS,0)} GHS</p>
-                              <p className="text-xs font-semibold" style={{color:C.g400}}>≈ ${fmt(recvInUSD,2)} USD</p>
-                            </>
-                          )}
+                          {/* Margin pill */}
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full text-white"
+                            style={{backgroundColor:margin>0?C.danger:margin<0?C.success:C.g400}}>
+                            {margin===0?'Market':margin>0?`+${margin}%`:`${margin}%`}
+                          </span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-bold text-gray-500 mb-0.5">Seller Rate</p>
-                          <p className="font-black text-sm" style={{color:C.g700}}>${fmt(sellerRateUSD)} USD/BTC</p>
-                          <p className="text-xs font-semibold" style={{color:C.g400}}>{ghsSym}{fmt(sellerRateUSD*GHS_RATE)} GHS/BTC</p>
-                          <p className="text-xs font-black" style={{color:marginColor}}>
-                            {margin===0?'Market':margin>0?`+${margin}%`:`${margin}% off`}
+                      </div>
+
+                      {/* Body */}
+                      <div className="px-3 py-3" style={{backgroundColor:C.mist}}>
+                        {/* Bitcoin icon + label row */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{backgroundColor:C.gold}}>
+                            <span className="text-white font-black text-[10px]">₿</span>
+                          </div>
+                          <p className="font-black text-xs" style={{color:C.forest}}>Bitcoin</p>
+                        </div>
+
+                        {/* BTC amount — big */}
+                        <p className="font-black text-2xl leading-tight mb-0.5" style={{color:C.forest}}>
+                          {btcAfterFee > 0 ? fmtBtc(btcAfterFee) : <span style={{color:C.g300}}>0.00000000</span>}
+                        </p>
+
+                        {/* Fiat equivalent at market rate */}
+                        {fiatEquivalent > 0 && (
+                          <p className="text-xs font-bold" style={{color:C.g500}}>
+                            ≈ {sym}{fmt(fiatEquivalent, 2)} {cur} value
                           </p>
-                        </div>
+                        )}
+
+                        {/* Quote lock indicator */}
+                        {quoteFetching && (
+                          <p className="text-[10px] mt-1 flex items-center gap-1" style={{color:C.g400}}>
+                            <RefreshCw size={9} className="animate-spin"/> Locking rate…
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Trade summary — visible when amount is valid */}
-                    {payAmtNum >= minLocal && payAmtNum <= maxLocal && btcGross > 0 && (
-                      <div className="p-3 rounded-xl border" style={{backgroundColor:`${C.green}06`,borderColor:`${C.green}25`}}>
-                        <p className="text-xs font-black mb-2" style={{color:C.forest}}>🔒 Your Trade Summary</p>
-                        <div className="space-y-2">
-                          {[
-                            {label:'You pay',            value:`${sym}${fmt(payAmtNum,2)} ${cur} ≈ ${ghsSym}${fmt(payInGHS,0)} GHS`, color:C.g800},
-                            {label:'BTC at seller rate',  value:`₿ ${btcGross.toFixed(8)}`,                                           color:C.g700},
-                            {label:'Platform fee (0.5%)',value:`− ₿ ${feeBtc.toFixed(8)}`,                                            color:C.g500},
-                            {label:'✅ You receive',     value:`₿ ${btcAfterFee.toFixed(8)} ≈ ${ghsSym}${fmt(recvInGHS,0)} GHS`,      color:C.forest, bold:true},
-                          ].map(row=>(
-                            <div key={row.label} className="flex justify-between gap-2 text-xs">
-                              <span className="font-semibold flex-shrink-0" style={{color:C.g500}}>{row.label}</span>
-                              <span className={row.bold?'font-black':'font-semibold'} style={{color:row.color,textAlign:'right'}}>{row.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Escrow protection note */}
+                    {/* Escrow note */}
                     <div className="flex items-start gap-2 p-3 rounded-xl"
-                      style={{backgroundColor:`${C.green}08`,border:`1px solid ${C.green}20`}}>
-                      <Lock size={12} style={{color:C.green,flexShrink:0,marginTop:1}}/>
+                      style={{backgroundColor:`${C.green}08`, border:`1px solid ${C.green}20`}}>
+                      <Lock size={11} style={{color:C.green, flexShrink:0, marginTop:1}}/>
                       <p className="text-[10px] leading-relaxed" style={{color:C.green}}>
-                        <strong>Your funds are protected by escrow</strong> — Bitcoin is locked the moment the trade starts. Released only when both parties confirm.
+                        <strong>Your funds are protected by escrow</strong> for a secure trade. Released only when both parties confirm.
                       </p>
                     </div>
 
                     {/* CTA */}
                     <button
                       onClick={handleStartTrade}
-                      disabled={submitting||!payAmt||payAmtNum<=0||payAmtNum<minLocal||payAmtNum>maxLocal}
-                      className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-40 shadow-sm"
+                      disabled={submitting || !payAmt || payAmtNum<=0 || payAmtNum<minLocal || payAmtNum>maxLocal}
+                      className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-40"
                       style={{backgroundColor:cfg.color}}>
                       {submitting
-                        ? <><RefreshCw size={15} className="animate-spin"/>Opening Trade…</>
-                        : <><Lock size={14}/> Proceed with Payment <ArrowRight size={14}/></>}
+                        ? <><RefreshCw size={14} className="animate-spin"/>Opening…</>
+                        : <><Lock size={13}/> Proceed with Payment <ArrowRight size={13}/></>}
                     </button>
 
-                    {/* Trade steps */}
-                    <div className="p-3 rounded-xl border" style={{borderColor:C.g100}}>
-                      <p className="text-[10px] font-black mb-2" style={{color:C.g700}}>What Happens Next</p>
-                      <div className="space-y-1.5">
-                        {[
-                          ['🔒','BTC locked in escrow automatically'],
-                          ['💬','Trade chat opens with seller'],
-                          ['💰','Send payment — click "I Have Paid"'],
-                          ['✅','Seller confirms — BTC released to you'],
-                          ['⭐','Leave feedback when done'],
-                        ].map(([e,t])=>(
-                          <div key={t} className="flex items-center gap-2 text-[10px]" style={{color:C.g600}}>
-                            <span className="text-sm flex-shrink-0">{e}</span>{t}
-                          </div>
-                        ))}
-                      </div>
+                    {/* Steps */}
+                    <div className="space-y-1.5">
+                      {[
+                        ['🔒','BTC locked in escrow'],
+                        ['💬','Trade chat opens with seller'],
+                        ['💰','Send payment → click "I Have Paid"'],
+                        ['✅','Seller confirms → BTC released'],
+                      ].map(([e,t])=>(
+                        <div key={t} className="flex items-center gap-2 text-[10px]" style={{color:C.g500}}>
+                          <span className="text-sm flex-shrink-0">{e}</span>{t}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Safe trading notice */}
-              <div className="flex items-start gap-2.5 p-3 rounded-xl border"
-                style={{backgroundColor:'#FFFBEB',borderColor:'#FDE68A'}}>
-                <Shield size={13} className="flex-shrink-0 mt-0.5" style={{color:C.warn}}/>
-                <p className="text-[10px] leading-relaxed" style={{color:'#92400E'}}>
-                  <strong>Trade Safe:</strong> Never pay outside an active trade chat. All trades are escrow-protected. 0.5% fee on completion only.
-                </p>
+              {/* PRAQEN escrow banner */}
+              <div className="flex items-start gap-3 p-3 rounded-xl border"
+                style={{backgroundColor:`${C.green}08`, borderColor:`${C.green}25`}}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{backgroundColor:C.green}}>
+                  <Lock size={12} className="text-white"/>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black mb-0.5" style={{color:C.forest}}>PRAQEN Escrow Protection</p>
+                  <p className="text-[10px] leading-relaxed" style={{color:C.g600}}>
+                    Your funds are protected by escrow for a secure trade. Released only after both parties confirm.
+                  </p>
+                </div>
               </div>
-
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
       <footer className="mt-8" style={{backgroundColor:C.forest}}>
-        <div className="max-w-6xl mx-auto px-4 pt-8 pb-5">
+        <div className="max-w-5xl mx-auto px-4 pt-8 pb-5">
           <div className="grid md:grid-cols-3 gap-8 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -736,15 +591,15 @@ export default function ListingDetail({user}) {
               </p>
               <div className="flex gap-2 flex-wrap">
                 {[
-                  {href:'https://x.com/praqenapp?s=21',label:'𝕏',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr',label:'📸',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://www.linkedin.com/in/pra-qen-045373402/',label:'💼',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t',label:'💬',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://discord.gg/V6zCZxfdy',label:'🎮',bg:'rgba(88,101,242,0.4)'},
-                ].map(({href,label,bg})=>(
+                  {href:'https://x.com/praqenapp?s=21',label:'𝕏'},
+                  {href:'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr',label:'📸'},
+                  {href:'https://www.linkedin.com/in/pra-qen-045373402/',label:'💼'},
+                  {href:'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t',label:'💬'},
+                  {href:'https://discord.gg/V6zCZxfdy',label:'🎮'},
+                ].map(({href,label})=>(
                   <a key={href} href={href} target="_blank" rel="noopener noreferrer"
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:scale-110 transition"
-                    style={{backgroundColor:bg}}>
+                    style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
                     <span className="text-white font-black">{label}</span>
                   </a>
                 ))}
@@ -762,7 +617,7 @@ export default function ListingDetail({user}) {
               <p className="text-white font-black text-sm mb-3">Community</p>
               <div className="space-y-2">
                 {[
-                  ['💬 WhatsApp Community','https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t'],
+                  ['💬 WhatsApp','https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t'],
                   ['🎮 Discord','https://discord.gg/V6zCZxfdy'],
                   ['𝕏 Twitter/X','https://x.com/praqenapp?s=21'],
                   ['📸 Instagram','https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr'],

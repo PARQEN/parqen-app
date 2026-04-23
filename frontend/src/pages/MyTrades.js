@@ -43,7 +43,8 @@ const STATUS_MAP = {
 };
 const getStatus = s => STATUS_MAP[s?.toUpperCase()]||STATUS_MAP.CREATED;
 
-const isActive = s => ['CREATED','FUNDS_LOCKED','PAYMENT_SENT','PAID','DISPUTED','ESCROW','ACTIVE','OPEN'].includes((s||'').toUpperCase());
+// Only real DB statuses — excludes COMPLETED and CANCELLED
+const isActive = s => ['CREATED','FUNDS_LOCKED','PAYMENT_SENT','PAID','DISPUTED'].includes((s||'').toUpperCase());
 
 // ─── Stat card ─────────────────────────────────────────────────────────────
 function StatCard({icon:Icon, label, value, color, sub}) {
@@ -211,79 +212,188 @@ function TradeCard({trade, userId}) {
   const isBuyer = String(userId)===String(trade.buyer_id);
   const st      = getStatus(trade.status);
   const cp      = isBuyer ? trade.seller : trade.buyer;
+  const counterpartyName = cp?.username || '—';
   const active  = isActive(trade.status);
-  const brand   = trade.listings?.gift_card_brand||trade.listing?.gift_card_brand||'Bitcoin';
-  const cur     = trade.currency||'USD';
-  const sym     = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',USD:'$',GBP:'£',EUR:'€'}[cur]||'$';
-  const localAmt= trade.local_amount||(parseFloat(trade.amount_usd||0));
-  const payMethod=trade.payment_method||'—';
+  
+  // Role Badge logic
+  const roleBadge = isBuyer ? '🛒 YOU ARE BUYING' : '💰 YOU ARE SELLING';
+  
+  // Payment Display - Use Actual Local Currency
+  const paymentDisplay = trade.amount_local 
+    ? `${trade.local_currency || ''} ${trade.amount_local.toLocaleString()}`
+    : `$${trade.amount_usd?.toLocaleString() || '0'} USD`;
+
+  // BTC display with fiat equivalent
+  const btcDisplay = `₿ ${trade.amount_btc ? parseFloat(trade.amount_btc).toFixed(8) : '0.00000000'} BTC`;
+  const fiatEquivalent = trade.amount_local
+    ? `${trade.local_currency} ${trade.amount_local.toLocaleString()}`
+    : `$${trade.amount_usd?.toLocaleString() || '0'} USD`;
 
   return(
     <Link to={`/trade/${trade.id}`}
-      className={`block bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all ${active?'border-2':''}`}
+      className={`block bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all p-4 ${active?'border-2':''}`}
       style={{borderColor:active?st.color:C.g200}}>
-
-      {/* Active indicator */}
-      {active&&(
-        <div className="flex items-center gap-2 px-4 py-1.5" style={{backgroundColor:st.bg}}>
-          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor:st.dot}}/>
-          <span className="text-[10px] font-black" style={{color:st.color}}>
-            {st.label} — Tap to continue trade
-          </span>
+      <div className="flex justify-between items-center">
+        <span className="badge" style={{
+            backgroundColor: isBuyer ? '#F4A422' : '#1B4332',
+            color: 'white',
+            padding: '4px 12px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 'bold'
+        }}>
+            {roleBadge}
+        </span>
+        <span className="text-sm text-gray-500">#{trade.id.slice(0,8).toUpperCase()}</span>
+      </div>
+    
+      <div className="mt-3 space-y-2">
+        <div className="flex justify-between">
+            <span className="text-gray-500 text-xs font-bold uppercase">👤 {isBuyer ? 'Seller' : 'Buyer'}:</span>
+            <span className="font-semibold text-sm">{counterpartyName}</span>
         </div>
-      )}
-
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          {/* Left */}
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Role chip */}
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{backgroundColor:isBuyer?`${C.green}12`:`${C.amber}12`}}>
-              {isBuyer
-                ? <Bitcoin size={18} style={{color:C.green}}/>
-                : <DollarSign size={18} style={{color:C.amber}}/>}
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-sm text-white"
-                  style={{backgroundColor:isBuyer?C.green:C.amber}}>
-                  {isBuyer?'BUYING':'SELLING'}
+        <div className="flex justify-between">
+            <span className="text-gray-500 text-xs font-bold uppercase">💳 Payment:</span>
+            <span className="text-sm">{trade.payment_method}</span>
+        </div>
+        <div className="flex justify-between">
+            <span className="text-gray-500 text-xs font-bold uppercase">💵 You {isBuyer ? 'Pay' : 'Get'}:</span>
+            <span className="font-black text-sm" style={{color:C.forest}}>{paymentDisplay}</span>
+        </div>
+        <div className="flex justify-between items-baseline">
+            <span className="text-gray-500 text-xs font-bold uppercase">🛒 You {isBuyer ? 'Receive' : 'Send'}:</span>
+            <div className="text-right">
+                <span className="font-black text-sm" style={{ color: isBuyer ? '#22C55E' : '#EF4444' }}>
+                    {btcDisplay}
                 </span>
-                <span className="text-xs font-black" style={{color:C.forest}}>{brand}</span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
-                  style={{backgroundColor:st.bg, color:st.color}}>
-                  {st.short}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[10px]" style={{color:C.g400}}>
-                <span className="font-mono">#{String(trade.id||'').slice(0,8).toUpperCase()}</span>
-                <span>·</span>
-                <span>{cp?.username||'—'}</span>
-                <span>·</span>
-                <span>{payMethod}</span>
-                <span>·</span>
-                <span>{fmtAge(trade.created_at)}</span>
-              </div>
+                <div className="text-[10px] font-bold text-gray-400">≈ {fiatEquivalent}</div>
             </div>
-          </div>
-
-          {/* Right — amounts */}
-          <div className="text-right flex-shrink-0">
-            <p className="font-black text-sm" style={{color:C.forest}}>
-              {sym}{fmt(localAmt)} {cur}
-            </p>
-            <p className="text-[10px]" style={{color:C.g400}}>₿ {fmtBtc(trade.amount_btc)}</p>
-            {active&&(
-              <div className="flex items-center gap-1 justify-end mt-1">
-                <ChevronRight size={13} style={{color:st.color}}/>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </Link>
+  );
+}
+
+// ─── Active Trade Modal Popup ───────────────────────────────────────────────
+function ActiveTradeModal({ trades, userId, onClose }) {
+  if (!trades.length) return null;
+
+  const symMap = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',USD:'$',GBP:'£',EUR:'€'};
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{backgroundColor:'rgba(0,0,0,0.75)',backdropFilter:'blur(6px)'}}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full overflow-hidden"
+        style={{maxWidth:480,maxHeight:'88vh',display:'flex',flexDirection:'column'}}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4"
+          style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
+          <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0"
+            style={{backgroundColor:C.online}}/>
+          <Bell size={16} className="text-white flex-shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-black text-sm">⚡ You Have an Active Trade</p>
+            <p className="text-[11px]" style={{color:'rgba(255,255,255,0.7)'}}>
+              Action required — don't miss your trade window
+            </p>
+          </div>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition flex-shrink-0">
+            <X size={18}/>
+          </button>
+        </div>
+
+        {/* Trade cards */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {trades.map(trade=>{
+            const isBuyer = String(userId)===String(trade.buyer_id);
+            const st      = getStatus(trade.status);
+            const cp      = isBuyer ? trade.seller : trade.buyer;
+            // Handle both nested-object and flat-string counterparty names
+            const cpName  = cp?.username
+              || (isBuyer ? trade.seller_name : trade.buyer_name)
+              || '—';
+            // local_currency / amount_local are the primary field names from /api/my-trades
+            const cur     = trade.local_currency||trade.currency||'';
+            const sym     = symMap[cur]||'';
+            const localAmt= trade.amount_local||trade.local_amount||0;
+            const payDisp = localAmt
+              ? `${sym}${fmt(localAmt)} ${cur}`
+              : `$${fmt(trade.amount_usd||0)} USD`;
+            const roleBg  = isBuyer ? C.gold : C.forest;
+
+            return(
+              <div key={trade.id} className="rounded-2xl border-2 overflow-hidden"
+                style={{borderColor:st.color}}>
+
+                {/* Role + ID */}
+                <div className="flex items-center justify-between px-4 py-2.5"
+                  style={{backgroundColor:`${st.color}12`}}>
+                  <span className="font-black text-[11px] px-3 py-1 rounded-full"
+                    style={{backgroundColor:roleBg,color:'#fff'}}>
+                    {isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
+                  </span>
+                  <span className="font-mono text-[10px]" style={{color:C.g400}}>
+                    #{String(trade.id||'').slice(0,8).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="px-4 py-3 space-y-2 bg-white">
+                  <div className="flex justify-between text-xs">
+                    <span style={{color:C.g500}}>👤 {isBuyer?'Seller':'Buyer'}:</span>
+                    <span className="font-bold" style={{color:C.forest}}>{cpName}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span style={{color:C.g500}}>💳 Payment:</span>
+                    <span className="font-bold">{trade.payment_method||'—'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span style={{color:C.g500}}>💵 You {isBuyer?'Pay':'Get'}:</span>
+                    <span className="font-black" style={{color:C.forest}}>{payDisp}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span style={{color:C.g500}}>₿ You {isBuyer?'Receive':'Send'}:</span>
+                    <span className="font-black"
+                      style={{color:isBuyer?C.success:C.danger}}>
+                      ₿ {parseFloat(trade.amount_btc||0).toFixed(8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span style={{color:C.g500}}>📊 Status:</span>
+                    <span className="font-bold px-2 py-0.5 rounded-full text-[10px]"
+                      style={{backgroundColor:st.bg,color:st.color}}>{st.label}</span>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="px-4 pb-3 bg-white">
+                  <Link to={`/trade/${trade.id}`} onClick={onClose}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-xs w-full hover:opacity-90 transition shadow"
+                    style={{backgroundColor:st.color}}>
+                    <Zap size={13}/> Open Trade Now <ArrowRight size={12}/>
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t flex items-center justify-between"
+          style={{borderColor:C.g200,backgroundColor:C.g50}}>
+          <div className="flex items-center gap-1.5">
+            <Shield size={12} style={{color:C.green}}/>
+            <p className="text-[10px] font-semibold" style={{color:C.g500}}>Escrow-protected trades</p>
+          </div>
+          <button onClick={onClose}
+            className="text-xs font-bold px-4 py-2 rounded-xl border hover:bg-gray-50 transition"
+            style={{borderColor:C.g200,color:C.g600}}>
+            Ignore
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -295,15 +405,38 @@ export default function MyTrades({user}) {
   const [filter,   setFilter]   = useState('all');
   const [search,   setSearch]   = useState('');
   const [dismissed,setDismissed]= useState(new Set());
-  const timerRef  = useRef(null);
+  const [showModal, setShowModal]= useState(false);
+  const timerRef = useRef(null);
+
+  // sessionStorage helpers — same key as ActiveTradeBanner so both share seen state
+  const getSeenIds = () => {
+    try { return new Set(JSON.parse(sessionStorage.getItem('praqen_shown_trade_alerts')||'[]')); }
+    catch { return new Set(); }
+  };
+  const markSeen = ids => {
+    try {
+      const seen = getSeenIds();
+      ids.forEach(id=>seen.add(String(id)));
+      sessionStorage.setItem('praqen_shown_trade_alerts', JSON.stringify([...seen]));
+    } catch {}
+  };
 
   useEffect(()=>{
     if(!user){navigate('/login');return;}
     load();
-    // Auto-refresh every 15s for active trades
     timerRef.current = setInterval(()=>{ if(document.visibilityState==='visible') silentRefresh(); },15000);
     return()=>clearInterval(timerRef.current);
   },[user]);
+
+  // Pop the modal ONCE per trade per session when new active trades appear
+  useEffect(()=>{
+    const seen   = getSeenIds();
+    const fresh  = trades.filter(t=>isActive(t.status)&&!seen.has(String(t.id)));
+    if(fresh.length>0){
+      markSeen(fresh.map(t=>t.id));
+      setShowModal(true);
+    }
+  },[trades]);
 
   const load = async()=>{
     setLoading(true);
@@ -321,7 +454,9 @@ export default function MyTrades({user}) {
     }catch{}
   };
 
-  // Active trades that need attention — not dismissed
+  // All active trades (for modal — no dismiss filter)
+  const allActiveTrades = trades.filter(t=>isActive(t.status));
+  // Active trades that need banner attention — not dismissed
   const activeTrades = trades.filter(t=>isActive(t.status)&&!dismissed.has(t.id));
 
   // Stats
@@ -367,7 +502,19 @@ export default function MyTrades({user}) {
       <style>{`
         @keyframes pulse-once{0%,100%{opacity:1}50%{opacity:0.6}}
         .animate-pulse-once{animation:pulse-once 1.8s ease-in-out 3}
+        @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+        .slide-up{animation:slideUp 0.35s ease-out}
       `}</style>
+
+      {/* ── ACTIVE TRADE MODAL POPUP ─────────────────────────────── */}
+      {showModal&&(
+        <ActiveTradeModal
+          trades={allActiveTrades}
+          userId={user?.id}
+          onClose={()=>setShowModal(false)}
+        />
+      )}
+
 
       <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 space-y-5">
 

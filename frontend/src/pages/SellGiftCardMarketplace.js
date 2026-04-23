@@ -12,6 +12,7 @@ import {
   Sparkles, Package, Radio, Lock, Unlock, X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import ActiveTradeBanner from '../components/ActiveTradeBanner';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -280,10 +281,12 @@ export default function SellGiftCardMarketplace({ user }) {
 
     setSubmitting(true);
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken') || sessionStorage.getItem('token');
       const response = await axios.post(`${API_URL}/trades`, {
-        listingId: selectedOffer.id,
-        amountBtc: (parseFloat(tradeAmount) / 45000).toFixed(8),
-      });
+        listingId:  selectedOffer.id,
+        amountBtc:  (parseFloat(tradeAmount) / 45000).toFixed(8),
+        trade_type: 'SELL',
+      }, { headers: { Authorization: `Bearer ${token}` } });
 
       if (response.data.success) {
         toast.success('Trade initiated! Redirecting to chat...');
@@ -314,6 +317,9 @@ export default function SellGiftCardMarketplace({ user }) {
     <div className="min-h-screen" style={{ backgroundColor: PRAQEN.lightBg }}>
       <div className="max-w-7xl mx-auto px-3 py-4 md:px-4 md:py-6">
         
+        {/* Active Trade Alerts */}
+        <ActiveTradeBanner user={user} currentPage="gift-cards" />
+
         {/* Hero Section */}
         <div className="rounded-xl overflow-hidden mb-6 shadow-md" style={{ background: `linear-gradient(135deg, ${PRAQEN.primary}, ${PRAQEN.darkBg})` }}>
           <div className="p-5">

@@ -38,6 +38,7 @@ export default function Navbar({user, onLogout}) {
   const [profileDrop,  setProfileDrop]  = useState(false);
   const [showBal,      setShowBal]      = useState(true);
   const [balance,      setBalance]      = useState(0);
+  const [hdBalance,    setHdBalance]    = useState(0);
   const [localUser,    setLocalUser]    = useState(user);
 
   // Sync from localStorage on avatar/profile update
@@ -61,12 +62,28 @@ export default function Navbar({user, onLogout}) {
   const loadBalance = async()=>{
     try {
       const tk=localStorage.getItem('token');
+      // Fetch regular wallet balance
       const r=await axios.get(`${API_URL}/wallet`,{headers:{Authorization:`Bearer ${tk}`}});
-      setBalance(r.data.wallet?.balance_btc||0);
-      console.log('💰 Real wallet balance from navbar:', r.data.wallet?.balance_btc);
+      const walletBal = r.data.wallet?.balance_btc||0;
+      setBalance(walletBal);
+      
+      // Fetch HD wallet balance
+      try {
+        const hdR = await axios.get(`${API_URL}/hd-wallet/wallet`, {headers:{Authorization:`Bearer ${tk}`}});
+        const hdBal = hdR.data.balance_btc || 0;
+        setHdBalance(hdBal);
+        console.log('💰 HD Wallet balance from navbar:', hdBal, 'BTC');
+        console.log('💰 Total balance (wallet + HD):', (parseFloat(walletBal) + parseFloat(hdBal)).toFixed(8), 'BTC');
+      } catch (hdErr) {
+        console.error('Failed to load HD wallet balance:', hdErr);
+        setHdBalance(0);
+      }
+      
+      console.log('💰 Regular wallet balance from navbar:', walletBal);
     } catch (err) {
       console.error('Failed to load wallet balance:', err);
       setBalance(0);
+      setHdBalance(0);
     }
   };
 
@@ -222,7 +239,7 @@ export default function Navbar({user, onLogout}) {
               <Link to="/wallet" className="flex items-center gap-1.5">
                 <Wallet size={14} style={{color:C.green}}/>
                 <span className="font-black text-xs" style={{color:C.green}}>
-                  {showBal?`${fmtBtc(balance)} BTC`:'••••••'}
+                  {showBal?`${fmtBtc(parseFloat(balance||0) + parseFloat(hdBalance||0))} BTC`:'••••••'}
                 </span>
               </Link>
             </div>

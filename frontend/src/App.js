@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { RatesProvider } from './contexts/RatesContext';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -140,6 +141,7 @@ function App() {
   }
 
   return (
+    <RatesProvider>
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Navbar user={user} onLogout={logout} />
@@ -205,6 +207,7 @@ function App() {
         <ToastContainer position="bottom-right" autoClose={3000} />
       </div>
     </Router>
+    </RatesProvider>
   );
 }
 

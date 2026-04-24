@@ -1,11 +1,12 @@
 ﻿import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
 import { supabase } from '../lib/supabaseClient';
 import {
   Mail, Lock, Eye, EyeOff, Shield, ArrowRight,
-  AlertCircle, RefreshCw, Smartphone, AtSign, Bitcoin
+  AlertCircle, RefreshCw, Smartphone, AtSign, Bitcoin,
+  Home, Wallet, Gift, LogIn,
 } from 'lucide-react';
 
 const C = {
@@ -31,6 +32,8 @@ const PHONE_CODES = [
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectMessage = searchParams.get('message');
 
   const [method, setMethod]         = useState('email'); // 'email' | 'phone'
   const [email, setEmail]           = useState('');
@@ -158,14 +161,15 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: C.mist, fontFamily:"'DM Sans',sans-serif" }}>
+    <div className="min-h-screen flex flex-col md:flex-row pb-16 md:pb-0"
+      style={{ backgroundColor: C.mist, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
       <style>{`
         @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         .slide{animation:slideUp .25s ease}
       `}</style>
 
-      {/* ── Left branding panel ─────────────────────────────────────────────── */}
+      {/* ── Left branding panel (desktop only) ─────────────────────────────── */}
       <div className="hidden lg:flex lg:w-2/5 flex-col justify-between p-10 relative overflow-hidden"
         style={{ background:`linear-gradient(140deg,${C.forest},${C.green})` }}>
         <div className="absolute inset-0 opacity-5"
@@ -174,21 +178,17 @@ export default function Login({ onLogin }) {
           style={{ backgroundColor: C.gold }}/>
 
         <div className="relative">
-          {/* Logo */}
           <div className="flex items-center gap-2.5 mb-12">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl"
               style={{ backgroundColor: C.gold, color: C.forest }}>P</div>
             <span className="text-white font-black text-xl" style={{ fontFamily:"'Syne',sans-serif" }}>PRAQEN</span>
           </div>
-
           <h2 className="text-3xl font-black text-white mb-3" style={{ fontFamily:"'Syne',sans-serif" }}>
             Welcome Back<br/>to P2P Trading
           </h2>
           <p className="text-white/60 text-sm leading-relaxed mb-10">
             Log in to access your offers, active trades, wallet, and trade history.
           </p>
-
-          {/* Feature list */}
           <div className="space-y-3">
             {[
               { icon:'🔒', label:'Escrow on every trade',    sub:'Your funds are always protected' },
@@ -207,27 +207,20 @@ export default function Login({ onLogin }) {
             ))}
           </div>
         </div>
-
         <div className="relative flex items-center gap-2 text-white/30 text-xs">
           <Shield size={12}/> 256-bit SSL encrypted · ISO 27001 standards
         </div>
       </div>
 
-      {/* ── Right form panel ────────────────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center p-4 py-10">
+      {/* ── Form panel ──────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex items-start md:items-center justify-center p-4 pt-4 md:py-10">
         <div className="w-full max-w-md slide">
 
           {/* Card */}
           <div className="bg-white rounded-3xl shadow-xl border overflow-hidden" style={{ borderColor: C.g200 }}>
 
             {/* Header */}
-            <div className="px-7 py-6 border-b" style={{ borderColor: C.g100 }}>
-              {/* Mobile logo */}
-              <div className="flex items-center gap-2 mb-4 lg:hidden">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-base"
-                  style={{ backgroundColor: C.gold, color: C.forest }}>P</div>
-                <span className="font-black text-base" style={{ color: C.forest, fontFamily:"'Syne',sans-serif" }}>PRAQEN</span>
-              </div>
+            <div className="px-5 md:px-7 py-5 md:py-6 border-b" style={{ borderColor: C.g100 }}>
               <h1 className="font-black text-xl" style={{ color: C.forest, fontFamily:"'Syne',sans-serif" }}>
                 Sign In
               </h1>
@@ -237,7 +230,15 @@ export default function Login({ onLogin }) {
             </div>
 
             {/* Body */}
-            <div className="px-7 py-6 space-y-4">
+            <div className="px-5 md:px-7 py-5 md:py-6 space-y-4">
+
+              {/* Redirect message (e.g. from marketplace) */}
+              {redirectMessage && !error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl text-xs"
+                  style={{ backgroundColor:'#FFFBEB', color:'#92400E', border:'1px solid #FDE68A' }}>
+                  <AlertCircle size={13} className="flex-shrink-0"/>{redirectMessage}
+                </div>
+              )}
 
               {/* Error */}
               {error && (
@@ -465,19 +466,42 @@ export default function Login({ onLogin }) {
             </div>
 
             {/* Card footer */}
-            <div className="px-7 py-4 border-t flex items-center justify-between"
+            <div className="px-5 md:px-7 py-3.5 border-t flex items-center justify-between"
               style={{ borderColor: C.g100, backgroundColor: C.g50 }}>
               <div className="flex items-center gap-1.5 text-xs" style={{ color: C.g400 }}>
                 <Shield size={11}/> 256-bit SSL encrypted
               </div>
-              <div className="text-xs" style={{ color: C.g400 }}>
-                © 2025 PRAQEN
-              </div>
+              <div className="text-xs" style={{ color: C.g400 }}>© 2025 PRAQEN</div>
             </div>
           </div>
 
+          {/* Bottom sign-up link */}
+          <p className="text-center text-xs mt-4" style={{ color: C.g500 }}>
+            Don't have an account?{' '}
+            <Link to="/register" className="font-black hover:underline" style={{ color: C.green }}>Sign Up Free</Link>
+          </p>
+        </div>
+      </div>
 
-
+      {/* ── Mobile bottom nav ───────────────────────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 md:hidden"
+        style={{borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom)'}}>
+        <div className="flex items-center justify-around px-2 py-1.5">
+          {[
+            {icon:Home,    label:'Home',       path:'/'},
+            {icon:Bitcoin, label:'P2P',        path:'/buy-bitcoin'},
+            {icon:Gift,    label:'Gift Cards', path:'/gift-cards'},
+            {icon:Wallet,  label:'Wallet',     path:'/login'},
+            {icon:LogIn,   label:'Login',      path:'/login'},
+          ].map(({icon:Icon,label,path})=>(
+            <button key={label} onClick={()=>navigate(path)}
+              className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl"
+              style={{color: label==='Login' ? C.forest : C.g400}}>
+              <Icon size={20} strokeWidth={label==='Login'?2.5:1.8}/>
+              <span className="text-xs font-bold">{label}</span>
+              {label==='Login' && <span className="w-1 h-1 rounded-full" style={{backgroundColor:C.forest}}/>}
+            </button>
+          ))}
         </div>
       </div>
     </div>

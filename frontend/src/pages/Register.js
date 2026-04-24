@@ -6,7 +6,7 @@ import {
   Mail, Lock, User, Phone, Eye, EyeOff, Shield,
   CheckCircle, ArrowRight, ArrowLeft, RefreshCw,
   AlertCircle, Bitcoin, Smartphone, AtSign, Key,
-  Check, X
+  Check, X, Home, Wallet, Gift, LogIn,
 } from 'lucide-react';
 
 const C = {
@@ -160,6 +160,33 @@ const PHONE_CODES = [
   { flag:'🇨🇲', code:'+237', name:'Cameroon' },
   { flag:'🇸🇳', code:'+221', name:'Senegal' },
 ];
+
+// ── Bottom Nav (mobile only) ──────────────────────────────────────────────────
+function BottomNav() {
+  const navigate = useNavigate();
+  const items = [
+    { id:'home',      icon:Home,    label:'Home',       path:'/' },
+    { id:'p2p',       icon:Bitcoin, label:'P2P',        path:'/buy-bitcoin' },
+    { id:'giftcards', icon:Gift,    label:'Gift Cards', path:'/gift-cards' },
+    { id:'wallet',    icon:Wallet,  label:'Wallet',     path:'/wallet' },
+    { id:'login',     icon:LogIn,   label:'Login',      path:'/login' },
+  ];
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 md:hidden"
+      style={{borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom)'}}>
+      <div className="flex items-center justify-around px-2 py-1.5">
+        {items.map(({id, icon:Icon, label, path})=>(
+          <button key={id} onClick={()=>navigate(path)}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all"
+            style={{color:C.g400}}>
+            <Icon size={20} strokeWidth={1.8}/>
+            <span className="text-xs font-bold">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── STEPS ─────────────────────────────────────────────────────────────────────
 // 1 = contact (email or phone), 2 = verify OTP, 3 = profile + password, 4 = success
@@ -332,7 +359,7 @@ export default function Register({ onLogin }) {
     : ({ f1:1, f2:2, f3:3, f4:4 }[step] || 1);
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: C.mist, fontFamily:"'DM Sans',sans-serif" }}>
+    <div className="min-h-screen flex flex-col md:flex-row pb-16 md:pb-0" style={{ backgroundColor: C.mist, fontFamily:"'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
       <style>{`
         @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -340,6 +367,19 @@ export default function Register({ onLogin }) {
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         .fade{animation:fadeIn .3s ease}
       `}</style>
+
+      {/* ── Mobile top header (shown only on small screens) ────────── */}
+      <div className="md:hidden w-full px-4 pt-5 pb-4 flex items-center justify-between"
+        style={{background:`linear-gradient(135deg,${C.forest},${C.green})`}}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-base"
+            style={{backgroundColor:C.gold, color:C.forest}}>P</div>
+          <span className="text-white font-black text-lg" style={{fontFamily:"'Syne',sans-serif"}}>PRAQEN</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-white/60">
+          <Shield size={11}/> 256-bit SSL
+        </div>
+      </div>
 
       {/* Left panel — branding (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-2/5 flex-col justify-between p-10 relative overflow-hidden"
@@ -390,14 +430,14 @@ export default function Register({ onLogin }) {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-4 py-10">
+      <div className="flex-1 flex items-start md:items-center justify-center p-4 pt-4 md:py-10">
         <div className="w-full max-w-md">
 
           {/* Card */}
           <div className="bg-white rounded-3xl shadow-xl border overflow-hidden" style={{ borderColor: C.g200 }}>
 
             {/* Header */}
-            <div className="px-7 py-6 border-b" style={{ borderColor: C.g100 }}>
+            <div className="px-5 md:px-7 py-5 md:py-6 border-b" style={{ borderColor: C.g100 }}>
               <div className="flex items-center justify-between mb-1">
                 {(step !== 1 && step !== 'f1') && (
                   <button onClick={() => {
@@ -437,7 +477,7 @@ export default function Register({ onLogin }) {
             </div>
 
             {/* Body */}
-            <div className="px-7 py-6 space-y-4 slide" key={String(step)}>
+            <div className="px-5 md:px-7 py-5 md:py-6 space-y-4 slide" key={String(step)}>
 
               {/* STEP 1 / f1 — Contact ─────────────────────────────────────── */}
               {(step === 1 || step === 'f1') && (
@@ -740,7 +780,7 @@ export default function Register({ onLogin }) {
 
             {/* Footer — security note */}
             {step !== 4 && step !== 'f4' && (
-              <div className="px-7 py-4 border-t flex items-center justify-between"
+              <div className="px-5 md:px-7 py-3.5 border-t flex items-center justify-between"
                 style={{ borderColor: C.g100, backgroundColor: C.g50 }}>
                 <div className="flex items-center gap-1.5 text-xs" style={{ color: C.g400 }}>
                   <Shield size={11}/> 256-bit SSL encrypted
@@ -770,6 +810,9 @@ export default function Register({ onLogin }) {
           )}
         </div>
       </div>
+
+      {/* Bottom nav — mobile only */}
+      <BottomNav/>
     </div>
   );
 }

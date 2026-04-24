@@ -1,47 +1,39 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { useRates } from '../contexts/RatesContext';
 import Notifications from './Notifications';
 import {
-  ShoppingBag, PlusCircle, List, Wallet, User, Settings,
-  LogOut, Menu, X, LayoutDashboard, TrendingUp, Bitcoin,
-  DollarSign, ChevronDown, Eye, EyeOff, Gift, Shield,
-  Award, BarChart3, Bell, HelpCircle, Zap, ArrowRight,
-  BadgeCheck
+  Wallet, User, Settings, LogOut, ChevronDown,
+  BarChart3, Gift, List, Eye, EyeOff, ShoppingCart, Tag,
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const C = {
   forest:'#1B4332', green:'#2D6A4F', mint:'#40916C',
-  gold:'#F4A422', amber:'#F59E0B', mist:'#F0FAF5',
-  g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
-  g400:'#94A3B8', g500:'#64748B', g600:'#475569', g700:'#334155',
-  success:'#10B981', danger:'#EF4444',
+  gold:'#F4A422', mist:'#F0FAF5',
+  g100:'#F1F5F9', g200:'#E2E8F0',
+  g400:'#94A3B8', g500:'#64748B', g700:'#334155', g800:'#1E293B',
 };
 
-// ─── Beta badge ───────────────────────────────────────────────────────────────
-function Beta({small=false}) {
-  return (
-    <span
-      className={`inline-flex items-center font-black rounded-full ${small?'text-xs px-1.5 py-0':'text-xs px-2 py-0.5'}`}
-      style={{backgroundColor:'#EF4444', color:'#fff', letterSpacing:'0.05em'}}>
-      BETA
-    </span>
-  );
-}
+const fmt    = (n,d=2) => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
+const fmtBtc = (n)    => parseFloat(n||0).toFixed(4);
 
 export default function Navbar({user, onLogout}) {
   const navigate = useNavigate();
-  const [mobileOpen,   setMobileOpen]   = useState(false);
-  const [marketDrop,   setMarketDrop]   = useState(false);
-  const [profileDrop,  setProfileDrop]  = useState(false);
-  const [showBal,      setShowBal]      = useState(true);
-  const [balance,      setBalance]      = useState(0);
-  const [hdBalance,    setHdBalance]    = useState(0);
-  const [localUser,    setLocalUser]    = useState(user);
+  const location = useLocation();
+  const {rates: USD_RATES, btcUsd} = useRates();
+  const [profileDrop, setProfileDrop] = useState(false);
+  const [marketDrop,  setMarketDrop]  = useState(false);
+  const [balance,     setBalance]     = useState(0);
+  const [hdBalance,   setHdBalance]   = useState(0);
+  const [localUser,   setLocalUser]   = useState(user);
+  const [showBal,     setShowBal]     = useState(true);
+  const dropRef   = useRef(null);
+  const marketRef = useRef(null);
 
-  // Sync from localStorage on avatar/profile update
+  // Sync user from localStorage / profile updates
   useEffect(()=>{
     const sync=()=>{
       const s=JSON.parse(localStorage.getItem('user')||'{}');
@@ -55,310 +47,280 @@ export default function Navbar({user, onLogout}) {
 
   useEffect(()=>{ if(user?.id) setLocalUser(user); },[user?.id]);
 
+  // Poll wallet balance every 30 s
   useEffect(()=>{
-    if(user) loadBalance();
+    if(!user) return;
+    loadBalance();
+    const iv=setInterval(loadBalance,30000);
+    return()=>clearInterval(iv);
   },[user]);
 
   const loadBalance = async()=>{
     try {
       const tk=localStorage.getItem('token');
-      // Fetch regular wallet balance
-      const r=await axios.get(`${API_URL}/wallet`,{headers:{Authorization:`Bearer ${tk}`}});
-      const walletBal = r.data.wallet?.balance_btc||0;
-      setBalance(walletBal);
-      
-      // Fetch HD wallet balance
-      try {
-        const hdR = await axios.get(`${API_URL}/hd-wallet/wallet`, {headers:{Authorization:`Bearer ${tk}`}});
-        const hdBal = hdR.data.balance_btc || 0;
-        setHdBalance(hdBal);
-        console.log('💰 HD Wallet balance from navbar:', hdBal, 'BTC');
-        console.log('💰 Total balance (wallet + HD):', (parseFloat(walletBal) + parseFloat(hdBal)).toFixed(8), 'BTC');
-      } catch (hdErr) {
-        console.error('Failed to load HD wallet balance:', hdErr);
-        setHdBalance(0);
-      }
-      
-      console.log('💰 Regular wallet balance from navbar:', walletBal);
-    } catch (err) {
-      console.error('Failed to load wallet balance:', err);
-      setBalance(0);
-      setHdBalance(0);
-    }
+      const [r1,r2]=await Promise.allSettled([
+        axios.get(`${API_URL}/wallet`,          {headers:{Authorization:`Bearer ${tk}`}}),
+        axios.get(`${API_URL}/hd-wallet/wallet`,{headers:{Authorization:`Bearer ${tk}`}}),
+      ]);
+      setBalance  (r1.status==='fulfilled'?r1.value.data.wallet?.balance_btc||0:0);
+      setHdBalance(r2.status==='fulfilled'?r2.value.data.balance_btc||0:0);
+    } catch {}
   };
 
   // Close dropdowns on outside click
   useEffect(()=>{
-    const h=()=>{ setMarketDrop(false); setProfileDrop(false); };
-    document.addEventListener('click',h);
-    return()=>document.removeEventListener('click',h);
+    const h=e=>{
+      if(dropRef.current   && !dropRef.current.contains(e.target))   setProfileDrop(false);
+      if(marketRef.current && !marketRef.current.contains(e.target)) setMarketDrop(false);
+    };
+    document.addEventListener('mousedown',h);
+    return()=>document.removeEventListener('mousedown',h);
   },[]);
 
-  const displayUser = localUser?.id ? localUser : user;
-  const fmtBtc = n => parseFloat(n||0).toFixed(6);
+  const displayUser    = localUser?.id ? localUser : user;
+  const totalBtc       = parseFloat(balance||0)+parseFloat(hdBalance||0);
+  const ghsRate        = USD_RATES?.GHS||0;
+  const btcToGhs       = (btcUsd||0)*ghsRate;
+  const totalLocal     = totalBtc * btcToGhs;
+  const localSym       = '₵';
+  const handleLogout   = ()=>{ onLogout(); navigate('/login'); };
 
-  const handleLogout=()=>{ onLogout(); navigate('/login'); };
+  const isActive       = (path) => location.pathname === path;
+  const isMarketActive = ['/buy-bitcoin','/sell-bitcoin','/gift-cards'].some(p => location.pathname.startsWith(p));
+
+  const navLink = (path) =>
+    isActive(path)
+      ? 'px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap bg-[#F0FAF5] text-[#1B4332]'
+      : 'px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap text-[#334155] hover:bg-gray-50 hover:text-[#1B4332]';
+
+  // ── Shared Nav Links ────────────────────────────────────────────────────────
+  const DesktopNavLinks = () => (
+    <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
+
+      <Link to="/dashboard" className={navLink('/dashboard')}>Dashboard</Link>
+
+      {/* Marketplace Dropdown */}
+      <div className="relative" ref={marketRef}>
+        <button
+          onClick={() => setMarketDrop(!marketDrop)}
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap ${
+            isMarketActive
+              ? 'bg-[#F0FAF5] text-[#1B4332]'
+              : 'text-[#334155] hover:bg-gray-50 hover:text-[#1B4332]'
+          }`}>
+          Marketplace
+          <span className="text-[10px] bg-[#F4A422] text-white px-1.5 py-0.5 rounded-full font-black">BETA</span>
+          <ChevronDown size={14} className={`transition-transform ${marketDrop?'rotate-180':''}`} />
+        </button>
+
+        {marketDrop && (
+          <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+            <Link to="/buy-bitcoin" onClick={()=>setMarketDrop(false)}
+              className={`flex items-center gap-3 px-4 py-3 transition border-b border-gray-100 ${isActive('/buy-bitcoin')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <ShoppingCart size={16} className="text-[#2D6A4F]" />
+              </div>
+              <div>
+                <p className={`text-sm font-black ${isActive('/buy-bitcoin')?'text-[#1B4332]':'text-[#1E293B]'}`}>Buy Bitcoin</p>
+                <p className="text-[10px] text-gray-400">Pay with local currency</p>
+              </div>
+            </Link>
+            <Link to="/sell-bitcoin" onClick={()=>setMarketDrop(false)}
+              className={`flex items-center gap-3 px-4 py-3 transition border-b border-gray-100 ${isActive('/sell-bitcoin')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                <Tag size={16} className="text-[#F4A422]" />
+              </div>
+              <div>
+                <p className={`text-sm font-black ${isActive('/sell-bitcoin')?'text-[#1B4332]':'text-[#1E293B]'}`}>Sell Bitcoin</p>
+                <p className="text-[10px] text-gray-400">Get paid in local currency</p>
+              </div>
+            </Link>
+            <Link to="/gift-cards" onClick={()=>setMarketDrop(false)}
+              className={`flex items-center gap-3 px-4 py-3 transition ${isActive('/gift-cards')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
+              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <Gift size={16} className="text-[#8B5CF6]" />
+              </div>
+              <div>
+                <p className={`text-sm font-black ${isActive('/gift-cards')?'text-[#1B4332]':'text-[#1E293B]'}`}>Gift Cards</p>
+                <p className="text-[10px] text-gray-400">Trade cards for Bitcoin</p>
+              </div>
+            </Link>
+          </div>
+        )}
+      </div>
+
+      <Link to="/my-trades" className={navLink('/my-trades')}>My Trades</Link>
+
+      {/* Create Offer CTA */}
+      <Link to="/create-offer"
+        className={`px-3 py-2 rounded-xl text-sm font-black text-white transition whitespace-nowrap ${
+          isActive('/create-offer') ? 'bg-[#2D6A4F]' : 'bg-[#1B4332] hover:bg-[#2D6A4F]'
+        }`}>
+        + Create Offer
+      </Link>
+    </div>
+  );
+
+  // ── Guest navbar (unauthenticated) ─────────────────────────────────────────
+  if(!user) return (
+    <nav className="bg-white sticky top-0 z-50 border-b"
+      style={{borderColor:C.g200, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', fontFamily:"'DM Sans',sans-serif"}}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+      <div className="max-w-7xl mx-auto px-3">
+        <div className="flex items-center justify-between h-14 gap-2">
+          {/* Logo */}
+          <Link to="/" className="flex-shrink-0 select-none">
+            <span className="text-xl font-black tracking-tight">
+              <span style={{color:C.forest}}>PRA</span><span style={{color:C.gold}}>QEN</span>
+            </span>
+          </Link>
+          {/* Desktop Nav Links */}
+          <DesktopNavLinks />
+          {/* Right: auth buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link to="/login"
+              className="px-4 py-2 rounded-xl text-sm font-black border-2 transition hover:bg-gray-50"
+              style={{
+                borderColor: isActive('/login') ? C.forest : C.g200,
+                color:       isActive('/login') ? C.forest : C.g700,
+                backgroundColor: isActive('/login') ? C.mist : undefined,
+              }}>
+              Log In
+            </Link>
+            <Link to="/register"
+              className="px-4 py-2 rounded-xl text-sm font-black text-white transition hover:opacity-90"
+              style={{backgroundColor: isActive('/register') ? C.green : C.forest}}>
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
 
   return (
-    <nav className="bg-white sticky top-0 z-50 border-b" style={{borderColor:C.g200, boxShadow:'0 1px 8px rgba(0,0,0,0.06)'}}>
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <nav className="bg-white sticky top-0 z-50 border-b"
+      style={{borderColor:C.g200, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', fontFamily:"'DM Sans',sans-serif"}}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+      <div className="max-w-7xl mx-auto px-3">
+        <div className="flex items-center justify-between h-14 gap-2">
 
-          {/* ── LOGO ─────────────────────────────────────────────── */}
-          <Link to="/" className="flex items-center flex-shrink-0 select-none">
-            <span className="text-2xl font-black tracking-tight" style={{fontFamily:"'DM Sans',sans-serif"}}>
+          {/* ── LOGO ───────────────────────────────────────────────── */}
+          <Link to="/" className="flex-shrink-0 select-none">
+            <span className="text-xl font-black tracking-tight">
               <span style={{color:C.forest}}>PRA</span><span style={{color:C.gold}}>QEN</span>
             </span>
           </Link>
 
-          {/* ── DESKTOP NAV ────────────────────────────────────── */}
-          <div className="hidden md:flex items-center gap-0.5">
+          {/* ── CENTER: Desktop Nav Links ───────────────────────────── */}
+          <DesktopNavLinks />
 
-            {/* Dashboard */}
-            <Link to="/dashboard"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition hover:bg-gray-50"
-              style={{color:C.g700}}>
-              <LayoutDashboard size={16}/>
-              Dashboard
-            </Link>
-
-            {/* Marketplace dropdown */}
-            <div className="relative">
-              <button
-                onClick={e=>{e.stopPropagation();setMarketDrop(!marketDrop);setProfileDrop(false);}}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition hover:bg-gray-50"
-                style={{color:C.g700}}>
-                <ShoppingBag size={16}/>
-                Marketplace
-                <Beta small/>
-                <ChevronDown size={14} className={`transition-transform ml-0.5 ${marketDrop?'rotate-180':''}`} style={{color:C.g400}}/>
-              </button>
-
-              {marketDrop&&(
-                <div className="absolute top-full left-0 mt-1.5 w-64 bg-white rounded-2xl shadow-2xl border overflow-hidden"
-                  style={{borderColor:C.g100}}>
-                  {/* P2P Bitcoin */}
-                  <div className="px-3 pt-3 pb-1">
-                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
-                      P2P BITCOIN
-                    </p>
-                  </div>
-                  <Link to="/buy-bitcoin" onClick={()=>setMarketDrop(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition mx-1 rounded-xl">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                      style={{backgroundColor:`${C.success}15`}}>
-                      <Bitcoin size={15} style={{color:C.success}}/>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-bold text-sm" style={{color:C.g800}}>Buy Bitcoin</p>
-                        <Beta small/>
-                      </div>
-                      <p className="text-xs" style={{color:C.g400}}>Pay with mobile money or bank</p>
-                    </div>
-                  </Link>
-                  <Link to="/sell-bitcoin" onClick={()=>setMarketDrop(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition mx-1 rounded-xl">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                      style={{backgroundColor:`${C.amber}15`}}>
-                      <DollarSign size={15} style={{color:C.amber}}/>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-bold text-sm" style={{color:C.g800}}>Sell Bitcoin</p>
-                        <Beta small/>
-                      </div>
-                      <p className="text-xs" style={{color:C.g400}}>Receive local currency instantly</p>
-                    </div>
-                  </Link>
-
-                  {/* Gift Cards */}
-                  <div className="px-3 pt-2 pb-1 mt-1 border-t" style={{borderColor:C.g100}}>
-                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
-                      GIFT CARDS
-                    </p>
-                  </div>
-                  <Link to="/gift-cards" onClick={()=>setMarketDrop(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition mx-1 mb-1 rounded-xl">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                      style={{backgroundColor:'#CCFBF1'}}>
-                      <Gift size={15} style={{color:'#0D9488'}}/>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-bold text-sm" style={{color:C.g800}}>Gift Cards</p>
-                        <Beta small/>
-                      </div>
-                      <p className="text-xs" style={{color:C.g400}}>Amazon, iTunes, Steam & more</p>
-                    </div>
-                  </Link>
-
-                  {/* Create Offer CTA */}
-                  <div className="p-3 border-t" style={{borderColor:C.g100}}>
-                    <Link to="/create-offer" onClick={()=>setMarketDrop(false)}
-                      className="flex items-center justify-between px-3 py-2 rounded-xl font-bold text-sm"
-                      style={{backgroundColor:C.gold, color:C.forest}}>
-                      <span>Create an Offer</span>
-                      <ArrowRight size={14}/>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* My Trades */}
-            <Link to="/my-trades"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition hover:bg-gray-50"
-              style={{color:C.g700}}>
-              <List size={16}/>
-              My Trades
-            </Link>
-
-            {/* Gift Cards — standalone link, no icon, Beta badge */}
-            <Link to="/gift-cards"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition hover:bg-gray-50"
-              style={{color:C.g700}}>
-              Gift Cards
-              <Beta small/>
-            </Link>
-
-            {/* Create Offer */}
-            <Link to="/create-offer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition ml-1"
-              style={{backgroundColor:C.gold, color:C.forest}}>
-              <PlusCircle size={15}/>
-              Create Offer
-            </Link>
+          {/* ── RIGHT: Wallet · Avatar · Bell ──────────────────────── */}
+          <div className="flex items-center gap-2 flex-shrink-0">
 
             {/* Wallet balance */}
-            <div className="ml-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border"
-              style={{backgroundColor:C.mist, borderColor:`${C.green}20`}}>
-              <button onClick={()=>setShowBal(!showBal)} style={{color:C.g400}} className="hover:text-gray-600">
-                {showBal?<Eye size={14}/>:<EyeOff size={14}/>}
+            <div className="flex items-center gap-1 px-3 py-2 rounded-xl border"
+              style={{borderColor:`${C.green}30`, backgroundColor: isActive('/wallet') ? '#d9f0e5' : C.mist}}>
+              <button onClick={()=>setShowBal(!showBal)}
+                className="flex-shrink-0 hover:opacity-70 transition"
+                title={showBal?'Hide balance':'Show balance'}>
+                {showBal
+                  ? <Eye size={14} style={{color:C.green}}/>
+                  : <EyeOff size={14} style={{color:C.g400}}/>}
               </button>
-              <Link to="/wallet" className="flex items-center gap-1.5">
-                <Wallet size={14} style={{color:C.green}}/>
-                <span className="font-black text-xs" style={{color:C.green}}>
-                  {showBal?`${fmtBtc(parseFloat(balance||0) + parseFloat(hdBalance||0))} BTC`:'••••••'}
+              <Link to="/wallet" className="flex items-center gap-1 hover:opacity-80 transition">
+                <span className="text-sm font-black" style={{color:C.forest}}>
+                  {showBal ? `${localSym}${fmt(totalLocal,2)}` : '••••'}
                 </span>
               </Link>
             </div>
 
-            {/* Notifications */}
-            <Notifications user={displayUser}/>
-
-            {/* Profile dropdown */}
-            <div className="relative ml-1">
+            {/* Avatar + dropdown */}
+            <div className="relative" ref={dropRef}>
               <button
-                onClick={e=>{e.stopPropagation();setProfileDrop(!profileDrop);setMarketDrop(false);}}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition">
-                {/* Real avatar */}
-                <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center font-black text-sm text-white"
-                  style={{backgroundColor:C.green}}>
+                onClick={()=>setProfileDrop(!profileDrop)}
+                className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-50 transition">
+                <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center font-black text-sm text-white flex-shrink-0"
+                  style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
                   {displayUser?.avatar_url
                     ? <img src={displayUser.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
                     : displayUser?.username?.charAt(0)?.toUpperCase()||'U'}
                 </div>
-                <ChevronDown size={13} className={`transition-transform ${profileDrop?'rotate-180':''}`} style={{color:C.g400}}/>
+                <span className="hidden md:block text-sm font-black truncate max-w-[80px]" style={{color:C.g700}}>
+                  {displayUser?.username||'User'}
+                </span>
+                <ChevronDown size={14}
+                  className={`transition-transform ${profileDrop?'rotate-180':''}`}
+                  style={{color:C.g400}}/>
               </button>
 
+              {/* ── DROPDOWN ─────────────────────────────────────────── */}
               {profileDrop&&(
-                <div className="absolute top-full right-0 mt-1.5 w-72 bg-white rounded-2xl shadow-2xl border overflow-hidden"
+                <div className="absolute top-full right-0 mt-1.5 w-60 bg-white rounded-2xl shadow-2xl border overflow-hidden z-50"
                   style={{borderColor:C.g100}}>
 
-                  {/* User info header */}
-                  <div className="flex items-center gap-3 p-4 border-b" style={{borderColor:C.g100,backgroundColor:C.mist}}>
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center font-black text-lg text-white flex-shrink-0"
-                      style={{backgroundColor:C.green}}>
+                  <div className="flex items-center gap-3 px-4 py-3 border-b" style={{borderColor:C.g100,backgroundColor:C.mist}}>
+                    <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center font-black text-sm text-white flex-shrink-0"
+                      style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
                       {displayUser?.avatar_url
                         ? <img src={displayUser.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
                         : displayUser?.username?.charAt(0)?.toUpperCase()||'U'}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-black text-sm truncate" style={{color:C.forest}}>{displayUser?.username||'User'}</p>
-                      <p className="text-xs truncate" style={{color:C.g400}}>{displayUser?.email||''}</p>
+                      <p className="font-black text-sm truncate" style={{color:C.forest}}>
+                        {displayUser?.username||'User'}
+                      </p>
+                      <p className="text-xs font-bold truncate" style={{color:C.g400}}>
+                        {displayUser?.email||''}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Links */}
-                  <div className="py-1.5">
+                  {/* Wallet row */}
+                  <Link to="/wallet" onClick={()=>setProfileDrop(false)}
+                    className={`flex items-center justify-between px-4 py-2.5 transition border-b ${isActive('/wallet')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}
+                    style={{borderColor:C.g100}}>
+                    <div className="flex items-center gap-2.5">
+                      <Wallet size={14} style={{color: isActive('/wallet') ? C.forest : C.green, flexShrink:0}}/>
+                      <span className="text-sm font-bold" style={{color: isActive('/wallet') ? C.forest : C.g800}}>My Wallet</span>
+                    </div>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                      style={{backgroundColor:C.mist,color:C.forest,border:`1px solid ${C.green}30`}}>
+                      ₿ {fmtBtc(totalBtc)}
+                    </span>
+                  </Link>
+
+                  {/* Nav links */}
+                  <div className="py-1">
                     {[
-                      {to:'/profile',      icon:User,      label:'Your public profile',   sub:'View and edit your profile'},
-                      {to:'/my-trades',    icon:BarChart3, label:'Trade history',          sub:'Partners, statistics'},
-                      {to:'/my-listings',  icon:Gift,      label:'My Listings',            sub:'Manage your offers'},
-                      {to:'/settings',     icon:Settings,  label:'Account settings',       sub:'Verification, notifications, security'},
-                    ].map(({to,icon:Icon,label,sub})=>(
+                      {to:'/profile',      icon:User,     label:'Your Profile'},
+                      {to:'/my-trades',    icon:List,     label:'My Trades'},
+                      {to:'/my-listings',  icon:BarChart3,label:'My Listings'},
+                      {to:'/gift-cards',   icon:Gift,     label:'Gift Cards'},
+                      {to:'/settings',     icon:Settings, label:'Settings'},
+                    ].map(({to,icon:Icon,label})=>(
                       <Link key={to} to={to} onClick={()=>setProfileDrop(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition">
-                        <Icon size={16} style={{color:C.green,flexShrink:0}}/>
-                        <div>
-                          <p className="font-semibold text-sm" style={{color:C.g800}}>{label}</p>
-                          <p className="text-xs" style={{color:C.g400}}>{sub}</p>
-                        </div>
+                        className={`flex items-center gap-3 px-4 py-2 transition ${isActive(to)?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
+                        <Icon size={14} style={{color: isActive(to) ? C.forest : C.green, flexShrink:0}}/>
+                        <span className="text-sm font-bold" style={{color: isActive(to) ? C.forest : C.g800}}>{label}</span>
                       </Link>
                     ))}
-                    <button
-                      onClick={()=>{setProfileDrop(false);window.open('mailto:support@praqen.com?subject=Idea Submission','_blank');}}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition text-left">
-                      <HelpCircle size={16} style={{color:C.green,flexShrink:0}}/>
-                      <div>
-                        <p className="font-semibold text-sm" style={{color:C.g800}}>Submit an idea</p>
-                        <p className="text-xs" style={{color:C.g400}}>Help us improve PRAQEN</p>
-                      </div>
-                    </button>
-                    <div className="border-t mx-3 my-1" style={{borderColor:C.g100}}/>
-                    <button onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition text-left">
-                      <LogOut size={16} className="text-red-500 flex-shrink-0"/>
-                      <div>
-                        <p className="font-semibold text-sm text-red-600">Log out</p>
-                        <p className="text-xs" style={{color:C.g400}}>Sign out of your account</p>
-                      </div>
-                    </button>
                   </div>
+
+                  <div className="border-t mx-3 my-1" style={{borderColor:C.g100}}/>
+                  <button onClick={()=>{setProfileDrop(false);handleLogout();}}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition text-left mb-1">
+                    <LogOut size={14} className="text-red-500 flex-shrink-0"/>
+                    <span className="text-sm font-bold text-red-600">Log out</span>
+                  </button>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Mobile burger */}
-          <button onClick={()=>setMobileOpen(!mobileOpen)} className="md:hidden p-2 rounded-lg"
-            style={{color:C.green}}>
-            {mobileOpen?<X size={22}/>:<Menu size={22}/>}
-          </button>
+            {/* Notifications bell */}
+            <Notifications user={displayUser}/>
+          </div>
         </div>
-
-        {/* ── MOBILE MENU ──────────────────────────────────────── */}
-        {mobileOpen&&(
-          <div className="md:hidden py-3 border-t space-y-1" style={{borderColor:C.g200}}>
-            {[
-              {to:'/dashboard',    icon:LayoutDashboard, label:'Dashboard'},
-              {to:'/buy-bitcoin',  icon:Bitcoin,         label:'Buy Bitcoin',  beta:true},
-              {to:'/sell-bitcoin', icon:DollarSign,      label:'Sell Bitcoin', beta:true},
-              {to:'/gift-cards',   icon:null,            label:'Gift Cards',   beta:true},
-              {to:'/my-trades',    icon:List,            label:'My Trades'},
-              {to:'/create-offer', icon:PlusCircle,      label:'Create Offer', cta:true},
-              {to:'/wallet',       icon:Wallet,          label:`Wallet (${fmtBtc(balance)} BTC)`},
-              {to:'/profile',      icon:User,            label:'Profile'},
-              {to:'/settings',     icon:Settings,        label:'Settings'},
-            ].map(({to,icon:Icon,label,beta,cta})=>(
-              <Link key={to} to={to} onClick={()=>setMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition"
-                style={cta?{backgroundColor:C.gold,color:C.forest}:{color:C.g700}}>
-                {Icon&&<Icon size={17} style={{color:cta?C.forest:C.green}}/>}
-                <span className="font-semibold text-sm">{label}</span>
-                {beta&&<Beta small/>}
-              </Link>
-            ))}
-            <div className="border-t pt-2" style={{borderColor:C.g100}}>
-              <button onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition w-full text-red-600">
-                <LogOut size={17}/>
-                <span className="font-semibold text-sm">Log out</span>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </nav>
   );

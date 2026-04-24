@@ -8,7 +8,7 @@ import {
   X, RefreshCw, Info, Check, CheckCheck, Timer,
   Paperclip, Flag, BadgeCheck, FileText, Copy,
   ChevronDown, ChevronUp, DollarSign, CreditCard,
-  Smartphone, Building2
+  Smartphone, Building2, ThumbsUp, ThumbsDown, Gift,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -87,46 +87,150 @@ function Avatar({user,size=40,radius='rounded-full'}) {
 
 // ─── Feedback modal ───────────────────────────────────────────────────────────
 function FeedbackModal({name,onClose,onSubmit,submitting}) {
-  const [rating,setRating]=useState(5);
-  const [comment,setComment]=useState('');
-  const [hover,setHover]=useState(0);
-  const sentiment = rating >= 4 ? 'Positive feedback' : rating <= 2 ? 'Negative feedback' : 'Neutral feedback';
+  const [isPositive, setIsPositive] = useState(null);
+  const [comment,    setComment]    = useState('');
+
+  const rating = isPositive ? 5 : 1;
+  const canSubmit = isPositive !== null;
+
+  const placeholder = isPositive === null
+    ? 'Select Positive or Negative first…'
+    : isPositive
+      ? 'What went well? Tell the community… (optional)'
+      : 'What went wrong? Your feedback helps others… (optional)';
+
   return(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{backgroundColor:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)'}}>
       <div className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-bounceIn">
+
+        {/* Header */}
         <div className="p-5 text-white text-center"
           style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
-          <Star size={36} className="mx-auto mb-2 fill-yellow-400 text-yellow-400"/>
           <h2 className="text-lg font-black">Rate Your Trade</h2>
-          <p className="text-white/70 text-xs mt-1">How was trading with {name}?</p>
+          <p className="text-white/70 text-xs mt-1">How was trading with <span className="font-black text-white">{name}</span>?</p>
         </div>
+
         <div className="p-5 space-y-4">
-          <div className="flex justify-center gap-2">
-            {[1,2,3,4,5].map(s=>(
-              <button key={s} onMouseEnter={()=>setHover(s)} onMouseLeave={()=>setHover(0)} onClick={()=>setRating(s)}
-                className="transition transform hover:scale-110">
-                <Star size={32} className={s<=(hover||rating)?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>
-              </button>
-            ))}
+
+          {/* Positive / Negative selector */}
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={()=>setIsPositive(true)}
+              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                isPositive===true
+                  ? 'bg-emerald-50 border-emerald-500 scale-[1.02] shadow-md'
+                  : 'bg-white border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30'
+              }`}>
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center transition ${
+                isPositive===true ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>
+                <ThumbsUp size={22} fill={isPositive===true?'currentColor':'none'}/>
+              </div>
+              <span className={`font-black text-xs uppercase tracking-wide ${
+                isPositive===true ? 'text-emerald-700' : 'text-gray-400'
+              }`}>Positive</span>
+            </button>
+
+            <button onClick={()=>setIsPositive(false)}
+              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                isPositive===false
+                  ? 'bg-rose-50 border-rose-500 scale-[1.02] shadow-md'
+                  : 'bg-white border-gray-100 hover:border-rose-200 hover:bg-rose-50/30'
+              }`}>
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center transition ${
+                isPositive===false ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>
+                <ThumbsDown size={22} fill={isPositive===false?'currentColor':'none'}/>
+              </div>
+              <span className={`font-black text-xs uppercase tracking-wide ${
+                isPositive===false ? 'text-rose-700' : 'text-gray-400'
+              }`}>Negative</span>
+            </button>
           </div>
-          <p className="text-center text-sm font-bold" style={{color:C.forest}}>{sentiment}</p>
+
+          {/* Selected sentiment label */}
+          {isPositive!==null&&(
+            <p className="text-center text-xs font-bold"
+              style={{color:isPositive?'#059669':'#EF4444'}}>
+              {isPositive?'👍 Great experience!':'👎 Bad experience'}
+            </p>
+          )}
+
+          {/* Comment textarea */}
           <textarea value={comment} onChange={e=>setComment(e.target.value)}
-            placeholder="Share your experience… (optional)" rows={3}
-            className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none resize-none"
-            style={{borderColor:C.g200}}/>
+            placeholder={placeholder}
+            rows={3}
+            disabled={isPositive===null}
+            className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none resize-none transition disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              borderColor: isPositive===false ? '#FCA5A5' : isPositive===true ? '#6EE7B7' : C.g200,
+            }}/>
+
+          {/* Actions */}
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl font-bold text-sm border"
               style={{borderColor:C.g200,color:C.g600}}>Skip</button>
-            <button onClick={()=>onSubmit(rating,comment)} disabled={submitting}
-              className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-50"
-              style={{backgroundColor:C.gold,color:C.forest}}>
-              {submitting?'Submitting…':'Submit ✅'}
+            <button onClick={()=>onSubmit(rating,comment)} disabled={submitting||!canSubmit}
+              className="flex-1 py-2.5 rounded-xl font-black text-sm disabled:opacity-40 transition"
+              style={{
+                backgroundColor: isPositive===false ? '#EF4444' : C.gold,
+                color: isPositive===false ? '#fff' : C.forest,
+              }}>
+              {submitting?'Submitting…':'Submit Feedback'}
             </button>
           </div>
         </div>
       </div>
       <style>{`@keyframes bounceIn {0%{transform:scale(0.85) translateY(20px);opacity:0;}60%{transform:scale(1.03) translateY(-8px);opacity:1;}100%{transform:scale(1) translateY(0);opacity:1;}} .animate-bounceIn{animation:bounceIn 0.55s ease-out;}`}</style>
+    </div>
+  );
+}
+
+// ─── Confirm action modal (Pay / Release) ────────────────────────────────────
+function ConfirmActionModal({icon:Icon, iconBg, title, lines, confirmLabel, confirmBg, confirmColor='#fff', onClose, onConfirm, submitting}) {
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)'}}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
+        style={{animation:'slideUp .3s ease'}}>
+
+        {/* Icon header */}
+        <div className="flex flex-col items-center pt-7 pb-4 px-6">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
+            style={{backgroundColor:iconBg}}>
+            <Icon size={32} className="text-white"/>
+          </div>
+          <h2 className="text-lg font-black text-center" style={{color:'#1E293B'}}>{title}</h2>
+        </div>
+
+        {/* Lines */}
+        <div className="px-6 pb-5 space-y-2">
+          {lines.map((l,i)=>(
+            <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl"
+              style={{backgroundColor:'#F8FAFC'}}>
+              <span className="text-base flex-shrink-0">{l.icon}</span>
+              <p className="text-sm leading-snug" style={{color:'#334155'}}>{l.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="px-6 pb-8 sm:pb-6 grid grid-cols-2 gap-3">
+          <button onClick={onClose} disabled={submitting}
+            className="py-3.5 rounded-2xl font-bold text-sm border-2 transition hover:bg-gray-50 disabled:opacity-40"
+            style={{borderColor:'#E2E8F0',color:'#64748B'}}>
+            Go Back
+          </button>
+          <button onClick={onConfirm} disabled={submitting}
+            className="py-3.5 rounded-2xl font-black text-sm transition hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
+            style={{backgroundColor:confirmBg,color:confirmColor}}>
+            {submitting
+              ? <><RefreshCw size={15} className="animate-spin"/>Processing…</>
+              : confirmLabel}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
     </div>
   );
 }
@@ -302,8 +406,10 @@ export default function TradeDetail({user}) {
   const [uploading, setUploading] = useState(false);
   const [images,    setImages]    = useState([]);
   const [timeLeft,  setTimeLeft]  = useState(null);
-  const [showCancel,setShowCancel]= useState(false);
-  const [showFb,    setShowFb]    = useState(false);
+  const [showCancel,     setShowCancel]     = useState(false);
+  const [showPayConfirm, setShowPayConfirm] = useState(false);
+  const [showRelConfirm, setShowRelConfirm] = useState(false);
+  const [showFb,         setShowFb]         = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [tradeCompleted, setTradeCompleted] = useState(false);
   const [imgSrc,    setImgSrc]    = useState(null);
@@ -449,10 +555,7 @@ export default function TradeDetail({user}) {
   };
 
   const markPaid=async()=>{
-    const confirmMsg = isGiftCardTrade
-      ? 'Confirm you have sent the gift card code to the buyer?'
-      : 'Have you sent the payment? This cannot be undone.';
-    if(!window.confirm(confirmMsg))return;
+    setShowPayConfirm(false);
     setSubmitting(true);
     try{
       await axios.post(`${API_URL}/trades/${id}/mark-paid`,{},{headers:authH()});
@@ -467,11 +570,11 @@ export default function TradeDetail({user}) {
   };
 
   const releaseBtc=async()=>{
-    if(!window.confirm('Release Bitcoin to buyer? ONLY after confirming payment received. Cannot be undone.'))return;
+    setShowRelConfirm(false);
     setSubmitting(true);
     try{
       await axios.post(`${API_URL}/trades/${id}/release`,{},{headers:authH()});
-      await postSys('🎉 TRADE COMPLETE! Bitcoin has been released to buyer. 0.5% fee deducted by escrow.');
+      await postSys('🎉 TRADE COMPLETE! Bitcoin has been released to the buyer. Congratulations to both parties — always come back and trade safely on PRAQEN! 🙌');
       toast.success('✅ Trade complete! Please leave feedback.');
       setTradeCompleted(true);
       setShowSuccessModal(true);
@@ -686,7 +789,7 @@ export default function TradeDetail({user}) {
 
               {/* ── MARK PAID / SENT CODE button ─────────────────────── */}
               {showMarkPaid&&(
-                <button onClick={markPaid} disabled={submitting}
+                <button onClick={()=>setShowPayConfirm(true)} disabled={submitting}
                   className="w-full py-4 rounded-xl font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition"
                   style={{backgroundColor:C.gold,color:C.forest}}>
                   {submitting
@@ -699,7 +802,7 @@ export default function TradeDetail({user}) {
 
               {/* ── RELEASE BITCOIN button ────────────────────────────── */}
               {showRelease&&(
-                <button onClick={releaseBtc} disabled={submitting}
+                <button onClick={()=>setShowRelConfirm(true)} disabled={submitting}
                   className="w-full py-4 rounded-xl text-white font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition"
                   style={{backgroundColor:C.green}}>
                   {submitting
@@ -1051,6 +1154,34 @@ export default function TradeDetail({user}) {
                     </div>
                   );
                 })}
+                {/* ── Congratulations banner ── */}
+                {isCompleted&&(
+                  <div className="mx-1 my-2 rounded-xl overflow-hidden shadow-md"
+                    style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
+                    <div className="px-4 py-3 text-center">
+                      <p className="text-white font-black text-sm">🎉 Congratulations! 🙌</p>
+                      <p className="text-xs font-bold mt-0.5 mb-2" style={{color:'rgba(255,255,255,0.8)'}}>
+                        You just {isBuyer?'bought':'sold'} Bitcoin successfully!
+                      </p>
+                      <p className="text-xs mb-3 leading-snug" style={{color:'rgba(255,255,255,0.7)'}}>
+                        Always come back &amp; trade more — PRAQEN's safe escrow protects every trade. 🔒
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <button onClick={()=>navigate('/buy-bitcoin')}
+                          className="px-3 py-1.5 rounded-lg font-black text-xs hover:opacity-90 transition"
+                          style={{backgroundColor:C.gold,color:C.forest}}>
+                          Trade Again 🚀
+                        </button>
+                        <button onClick={()=>navigate('/dashboard')}
+                          className="px-3 py-1.5 rounded-lg font-black text-xs border hover:bg-white/10 transition"
+                          style={{borderColor:'rgba(255,255,255,0.35)',color:'#fff'}}>
+                          Dashboard →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div ref={msgEnd}/>
               </div>
 
@@ -1096,6 +1227,50 @@ export default function TradeDetail({user}) {
       {showFb && <FeedbackModal name={cp?.username} onClose={()=>setShowFb(false)} onSubmit={submitFeedback} submitting={fbSub}/>}
       {showCancel && <CancelModal onClose={()=>setShowCancel(false)} onConfirm={cancelTrade} submitting={submitting}/>}
       {imgSrc && <ImgModal src={imgSrc} onClose={()=>setImgSrc(null)}/>}
+
+      {/* ── Pay confirmation modal ───────────────────────────────────── */}
+      {showPayConfirm && (
+        <ConfirmActionModal
+          icon={isGiftCardTrade ? Gift : Check}
+          iconBg={C.gold}
+          title={isGiftCardTrade ? 'Confirm Gift Card Sent?' : 'Confirm Payment Sent?'}
+          lines={isGiftCardTrade ? [
+            {icon:'🎁', text:'You are confirming you have sent the gift card code to the buyer in the chat.'},
+            {icon:'⚠️', text:'Only confirm if you have already shared the code. This cannot be undone.'},
+            {icon:'🔒', text:'The buyer will verify the code before Bitcoin is released.'},
+          ] : [
+            {icon:'💳', text:`You are confirming you have sent the full payment via ${payMethod}.`},
+            {icon:'⚠️', text:'Only confirm if you have already completed the transfer. This cannot be undone.'},
+            {icon:'🔒', text:'The seller will verify payment before releasing Bitcoin to you.'},
+          ]}
+          confirmLabel={isGiftCardTrade ? '🎁 Yes, I Sent the Code' : '✅ Yes, I Have Paid'}
+          confirmBg={C.gold}
+          confirmColor={C.forest}
+          onClose={()=>setShowPayConfirm(false)}
+          onConfirm={markPaid}
+          submitting={submitting}
+        />
+      )}
+
+      {/* ── Release confirmation modal ───────────────────────────────── */}
+      {showRelConfirm && (
+        <ConfirmActionModal
+          icon={Bitcoin}
+          iconBg={C.green}
+          title="Release Bitcoin to Buyer?"
+          lines={[
+            {icon:'✅', text:'Only release Bitcoin AFTER you have confirmed the payment in your bank or mobile money account.'},
+            {icon:'⚠️', text:'This action is PERMANENT and cannot be reversed. Bitcoin will leave escrow immediately.'},
+            {icon:'🔒', text:'A 0.5% fee will be automatically deducted by the escrow system.'},
+          ]}
+          confirmLabel="🔓 Release Bitcoin"
+          confirmBg={C.green}
+          confirmColor="#fff"
+          onClose={()=>setShowRelConfirm(false)}
+          onConfirm={releaseBtc}
+          submitting={submitting}
+        />
+      )}
     </div>
   );
 }

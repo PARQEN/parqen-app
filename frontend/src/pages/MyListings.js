@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -61,7 +61,7 @@ function EditModal({ listing, onClose, onSave, saving }) {
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{borderColor:C.g100}}>
           <div>
             <h2 className="font-black text-base" style={{color:C.forest}}>Edit Offer</h2>
-            <p className="text-[10px] mt-0.5" style={{color:C.g400}}>
+            <p className="text-xs mt-0.5" style={{color:C.g400}}>
               #{String(listing.id||'').slice(0,8).toUpperCase()} · {listing.payment_method}
             </p>
           </div>
@@ -99,7 +99,7 @@ function EditModal({ listing, onClose, onSave, saving }) {
             <div className="grid grid-cols-2 gap-3">
               {[{key:'min_limit_local',label:'Minimum'},{key:'max_limit_local',label:'Maximum'}].map(({key,label})=>(
                 <div key={key}>
-                  <p className="text-[10px] font-bold mb-1" style={{color:C.g500}}>{label}</p>
+                  <p className="text-xs font-bold mb-1" style={{color:C.g500}}>{label}</p>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black" style={{color:C.g400}}>{sym}</span>
                     <input type="number" value={form[key]} onChange={e=>set(key,e.target.value)}
@@ -126,7 +126,7 @@ function EditModal({ listing, onClose, onSave, saving }) {
                 <button key={t} onClick={()=>set('time_limit',t)}
                   className="py-2 rounded-xl text-xs font-black border-2 transition"
                   style={{borderColor:form.time_limit===t?C.green:C.g200,backgroundColor:form.time_limit===t?C.green:'transparent',color:form.time_limit===t?C.white:C.g500}}>
-                  {t}<span className="text-[9px]">m</span>
+                  {t}<span className="text-xs">m</span>
                 </button>
               ))}
             </div>
@@ -142,7 +142,7 @@ function EditModal({ listing, onClose, onSave, saving }) {
 
           <div>
             <label className="text-xs font-black mb-1.5 block" style={{color:C.g700}}>
-              Offer Terms <span className="font-normal text-[10px]" style={{color:C.g400}}>(optional)</span>
+              Offer Terms <span className="font-normal text-xs" style={{color:C.g400}}>(optional)</span>
             </label>
             <textarea value={form.listing_terms} onChange={e=>set('listing_terms',e.target.value)}
               rows={2} placeholder="Any conditions or restrictions…"
@@ -246,18 +246,18 @@ function OfferCard({ listing, onEdit, onDelete, onToggle }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-black text-xs" style={{color:C.forest}}>{tc.label}</span>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
                   style={{backgroundColor:`${tc.color}12`,color:tc.color}}>
                   {tc.badge}
                 </span>
                 {listing.gift_card_brand && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
                     style={{backgroundColor:`${C.purple}12`,color:C.purple}}>
                     {listing.gift_card_brand}
                   </span>
                 )}
               </div>
-              <p className="text-[9px] mt-0.5 font-mono" style={{color:C.g400}}>
+              <p className="text-xs mt-0.5 font-mono" style={{color:C.g400}}>
                 #{String(listing.id||'').slice(0,8).toUpperCase()} · {isActive?'🟢 Live':'⏸ Paused'}
               </p>
             </div>
@@ -265,7 +265,7 @@ function OfferCard({ listing, onEdit, onDelete, onToggle }) {
             {/* Toggle ON/OFF */}
             <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
               <ToggleSwitch active={isActive} onToggle={handleToggle} loading={toggling}/>
-              <span className="text-[8px] font-black" style={{color:isActive?C.success:C.g400}}>
+              <span className="text-xs font-black" style={{color:isActive?C.success:C.g400}}>
                 {isActive?'ON':'OFF'}
               </span>
             </div>
@@ -274,12 +274,12 @@ function OfferCard({ listing, onEdit, onDelete, onToggle }) {
             {confirmDelete ? (
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={()=>setConfirmDelete(false)}
-                  className="text-[9px] font-bold px-1.5 py-1 rounded-lg border"
+                  className="text-xs font-bold px-1.5 py-1 rounded-lg border"
                   style={{borderColor:C.g200,color:C.g500}}>
                   No
                 </button>
                 <button onClick={()=>{setConfirmDelete(false);onDelete(listing.id);}}
-                  className="text-[9px] font-black px-2 py-1 rounded-lg text-white"
+                  className="text-xs font-black px-2 py-1 rounded-lg text-white"
                   style={{backgroundColor:C.danger}}>
                   Delete
                 </button>
@@ -294,22 +294,22 @@ function OfferCard({ listing, onEdit, onDelete, onToggle }) {
           </div>
 
           {/* ── Row 2: compact metrics ── */}
-          <div className="flex items-center gap-0 text-[10px] divide-x rounded-lg overflow-hidden border"
+          <div className="flex items-center gap-0 text-xs divide-x rounded-lg overflow-hidden border"
             style={{borderColor:C.g100}}>
             <div className="flex-1 px-2.5 py-1.5 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-wide" style={{color:C.g400}}>Margin</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Margin</p>
               <p className="font-black text-xs" style={{color:marginColor}}>{marginDisplay}</p>
             </div>
             <div className="flex-1 px-2.5 py-1.5 text-center min-w-0">
-              <p className="text-[8px] font-bold uppercase tracking-wide" style={{color:C.g400}}>Range</p>
-              <p className="font-black text-[10px] truncate" style={{color:C.forest}}>{rangeDisplay}</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Range</p>
+              <p className="font-black text-xs truncate" style={{color:C.forest}}>{rangeDisplay}</p>
             </div>
             <div className="flex-1 px-2.5 py-1.5 text-center min-w-0">
-              <p className="text-[8px] font-bold uppercase tracking-wide" style={{color:C.g400}}>Payment</p>
-              <p className="font-black text-[10px] truncate" style={{color:C.paid}}>{listing.payment_method||'—'}</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Payment</p>
+              <p className="font-black text-xs truncate" style={{color:C.paid}}>{listing.payment_method||'—'}</p>
             </div>
             <div className="flex-none px-2.5 py-1.5 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-wide" style={{color:C.g400}}>Views</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Views</p>
               <p className="font-black text-xs flex items-center gap-0.5 justify-center" style={{color:C.amber}}>
                 <Eye size={9}/>{fmt(views)}
               </p>
@@ -319,16 +319,16 @@ function OfferCard({ listing, onEdit, onDelete, onToggle }) {
           {/* ── Row 3: action buttons ── */}
           <div className="flex items-center gap-1.5">
             <button onClick={()=>onEdit(listing)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black border hover:bg-gray-50 transition flex-1 justify-center"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-gray-50 transition flex-1 justify-center"
               style={{borderColor:C.green,color:C.green}}>
               <Edit size={10}/> Edit
             </button>
             <button onClick={copyShareLink}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black border hover:bg-blue-50 transition flex-1 justify-center"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 transition flex-1 justify-center"
               style={{borderColor:C.paid,color:C.paid}}>
               <Share2 size={10}/> Share Link
             </button>
-            <span className="text-[9px]" style={{color:C.g400}}>
+            <span className="text-xs" style={{color:C.g400}}>
               <Clock size={9} className="inline mr-0.5"/>{listing.time_limit||30}m
             </span>
           </div>
@@ -368,12 +368,12 @@ function TabPanel({ listings, onEdit, onDelete, onToggle, onToggleAll, search })
     <div className="space-y-2">
       {/* Per-tab bulk toggle */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold" style={{color:C.g500}}>
+        <p className="text-xs font-bold" style={{color:C.g500}}>
           {filtered.length} offer{filtered.length!==1?'s':''} · {activeCount} active
         </p>
         <button
           onClick={()=>onToggleAll(listings.map(l=>l.id), allActive?'PAUSED':'ACTIVE')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black border transition hover:bg-gray-50"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black border transition hover:bg-gray-50"
           style={{borderColor:C.g200,color:allActive?C.warn:C.success}}>
           {allActive
             ? <><ToggleLeft size={11}/> Pause tab</>
@@ -406,8 +406,8 @@ function StatCard({icon:Icon, label, value, color, sub}) {
         <Icon size={14} style={{color}}/>
       </div>
       <p className="text-xl font-black" style={{color:C.g800}}>{value}</p>
-      <p className="text-[10px] font-semibold mt-0.5" style={{color:C.g500}}>{label}</p>
-      {sub&&<p className="text-[9px] mt-0.5" style={{color:C.g400}}>{sub}</p>}
+      <p className="text-xs font-semibold mt-0.5" style={{color:C.g500}}>{label}</p>
+      {sub&&<p className="text-xs mt-0.5" style={{color:C.g400}}>{sub}</p>}
     </div>
   );
 }
@@ -428,7 +428,7 @@ export default function MyListings({ user }) {
     setLoading(true);
     try {
       const r = await axios.get(`${API_URL}/my-listings`,{headers:authH()});
-      setListings(r.data.listings||[]);
+      setListings((r.data.listings||[]).filter(l=>l.status!=='DELETED'));
     } catch { toast.error('Failed to load your offers'); }
     finally { setLoading(false); }
   };
@@ -456,14 +456,17 @@ export default function MyListings({ user }) {
     finally { setSaving(false); }
   };
 
-  // Instant remove — revert on API failure
+  // Instant remove — revert only the specific item on failure
   const deleteListing = async (id) => {
+    const removed = listings.find(l=>l.id===id);
     setListings(prev=>prev.filter(l=>l.id!==id));
     try {
-      const r = await axios.delete(`${API_URL}/listings/${id}`,{headers:authH()});
-      if (r.data.success) { toast.success('Offer deleted'); }
-      else { load(); toast.error('Failed to delete offer'); }
-    } catch(e) { load(); toast.error(e.response?.data?.error||'Failed to delete offer'); }
+      await axios.delete(`${API_URL}/listings/${id}`,{headers:authH()});
+      toast.success('Offer deleted');
+    } catch(e) {
+      if(removed) setListings(prev=>[removed,...prev.filter(l=>l.id!==id)]);
+      toast.error(e.response?.data?.error||'Failed to delete. Try again.');
+    }
   };
 
   // Optimistic toggle — revert on failure
@@ -566,20 +569,20 @@ export default function MyListings({ user }) {
               <p className="text-xs font-black" style={{color:C.forest}}>
                 {allAreActive ? '⚡ All offers are live' : totalActive===0 ? '⏸ All offers are paused' : `${totalActive} of ${listings.length} offers active`}
               </p>
-              <p className="text-[10px] mt-0.5" style={{color:C.g500}}>Toggle all your offers at once across every tab</p>
+              <p className="text-xs mt-0.5" style={{color:C.g500}}>Toggle all your offers at once across every tab</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={()=>toggleAll(allIds, 'ACTIVE')}
                 disabled={allAreActive}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-black text-white disabled:opacity-40 transition hover:opacity-90"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-black text-white disabled:opacity-40 transition hover:opacity-90"
                 style={{backgroundColor:C.success}}>
                 <ToggleRight size={12}/> All ON
               </button>
               <button
                 onClick={()=>toggleAll(allIds, 'PAUSED')}
                 disabled={totalActive===0}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-black text-white disabled:opacity-40 transition hover:opacity-90"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-black text-white disabled:opacity-40 transition hover:opacity-90"
                 style={{backgroundColor:C.warn}}>
                 <ToggleLeft size={12}/> All OFF
               </button>
@@ -622,7 +625,7 @@ export default function MyListings({ user }) {
                       <span className="hidden sm:inline">{tab.label}</span>
                       <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                       {tab.count>0&&(
-                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                        <span className="text-xs font-black px-1.5 py-0.5 rounded-full"
                           style={{backgroundColor:isCur?tab.color:C.g100,color:isCur?'#fff':C.g500}}>
                           {tab.count}
                         </span>
@@ -635,7 +638,7 @@ export default function MyListings({ user }) {
               {/* Search + description */}
               <div className="px-4 py-2 border-b flex items-center justify-between gap-3"
                 style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                <p className="text-[10px] font-semibold" style={{color:C.g500}}>
+                <p className="text-xs font-semibold" style={{color:C.g500}}>
                   {activeTab==='sell'&&'Listed on the Buy Bitcoin marketplace page'}
                   {activeTab==='buy' &&'Listed on the Sell Bitcoin marketplace page'}
                   {activeTab==='gift'&&'Listed on the Gift Cards marketplace page'}
@@ -644,7 +647,7 @@ export default function MyListings({ user }) {
                   <Search size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:C.g400}}/>
                   <input value={search} onChange={e=>setSearch(e.target.value)}
                     placeholder="Search…"
-                    className="w-full pl-7 pr-3 py-1.5 text-[10px] border rounded-lg focus:outline-none"
+                    className="w-full pl-7 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none"
                     style={{borderColor:search?C.green:C.g200}}/>
                 </div>
               </div>
@@ -688,7 +691,7 @@ export default function MyListings({ user }) {
                   <span className="text-base flex-shrink-0">{icon}</span>
                   <div>
                     <p className="text-xs font-black" style={{color:C.forest}}>{title}</p>
-                    <p className="text-[10px] mt-0.5 leading-relaxed" style={{color:C.g500}}>{desc}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{color:C.g500}}>{desc}</p>
                   </div>
                 </div>
               ))}
@@ -731,10 +734,10 @@ export default function MyListings({ user }) {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t"
             style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>
               © {new Date().getFullYear()} PRAQEN. All rights reserved.
             </p>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

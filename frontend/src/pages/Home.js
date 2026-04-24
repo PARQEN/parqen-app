@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Shield, Zap, Users, TrendingUp, Bitcoin, Globe,
@@ -155,7 +155,7 @@ function LiveChat() {
         style={{ background:`linear-gradient(135deg,${C.forest},${C.mint})` }}>
         {open ? <X size={22} className="text-white"/> : <MessageCircle size={22} className="text-white"/>}
         {!open && unread > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-[9px] font-black flex items-center justify-center"
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-xs font-black flex items-center justify-center"
             style={{backgroundColor:C.danger}}>{unread}</span>
         )}
       </button>
@@ -175,7 +175,7 @@ function LiveChat() {
             </div>
             <div>
               <p className="text-white font-black text-sm">PRAQEN Support</p>
-              <p className="text-white/60 text-[10px] flex items-center gap-1">
+              <p className="text-white/60 text-xs flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"/>
                 Online · Replies in &lt;2 min
               </p>
@@ -220,7 +220,7 @@ function LiveChat() {
           <div className="px-3 py-2 flex gap-1.5 flex-wrap border-t" style={{backgroundColor:C.white, borderColor:C.g100}}>
             {QUICK.map(q => (
               <button key={q} onClick={() => send(q)}
-                className="text-[9px] font-semibold px-2 py-1 rounded-full border hover:bg-gray-50 transition truncate max-w-[48%]"
+                className="text-xs font-semibold px-2 py-1 rounded-full border hover:bg-gray-50 transition truncate max-w-[48%]"
                 style={{borderColor:C.g200, color:C.green}}>
                 {q}
               </button>
@@ -372,7 +372,7 @@ export default function Home({ user }) {
                           <div>
                             <div className="flex items-center gap-1">
                               <span className="font-bold" style={{color:C.forest}}>{user}</span>
-                              <span className="text-[8px] font-black px-1 py-0.5 rounded-full text-white"
+                              <span className="text-xs font-black px-1 py-0.5 rounded-full text-white"
                                 style={{backgroundColor:bc}}>{badge}</span>
                             </div>
                             <p style={{color:C.g500}}>{method}</p>
@@ -496,7 +496,7 @@ export default function Home({ user }) {
                   style={{backgroundColor:C.white, border:`2px solid ${C.gold}30`}}>
                   {icon}
                 </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black mx-auto mb-2"
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black mx-auto mb-2"
                   style={{backgroundColor:C.gold, color:C.forest}}>{n}</div>
                 <h3 className="font-black text-sm mb-1.5" style={{color:C.forest}}>{title}</h3>
                 <p className="text-xs leading-relaxed" style={{color:C.g500}}>{desc}</p>
@@ -530,7 +530,7 @@ export default function Home({ user }) {
               <div key={name} className="card-hover flex flex-col items-center gap-2 p-3 rounded-2xl border text-center"
                 style={{borderColor:C.g200, backgroundColor:C.g50}}>
                 <div className="text-xl">{icon}</div>
-                <div className="text-[10px] font-bold" style={{color:C.forest}}>{name}</div>
+                <div className="text-xs font-bold" style={{color:C.forest}}>{name}</div>
                 <div className="text-sm">{flag}</div>
               </div>
             ))}
@@ -627,7 +627,7 @@ export default function Home({ user }) {
                 <span className="text-2xl font-black" style={{fontFamily:"'Syne',sans-serif"}}>
                   <span className="text-white">PRA</span><span style={{color:C.gold}}>QEN</span>
                 </span>
-                <span className="ml-2 text-[9px] font-black px-1.5 py-0.5 rounded-full align-middle"
+                <span className="ml-2 text-xs font-black px-1.5 py-0.5 rounded-full align-middle"
                   style={{backgroundColor:'#EF4444', color:'#fff'}}>BETA</span>
               </div>
               <p className="text-white/50 text-xs leading-relaxed mb-5">
@@ -668,7 +668,7 @@ export default function Home({ user }) {
                     style={{color:'rgba(255,255,255,0.5)'}}>
                     {label}
                     {badge&&(
-                      <span className="text-[8px] font-black px-1 py-0 rounded-full"
+                      <span className="text-xs font-black px-1 py-0 rounded-full"
                         style={{backgroundColor:'#EF4444',color:'#fff'}}>{badge}</span>
                     )}
                   </Link>
@@ -718,15 +718,15 @@ export default function Home({ user }) {
 
               {/* Support email box */}
               <div className="p-3 rounded-2xl border" style={{backgroundColor:'rgba(255,255,255,0.05)', borderColor:'rgba(255,255,255,0.08)'}}>
-                <p className="text-[9px] font-black uppercase tracking-widest mb-1.5" style={{color:'rgba(255,255,255,0.3)'}}>Support</p>
+                <p className="text-xs font-black uppercase tracking-widest mb-1.5" style={{color:'rgba(255,255,255,0.3)'}}>Support</p>
                 <a href="mailto:support@praqen.com"
                   className="text-xs font-bold hover:text-white transition flex items-center gap-1.5"
                   style={{color:C.gold}}>
                   <Mail size={11}/> support@praqen.com
                 </a>
-                <p className="text-[10px] mt-1" style={{color:'rgba(255,255,255,0.3)'}}>Response within 24 hours</p>
+                <p className="text-xs mt-1" style={{color:'rgba(255,255,255,0.3)'}}>Response within 24 hours</p>
                 <button onClick={()=>document.querySelector('.chat-btn')?.click()}
-                  className="text-[10px] mt-0.5 hover:text-white transition flex items-center gap-1"
+                  className="text-xs mt-0.5 hover:text-white transition flex items-center gap-1"
                   style={{color:'rgba(255,255,255,0.4)'}}>
                   <MessageCircle size={10}/> Live Chat — Online 24/7
                 </button>
@@ -752,10 +752,10 @@ export default function Home({ user }) {
 
           {/* Bottom bar */}
           <div className="flex flex-col md:flex-row items-center justify-between pt-6 gap-3">
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>
               © {new Date().getFullYear()} PRAQEN. All rights reserved. Not financial advice.
             </p>
-            <div className="flex items-center gap-1 text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>
+            <div className="flex items-center gap-1 text-xs" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
             </div>
           </div>

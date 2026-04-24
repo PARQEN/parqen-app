@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -214,15 +214,15 @@ function SellerModal({ seller, listing, onClose, onTrade }) {
                 <CountryFlag countryCode={countryCode} className="w-4 h-3 rounded-sm"/>
               </div>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full border tracking-wide"
+                <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border tracking-wide"
                   style={{background:badge.bg,borderColor:badge.borderColor}}>
                   <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                   <span style={{color:badge.textColor}}> {badge.label}</span>
                   <BadgeCheck size={8} style={{color:badge.textColor,opacity:0.9}}/>
                 </span>
-                <span className="text-[10px] text-white/60 font-semibold">{seen.label}</span>
+                <span className="text-xs text-white/60 font-semibold">{seen.label}</span>
               </div>
-              <div className="flex items-center gap-2 mt-1.5 text-[10px] font-black">
+              <div className="flex items-center gap-2 mt-1.5 text-xs font-black">
                 <span style={{color:'#86EFAC'}}>👍 {fmt(u.positive_feedback||0)}</span>
                 <span className="text-white/30">·</span>
                 <span style={{color:'#FCA5A5'}}>👎 {fmt(u.negative_feedback||0)}</span>
@@ -242,7 +242,7 @@ function SellerModal({ seller, listing, onClose, onTrade }) {
             ].map(s=>(
               <div key={s.label}>
                 <p className="text-white font-black text-sm">{s.value}</p>
-                <p className="text-white/50 text-[9px]">{s.label}</p>
+                <p className="text-white/50 text-xs">{s.label}</p>
               </div>
             ))}
           </div>
@@ -276,13 +276,13 @@ function SellerModal({ seller, listing, onClose, onTrade }) {
               <div className="flex items-center gap-2 p-2.5 rounded-xl"
                 style={{backgroundColor:'#FFFBEB',border:'1px solid #FDE68A'}}>
                 <Timer size={12} style={{color:C.warn,flexShrink:0}}/>
-                <p className="text-[10px] font-bold" style={{color:'#92400E'}}>
+                <p className="text-xs font-bold" style={{color:'#92400E'}}>
                   Time limit: {listing?.time_limit||30} min — auto-cancels if not completed
                 </p>
               </div>
               <div className="flex items-start gap-2 p-2 rounded-xl" style={{backgroundColor:'#FEF2F2'}}>
                 <AlertTriangle size={10} className="flex-shrink-0 mt-0.5" style={{color:C.danger}}/>
-                <p className="text-[9px] text-red-600">Only share card codes inside the active trade chat. Escrow protects both parties.</p>
+                <p className="text-xs text-red-600">Only share card codes inside the active trade chat. Escrow protects both parties.</p>
               </div>
             </div>
           ) : (
@@ -392,14 +392,14 @@ function GCCard({ listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLi
                 countryCode={(u?.country_code || u?.country || 'gh').toLowerCase()}
                 className="w-4 h-3"
               />
-              <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
+              <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
                 style={{background:badge.bg,borderColor:badge.borderColor}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                 <span style={{color:badge.textColor}}> {badge.label}</span>
                 <BadgeCheck size={8} style={{color:badge.textColor,opacity:0.9}}/>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[9px] mt-0.5 font-black flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs mt-0.5 font-black flex-wrap">
               <span style={{color:C.success}}>👍 {u.positive_feedback||0}</span>
               <span style={{color:C.danger}}>👎 {u.negative_feedback||0}</span>
               <span style={{color:C.g300}}>·</span>
@@ -419,19 +419,19 @@ function GCCard({ listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLi
       {/* ── ROW 2: You Give / You Receive ───────────────────────────── */}
       <div className="px-3 py-2 border-b grid grid-cols-2 gap-2" style={{borderColor:C.g100}}>
         <div>
-          <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>You Give</p>
+          <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>You Give</p>
           <p className="text-sm font-black leading-tight" style={{color:C.g800}}>
             {fv ? `$${fv}` : sym + fmt(minLocal, 0)}
           </p>
-          <p className="text-[9px] font-semibold" style={{color:C.g400}}>
+          <p className="text-xs font-semibold" style={{color:C.g400}}>
             {fv ? 'USD card' : cur}
           </p>
         </div>
         <div className="border-l pl-2" style={{borderColor:C.g100}}>
-          <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>You Receive</p>
+          <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>You Receive</p>
           <p className="text-sm font-black leading-tight" style={{color:C.g800}}>₿ {fBtc(btcOut)}</p>
           {margin !== 0 && fv && (
-            <p className="text-[9px] font-semibold" style={{color:C.g400}}>
+            <p className="text-xs font-semibold" style={{color:C.g400}}>
               ≈ ${fmt(fv / (1 + margin / 100), 2)} value
             </p>
           )}
@@ -440,7 +440,7 @@ function GCCard({ listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLi
 
       {/* ── ROW 3: Payment method ────────────────────────────────────── */}
       <div className="px-3 py-2 border-b" style={{borderColor:C.g100}}>
-        <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>
+        <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{color:C.g500}}>
           Payment Method
         </p>
         <p className="text-xs font-black" style={{color:C.g700}}>{pay}</p>
@@ -452,18 +452,18 @@ function GCCard({ listing, btcPriceUSD, onViewSeller, onTrade, liked, onToggleLi
           <span className="text-xs font-black" style={{color:C.g800}}>
             {sym}{fmt(rateLocal)} {cur}/BTC
           </span>
-          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md"
+          <span className="text-xs font-black px-1.5 py-0.5 rounded-md"
             style={{color:'#ffffff',backgroundColor:C.danger}}>
             +{margin}%
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold" style={{color:C.g600}}>
+          <span className="text-xs font-bold" style={{color:C.g600}}>
             {minLocal && maxLocal && minLocal !== maxLocal
               ? `${sym}${fmt(minLocal)} – ${sym}${fmt(maxLocal)} ${cur}`
               : fv ? `$${fv} USD` : 'Any amount'}
           </span>
-          <span className="text-[10px] font-bold" style={{color:C.g500}}>
+          <span className="text-xs font-bold" style={{color:C.g500}}>
             ⏱ {listing.time_limit||30}min
           </span>
         </div>
@@ -654,7 +654,7 @@ export default function GiftCards({ user }) {
                     <div key={s.label} className="text-center px-3 py-1.5 rounded-xl"
                       style={{backgroundColor:'rgba(255,255,255,0.12)'}}>
                       <p className="font-black text-sm text-white">{s.value}</p>
-                      <p className="text-white/50 text-[9px]">{s.label}</p>
+                      <p className="text-white/50 text-xs">{s.label}</p>
                     </div>
                   ))}
                 </div>
@@ -687,7 +687,7 @@ export default function GiftCards({ user }) {
 
         {/* ── FACE VALUE FILTER ───────────────────────────────────────── */}
         <div className="bg-white rounded-xl border p-3" style={{borderColor:C.g200}}>
-          <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{color:C.g400}}>
+          <p className="text-xs font-black uppercase tracking-widest mb-2" style={{color:C.g400}}>
             Filter by Face Value (USD)
           </p>
           <div className="flex flex-wrap gap-2">
@@ -720,7 +720,7 @@ export default function GiftCards({ user }) {
 
             {/* Search */}
             <div className="flex-1 min-w-[140px]">
-              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Search</label>
+              <label className="text-xs font-black uppercase tracking-wide" style={{color:C.g500}}>Search</label>
               <div className="relative mt-0.5">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:C.g400}}/>
                 <input value={search} onChange={e=>setSearch(e.target.value)}
@@ -732,7 +732,7 @@ export default function GiftCards({ user }) {
 
             {/* Payment method dropdown */}
             <div ref={paymentRef} className="relative">
-              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Payment</label>
+              <label className="text-xs font-black uppercase tracking-wide" style={{color:C.g500}}>Payment</label>
               <button onClick={() => setShowPayment(!showPayment)}
                 className="mt-0.5 px-2.5 py-2 text-xs border-2 rounded-lg flex items-center gap-1.5 min-w-[140px]"
                 style={{borderColor:selPayment!=='All Payments'?C.green:C.g200}}>
@@ -761,14 +761,14 @@ export default function GiftCards({ user }) {
 
             {/* Country dropdown */}
             <div ref={countryRef} className="relative">
-              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Country</label>
+              <label className="text-xs font-black uppercase tracking-wide" style={{color:C.g500}}>Country</label>
               <button onClick={() => setShowCountry(!showCountry)}
                 className="mt-0.5 px-2.5 py-2 text-xs border-2 rounded-lg flex items-center gap-1.5"
                 style={{borderColor:selCountry.code!=='ALL'?C.green:C.g200}}>
                 <span>{selCountry.code === 'ALL' ? detectedFlag : selCountry.flag}</span>
                 <span className="font-semibold">{selCountry.name}</span>
                 {selCountry.code !== 'ALL' && (
-                  <span className="font-black text-[9px] px-1 py-0.5 rounded"
+                  <span className="font-black text-xs px-1 py-0.5 rounded"
                     style={{backgroundColor:C.g100,color:C.g600}}>
                     {selCountry.currency}
                   </span>
@@ -786,7 +786,7 @@ export default function GiftCards({ user }) {
                       <span className="text-base">{c.flag}</span>
                       <div className="flex-1 text-left">
                         <p className="font-bold" style={{color:C.g800}}>{c.name}</p>
-                        <p className="text-[9px]" style={{color:C.g400}}>{c.symbol} {c.currency}</p>
+                        <p className="text-xs" style={{color:C.g400}}>{c.symbol} {c.currency}</p>
                       </div>
                       {selCountry.code===c.code && <CheckCircle size={11} style={{color:C.green}}/>}
                     </button>
@@ -797,7 +797,7 @@ export default function GiftCards({ user }) {
 
             {/* Sort */}
             <div>
-              <label className="text-[9px] font-black uppercase tracking-wide" style={{color:C.g500}}>Sort</label>
+              <label className="text-xs font-black uppercase tracking-wide" style={{color:C.g500}}>Sort</label>
               <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
                 className="mt-0.5 px-2.5 py-2 text-xs border-2 rounded-lg focus:outline-none block"
                 style={{borderColor:C.g200,color:C.g700,fontWeight:700}}>
@@ -825,7 +825,7 @@ export default function GiftCards({ user }) {
             {selCountry.code!=='ALL' && <span> · {selCountry.flag} {selCountry.name}</span>}
             {selPayment!=='All Payments' && <span> · {selPayment}</span>}
           </p>
-          <span className="flex items-center gap-1 text-[10px] font-bold" style={{color:C.g500}}>
+          <span className="flex items-center gap-1 text-xs font-bold" style={{color:C.g500}}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
             {onlineCnt} online
           </span>
@@ -867,7 +867,7 @@ export default function GiftCards({ user }) {
         <div className="flex items-start gap-2.5 p-3 rounded-xl border"
           style={{backgroundColor:C.mist,borderColor:`${C.green}30`}}>
           <Shield size={13} className="flex-shrink-0 mt-0.5" style={{color:C.green}}/>
-          <p className="text-[10px] font-semibold leading-relaxed" style={{color:C.g700}}>
+          <p className="text-xs font-semibold leading-relaxed" style={{color:C.g700}}>
             <strong>Trade Safely:</strong> Only share gift card codes inside the active escrow trade. Never send codes before the trade is confirmed locked. Every trade is platform-protected.
           </p>
         </div>
@@ -929,8 +929,8 @@ export default function GiftCards({ user }) {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t"
             style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
+            <p className="text-xs flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

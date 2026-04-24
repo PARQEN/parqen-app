@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -39,7 +39,7 @@ function PwStrength({ password }) {
             style={{ backgroundColor: i <= passed ? colors[passed] : C.g200 }}/>
         ))}
       </div>
-      <p className="text-[10px] font-bold" style={{ color: colors[passed] }}>
+      <p className="text-xs font-bold" style={{ color: colors[passed] }}>
         {labels[passed]}
       </p>
       <div className="grid grid-cols-1 gap-0.5">
@@ -48,7 +48,7 @@ function PwStrength({ password }) {
             {test(password)
               ? <Check size={10} style={{ color: C.success }}/>
               : <X size={10} style={{ color: C.g300 }}/>}
-            <span className="text-[10px]" style={{ color: test(password) ? C.g600 : C.g400 }}>{label}</span>
+            <span className="text-xs" style={{ color: test(password) ? C.g600 : C.g400 }}>{label}</span>
           </div>
         ))}
       </div>
@@ -115,9 +115,9 @@ function Field({ label, icon:Icon, error, hint, children }) {
     <div>
       {label && <label className="block text-xs font-bold mb-1.5" style={{ color: C.g700 }}>{label}</label>}
       {children}
-      {hint && !error && <p className="text-[10px] mt-1" style={{ color: C.g400 }}>{hint}</p>}
+      {hint && !error && <p className="text-xs mt-1" style={{ color: C.g400 }}>{hint}</p>}
       {error && (
-        <p className="flex items-center gap-1 text-[10px] mt-1" style={{ color: C.danger }}>
+        <p className="flex items-center gap-1 text-xs mt-1" style={{ color: C.danger }}>
           <AlertCircle size={10}/>{error}
         </p>
       )}
@@ -375,7 +375,7 @@ export default function Register({ onLogin }) {
                 <span className="text-xl flex-shrink-0">{icon}</span>
                 <div>
                   <p className="text-white text-xs font-bold">{label}</p>
-                  <p className="text-white/45 text-[10px]">{sub}</p>
+                  <p className="text-white/45 text-xs">{sub}</p>
                 </div>
               </div>
             ))}
@@ -481,7 +481,7 @@ export default function Register({ onLogin }) {
                             style={{ borderColor: C.g200, color: C.g700 }}>
                             <span>{phoneCode.flag}</span>
                             <span>{phoneCode.code}</span>
-                            <span className="text-[10px]" style={{ color: C.g400 }}>▼</span>
+                            <span className="text-xs" style={{ color: C.g400 }}>▼</span>
                           </button>
                           {showCodes && (
                             <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-2xl z-50 border max-h-48 overflow-y-auto"
@@ -576,7 +576,7 @@ export default function Register({ onLogin }) {
                     )}
                   </div>
 
-                  <div className="flex items-start gap-2 p-3 rounded-xl text-[10px]"
+                  <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
                     style={{ backgroundColor:`${C.gold}10`, color: C.g600 }}>
                     <span className="flex-shrink-0 mt-0.5">💡</span>
                     Check your spam/junk folder if you don't see it in your inbox. Codes expire in 10 minutes.
@@ -645,7 +645,7 @@ export default function Register({ onLogin }) {
                         I understand that all trades are escrow-protected.
                       </p>
                     </label>
-                    {errs.agreed && <p className="text-[10px] mt-1" style={{ color: C.danger }}>{errs.agreed}</p>}
+                    {errs.agreed && <p className="text-xs mt-1" style={{ color: C.danger }}>{errs.agreed}</p>}
                   </div>
 
                   <button onClick={handleRegister} disabled={loading}
@@ -742,18 +742,18 @@ export default function Register({ onLogin }) {
             {step !== 4 && step !== 'f4' && (
               <div className="px-7 py-4 border-t flex items-center justify-between"
                 style={{ borderColor: C.g100, backgroundColor: C.g50 }}>
-                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: C.g400 }}>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: C.g400 }}>
                   <Shield size={11}/> 256-bit SSL encrypted
                 </div>
                 {mode === 'register' && step === 1 && (
                   <button onClick={startForgot}
-                    className="text-[10px] font-bold hover:underline" style={{ color: C.green }}>
+                    className="text-xs font-bold hover:underline" style={{ color: C.green }}>
                     Forgot password?
                   </button>
                 )}
                 {mode === 'forgot' && (
                   <button onClick={backToRegister}
-                    className="text-[10px] font-bold hover:underline" style={{ color: C.g500 }}>
+                    className="text-xs font-bold hover:underline" style={{ color: C.g500 }}>
                     ← Register instead
                   </button>
                 )}

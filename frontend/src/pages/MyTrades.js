@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -55,7 +55,7 @@ function StatCard({icon:Icon, label, value, color, sub}) {
       </div>
       <p className="text-xl font-black" style={{color:C.g800}}>{value}</p>
       <p className="text-xs font-semibold mt-0.5" style={{color:C.g500}}>{label}</p>
-      {sub&&<p className="text-[10px] mt-0.5" style={{color:C.g400}}>{sub}</p>}
+      {sub&&<p className="text-xs mt-0.5" style={{color:C.g400}}>{sub}</p>}
     </div>
   );
 }
@@ -66,9 +66,9 @@ function ActiveAlert({trade, userId, onDismiss}) {
   const st        = getStatus(trade.status);
   const cp        = isBuyer ? trade.seller : trade.buyer;
   const payMethod = trade.payment_method||'Mobile Money';
-  const cur       = trade.currency||'USD';
-  const sym       = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',USD:'$',GBP:'£',EUR:'€'}[cur]||'$';
-  const localAmt  = trade.local_amount||(parseFloat(trade.amount_usd||0));
+  const cur       = trade.local_currency||trade.currency||trade.listing?.currency||'GHS';
+  const sym       = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'}[cur]||'₵';
+  const localAmt  = parseFloat(trade.amount_local||trade.local_amount||0);
   const feeBtc    = parseFloat(trade.amount_btc||0)*0.005;
   const btcNet    = parseFloat(trade.amount_btc||0) - feeBtc;
   const isPaid    = ['PAYMENT_SENT','PAID'].includes(trade.status?.toUpperCase());
@@ -115,7 +115,7 @@ function ActiveAlert({trade, userId, onDismiss}) {
         style={{background:`linear-gradient(90deg,${C.forest},${isDisputed?C.danger:st.color})`}}>
         <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{backgroundColor:C.online}}/>
         <Bell size={12} className="text-white flex-shrink-0"/>
-        <span className="text-[11px] font-black text-white flex-1">
+        <span className="text-xs font-black text-white flex-1">
           {isDisputed?'🚨 DISPUTE ACTIVE — SUPPORT REVIEWING':'⚡ ACTIVE TRADE — ACTION REQUIRED'}
         </span>
         {/* Live countdown */}
@@ -138,15 +138,15 @@ function ActiveAlert({trade, userId, onDismiss}) {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                <span className="text-xs font-black px-2 py-0.5 rounded-full"
                   style={{backgroundColor:`${isBuyer?C.green:C.amber}15`,color:isBuyer?C.green:C.amber}}>
                   {isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
                 </span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                <span className="text-xs font-black px-2 py-0.5 rounded-full"
                   style={{backgroundColor:st.bg,color:st.color}}>
                   {st.label}
                 </span>
-                <span className="text-[9px] font-mono" style={{color:C.g400}}>
+                <span className="text-xs font-mono" style={{color:C.g400}}>
                   #{String(trade.id||'').slice(0,8).toUpperCase()}
                 </span>
               </div>
@@ -161,10 +161,10 @@ function ActiveAlert({trade, userId, onDismiss}) {
         </div>
 
         {/* Details grid */}
-        <div className="grid grid-cols-4 divide-x px-0" style={{borderColor:C.g100}}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x px-0" style={{borderColor:C.g100}}>
           {/* User */}
           <div className="px-3 py-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
               {isBuyer?'Seller':'Buyer'}
             </p>
             <p className="text-xs font-black truncate" style={{color:C.forest}}>
@@ -173,19 +173,19 @@ function ActiveAlert({trade, userId, onDismiss}) {
           </div>
           {/* Payment method */}
           <div className="px-3 py-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>Payment</p>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>Payment</p>
             <p className="text-xs font-black truncate" style={{color:C.forest}}>{payMethod}</p>
           </div>
           {/* Amount */}
           <div className="px-3 py-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
               {isBuyer?'You Pay':'You Get'}
             </p>
             <p className="text-xs font-black" style={{color:C.forest}}>{sym}{fmt(localAmt)}</p>
           </div>
           {/* BTC */}
           <div className="px-3 py-2.5 text-center">
-            <p className="text-[8px] font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
               {isBuyer?'You Receive':'You Send'}
             </p>
             <p className="text-xs font-black" style={{color:C.gold}}>₿{fmtBtc(btcNet)}</p>
@@ -197,7 +197,7 @@ function ActiveAlert({trade, userId, onDismiss}) {
           <div className="flex items-center gap-2 px-4 py-2 border-t animate-pulse"
             style={{borderColor:C.danger, backgroundColor:`${C.danger}08`}}>
             <AlertTriangle size={12} style={{color:C.danger,flexShrink:0}}/>
-            <p className="text-[10px] font-black" style={{color:C.danger}}>
+            <p className="text-xs font-black" style={{color:C.danger}}>
               ⚠️ Less than 5 minutes left! Trade auto-cancels at 00:00.
             </p>
           </div>
@@ -219,15 +219,18 @@ function TradeCard({trade, userId}) {
   const roleBadge = isBuyer ? '🛒 YOU ARE BUYING' : '💰 YOU ARE SELLING';
   
   // Payment Display - Use Actual Local Currency
-  const paymentDisplay = trade.amount_local 
-    ? `${trade.local_currency || ''} ${trade.amount_local.toLocaleString()}`
-    : `$${trade.amount_usd?.toLocaleString() || '0'} USD`;
+  const lcur    = trade.local_currency||trade.currency||trade.listing?.currency||'';
+  const lsym    = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'}[lcur]||'';
+  const lamount = parseFloat(trade.amount_local||trade.local_amount||0);
+  const paymentDisplay = (lamount && lcur)
+    ? `${lsym}${lamount.toLocaleString()} ${lcur}`
+    : `$${trade.amount_usd?.toLocaleString()||'0'} USD`;
 
   // BTC display with fiat equivalent
   const btcDisplay = `₿ ${trade.amount_btc ? parseFloat(trade.amount_btc).toFixed(8) : '0.00000000'} BTC`;
-  const fiatEquivalent = trade.amount_local
-    ? `${trade.local_currency} ${trade.amount_local.toLocaleString()}`
-    : `$${trade.amount_usd?.toLocaleString() || '0'} USD`;
+  const fiatEquivalent = (lamount && lcur)
+    ? `${lsym}${lamount.toLocaleString()} ${lcur}`
+    : `$${trade.amount_usd?.toLocaleString()||'0'} USD`;
 
   return(
     <Link to={`/trade/${trade.id}`}
@@ -266,7 +269,7 @@ function TradeCard({trade, userId}) {
                 <span className="font-black text-sm" style={{ color: isBuyer ? '#22C55E' : '#EF4444' }}>
                     {btcDisplay}
                 </span>
-                <div className="text-[10px] font-bold text-gray-400">≈ {fiatEquivalent}</div>
+                <div className="text-xs font-bold text-gray-400">≈ {fiatEquivalent}</div>
             </div>
         </div>
       </div>
@@ -294,7 +297,7 @@ function ActiveTradeModal({ trades, userId, onClose }) {
           <Bell size={16} className="text-white flex-shrink-0"/>
           <div className="flex-1 min-w-0">
             <p className="text-white font-black text-sm">⚡ You Have an Active Trade</p>
-            <p className="text-[11px]" style={{color:'rgba(255,255,255,0.7)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.7)'}}>
               Action required — don't miss your trade window
             </p>
           </div>
@@ -329,11 +332,11 @@ function ActiveTradeModal({ trades, userId, onClose }) {
                 {/* Role + ID */}
                 <div className="flex items-center justify-between px-4 py-2.5"
                   style={{backgroundColor:`${st.color}12`}}>
-                  <span className="font-black text-[11px] px-3 py-1 rounded-full"
+                  <span className="font-black text-xs px-3 py-1 rounded-full"
                     style={{backgroundColor:roleBg,color:'#fff'}}>
                     {isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
                   </span>
-                  <span className="font-mono text-[10px]" style={{color:C.g400}}>
+                  <span className="font-mono text-xs" style={{color:C.g400}}>
                     #{String(trade.id||'').slice(0,8).toUpperCase()}
                   </span>
                 </div>
@@ -361,7 +364,7 @@ function ActiveTradeModal({ trades, userId, onClose }) {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span style={{color:C.g500}}>📊 Status:</span>
-                    <span className="font-bold px-2 py-0.5 rounded-full text-[10px]"
+                    <span className="font-bold px-2 py-0.5 rounded-full text-xs"
                       style={{backgroundColor:st.bg,color:st.color}}>{st.label}</span>
                   </div>
                 </div>
@@ -384,7 +387,7 @@ function ActiveTradeModal({ trades, userId, onClose }) {
           style={{borderColor:C.g200,backgroundColor:C.g50}}>
           <div className="flex items-center gap-1.5">
             <Shield size={12} style={{color:C.green}}/>
-            <p className="text-[10px] font-semibold" style={{color:C.g500}}>Escrow-protected trades</p>
+            <p className="text-xs font-semibold" style={{color:C.g500}}>Escrow-protected trades</p>
           </div>
           <button onClick={onClose}
             className="text-xs font-bold px-4 py-2 rounded-xl border hover:bg-gray-50 transition"
@@ -629,7 +632,7 @@ export default function MyTrades({user}) {
           <div className="space-y-2">
             {/* Separator: active first, then others */}
             {active>0&&filter==='all'&&(
-              <p className="text-[10px] font-black uppercase tracking-widest px-1" style={{color:C.g400}}>
+              <p className="text-xs font-black uppercase tracking-widest px-1" style={{color:C.g400}}>
                 Active Trades
               </p>
             )}
@@ -647,7 +650,7 @@ export default function MyTrades({user}) {
                   <React.Fragment key={t.id}>
                     {/* Separator between active and non-active */}
                     {i>0&&prevActive&&!thisActive&&filter==='all'&&(
-                      <p className="text-[10px] font-black uppercase tracking-widest px-1 pt-2" style={{color:C.g400}}>
+                      <p className="text-xs font-black uppercase tracking-widest px-1 pt-2" style={{color:C.g400}}>
                         Trade History
                       </p>
                     )}
@@ -665,7 +668,7 @@ export default function MyTrades({user}) {
             <Shield size={14} style={{color:C.green, flexShrink:0, marginTop:1}}/>
             <div>
               <p className="text-xs font-black mb-0.5" style={{color:C.forest}}>All trades are escrow-protected</p>
-              <p className="text-[10px] leading-relaxed" style={{color:C.g500}}>
+              <p className="text-xs leading-relaxed" style={{color:C.g500}}>
                 Bitcoin is locked in escrow from the moment a trade starts. It is only released when both parties confirm. 0.5% fee auto-deducted on completion.
               </p>
             </div>
@@ -728,8 +731,8 @@ export default function MyTrades({user}) {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t"
             style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
+            <p className="text-xs flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

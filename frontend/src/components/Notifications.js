@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -82,12 +82,12 @@ function CompletedCard({ n, trade, userId, onNavigate }) {
       </div>
 
       <p className="text-xs font-semibold mb-1" style={{ color: C.g600 }}>{subline}</p>
-      <p className="text-[10px]" style={{ color: C.g400 }}>
+      <p className="text-xs" style={{ color: C.g400 }}>
         🏆 Congratulations! Coins are in your wallet · {when}
       </p>
 
       <div className="flex items-center justify-end mt-2">
-        <span className="flex items-center gap-1 text-[10px] font-black"
+        <span className="flex items-center gap-1 text-xs font-black"
           style={{ color: C.green }}>
           View trade <ArrowRight size={10} />
         </span>
@@ -174,15 +174,15 @@ function TradeCard({ n, trade, userId, onNavigate }) {
                 <span className="font-normal ml-1" style={{ color: C.g400 }}>· {cpCountry}</span>
               )}
             </p>
-            <p className="text-[9px] font-semibold" style={{ color: C.g400 }}>
+            <p className="text-xs font-semibold" style={{ color: C.g400 }}>
               via {pm}
             </p>
           </div>
         </div>
 
         <div className="text-right flex-shrink-0 ml-2">
-          <p className="text-[9px]" style={{ color: C.g400 }}>{relTime(n.created_at)}</p>
-          <span className="inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5"
+          <p className="text-xs" style={{ color: C.g400 }}>{relTime(n.created_at)}</p>
+          <span className="inline-flex items-center gap-1 text-xs font-black px-1.5 py-0.5 rounded-full mt-0.5"
             style={{ backgroundColor: `${st.dot}15`, color: st.dot }}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.dot }} />
             {st.label}
@@ -191,16 +191,16 @@ function TradeCard({ n, trade, userId, onNavigate }) {
       </div>
 
       {/* Row 2: action label */}
-      <p className="text-[11px] font-black mb-2" style={{ color: C.forest }}>{role}</p>
+      <p className="text-xs font-black mb-2" style={{ color: C.forest }}>{role}</p>
 
       {/* Row 3: amounts */}
       <div className="grid grid-cols-2 gap-1.5 mb-2">
-        <div className="px-2.5 py-1.5 rounded-lg text-[10px]"
+        <div className="px-2.5 py-1.5 rounded-lg text-xs"
           style={{ backgroundColor: C.g50, border: `1px solid ${C.g200}` }}>
           <span style={{ color: C.g400 }}>Pays </span>
           <span className="font-black" style={{ color: C.forest }}>{sym}{fmt(local)} {cur}</span>
         </div>
-        <div className="px-2.5 py-1.5 rounded-lg text-[10px]"
+        <div className="px-2.5 py-1.5 rounded-lg text-xs"
           style={{ backgroundColor: `${C.success}08`, border: `1px solid ${C.success}25` }}>
           <span style={{ color: C.g400 }}>Receives </span>
           <span className="font-black" style={{ color: C.success }}>₿ {btc}</span>
@@ -209,10 +209,10 @@ function TradeCard({ n, trade, userId, onNavigate }) {
 
       {/* Row 4: date + cta */}
       <div className="flex items-center justify-between">
-        <p className="text-[9px]" style={{ color: C.g400 }}>
+        <p className="text-xs" style={{ color: C.g400 }}>
           🕐 {absTime(n.created_at)}
         </p>
-        <span className="flex items-center gap-1 text-[10px] font-black"
+        <span className="flex items-center gap-1 text-xs font-black"
           style={{ color: C.green }}>
           Open trade <ArrowRight size={10} />
         </span>
@@ -251,11 +251,11 @@ function BasicCard({ n, onNavigate }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-0.5">
             <p className="font-black text-xs leading-tight" style={{ color: C.g800 }}>{n.title}</p>
-            <p className="text-[9px] flex-shrink-0" style={{ color: C.g400 }}>{relTime(n.created_at)}</p>
+            <p className="text-xs flex-shrink-0" style={{ color: C.g400 }}>{relTime(n.created_at)}</p>
           </div>
-          <p className="text-[11px] leading-relaxed" style={{ color: C.g500 }}>{n.message}</p>
+          <p className="text-xs leading-relaxed" style={{ color: C.g500 }}>{n.message}</p>
           {n.action && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black mt-1.5"
+            <span className="inline-flex items-center gap-1 text-xs font-black mt-1.5"
               style={{ color }}>
               View details <ArrowRight size={9} />
             </span>
@@ -345,7 +345,7 @@ export default function Notifications({ user }) {
         aria-label="Notifications">
         <Bell size={20} style={{ color: C.forest }} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[9px] font-black flex items-center justify-center animate-pulse"
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-white text-xs font-black flex items-center justify-center animate-pulse"
             style={{ backgroundColor: C.danger }}>
             {unread > 9 ? '9+' : unread}
           </span>
@@ -364,7 +364,7 @@ export default function Notifications({ user }) {
               <Bell size={15} className="text-white" />
               <span className="text-white font-black text-sm">Notifications</span>
               {unread > 0 && (
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-white"
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-white"
                   style={{ color: C.forest }}>
                   {unread} new
                 </span>
@@ -373,7 +373,7 @@ export default function Notifications({ user }) {
             <div className="flex items-center gap-2">
               {unread > 0 && (
                 <button onClick={markAllRead}
-                  className="flex items-center gap-1 text-[10px] font-bold text-white/80 hover:text-white transition">
+                  className="flex items-center gap-1 text-xs font-bold text-white/80 hover:text-white transition">
                   <CheckCheck size={12} /> All read
                 </button>
               )}
@@ -417,12 +417,12 @@ export default function Notifications({ user }) {
           {/* Footer */}
           <div className="px-4 py-3 border-t flex items-center justify-between flex-shrink-0"
             style={{ borderColor: C.g100, backgroundColor: C.g50 }}>
-            <p className="text-[10px]" style={{ color: C.g400 }}>
+            <p className="text-xs" style={{ color: C.g400 }}>
               {notifs.length} notification{notifs.length !== 1 ? 's' : ''}
             </p>
             <button
               onClick={() => { setShowDrop(false); navigate('/my-trades'); }}
-              className="flex items-center gap-1 text-[11px] font-black hover:underline"
+              className="flex items-center gap-1 text-xs font-black hover:underline"
               style={{ color: C.green }}>
               View my trades <ArrowRight size={11} />
             </button>

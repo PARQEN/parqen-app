@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bitcoin, Shield, Clock, TrendingUp, ArrowRight,
@@ -232,7 +232,7 @@ export default function LandingPage() {
                   style={{ border:`1px solid ${C.g200}` }}>
                   <div className="flex items-center justify-between mb-5">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: C.g400 }}>BTC / GHS Live</p>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: C.g400 }}>BTC / GHS Live</p>
                       <p className="text-3xl font-black" style={{ color: C.forest }}>₵808,425</p>
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-xs font-bold" style={{ color: C.success }}>▲ +2.4% today</span>
@@ -245,7 +245,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* Mini offers */}
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: C.g400 }}>🟢 Live Offers</p>
+                  <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: C.g400 }}>🟢 Live Offers</p>
                   <div className="space-y-2 mb-4">
                     {[
                       { user:'Samuel K.', rate:'₵808,850', method:'📱 MTN MoMo', badge:'Pro', bc:'#10B981' },
@@ -258,9 +258,9 @@ export default function LandingPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="text-xs font-black" style={{ color: C.forest }}>{user}</span>
-                            <span className="text-[8px] font-black px-1 py-0.5 rounded-full text-white" style={{ backgroundColor: bc }}>{badge}</span>
+                            <span className="text-xs font-black px-1 py-0.5 rounded-full text-white" style={{ backgroundColor: bc }}>{badge}</span>
                           </div>
-                          <p className="text-[10px]" style={{ color: C.g500 }}>{method}</p>
+                          <p className="text-xs" style={{ color: C.g500 }}>{method}</p>
                         </div>
                         <span className="text-xs font-black" style={{ color: C.green }}>{rate}</span>
                       </div>
@@ -288,7 +288,7 @@ export default function LandingPage() {
                 <div className="absolute top-1/2 -right-12 bg-white rounded-2xl px-3 py-2 shadow-xl flex items-center gap-1.5"
                   style={{ border:`1px solid ${C.gold}20` }}>
                   <span className="text-xs font-black" style={{ color: C.gold }}>0.5%</span>
-                  <span className="text-[10px]" style={{ color: C.g500 }}>fee only</span>
+                  <span className="text-xs" style={{ color: C.g500 }}>fee only</span>
                 </div>
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function LandingPage() {
 
         {/* Scroll cue */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/30">
-          <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+          <span className="text-xs uppercase tracking-widest">Scroll</span>
           <ChevronDown size={16} className="animate-bounce"/>
         </div>
       </section>
@@ -335,12 +335,12 @@ export default function LandingPage() {
                       style={{ backgroundColor:`${C.gold}15` }}>
                       {icon}
                     </div>
-                    <span className="text-[9px] font-black px-2 py-1 rounded-full"
+                    <span className="text-xs font-black px-2 py-1 rounded-full"
                       style={{ backgroundColor:`${C.green}12`, color: C.green }}>
                       {time}
                     </span>
                   </div>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black mb-2"
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black mb-2"
                     style={{ backgroundColor: C.gold, color: C.forest }}>{n}</div>
                   <h3 className="font-black text-sm mb-1" style={{ color: C.forest }}>{title}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: C.g500 }}>{desc}</p>
@@ -400,7 +400,7 @@ export default function LandingPage() {
               <div key={name} className="card-hover flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-white border text-center"
                 style={{ borderColor: C.g200 }}>
                 <span className="text-xl">{icon}</span>
-                <span className="text-[9px] font-bold leading-tight" style={{ color: C.forest }}>{name}</span>
+                <span className="text-xs font-bold leading-tight" style={{ color: C.forest }}>{name}</span>
                 <span className="text-sm">{flag}</span>
               </div>
             ))}
@@ -432,9 +432,9 @@ export default function LandingPage() {
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-black" style={{ color: C.forest }}>{name}</span>
-                      <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: bc }}>{badge}</span>
+                      <span className="text-xs font-black px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: bc }}>{badge}</span>
                     </div>
-                    <p className="text-[10px]" style={{ color: C.g400 }}>{country}</p>
+                    <p className="text-xs" style={{ color: C.g400 }}>{country}</p>
                   </div>
                 </div>
               </div>
@@ -543,7 +543,7 @@ export default function LandingPage() {
                 <span className="text-2xl font-black" style={{ fontFamily:"'Syne',sans-serif" }}>
                   <span className="text-white">PRA</span><span style={{ color: C.gold }}>QEN</span>
                 </span>
-                <span className="ml-2 text-[9px] font-black px-1.5 py-0.5 rounded-full align-middle"
+                <span className="ml-2 text-xs font-black px-1.5 py-0.5 rounded-full align-middle"
                   style={{ backgroundColor:'#EF4444', color:'#fff' }}>BETA</span>
               </div>
               <p className="text-xs leading-relaxed mb-5" style={{ color:'rgba(255,255,255,0.45)' }}>
@@ -584,7 +584,7 @@ export default function LandingPage() {
                     style={{ color:'rgba(255,255,255,0.45)' }}>
                     {label}
                     {badge && (
-                      <span className="text-[8px] font-black px-1 py-0 rounded-full"
+                      <span className="text-xs font-black px-1 py-0 rounded-full"
                         style={{ backgroundColor:'#EF4444', color:'#fff' }}>{badge}</span>
                     )}
                   </a>
@@ -634,13 +634,13 @@ export default function LandingPage() {
 
               {/* Email support */}
               <div className="p-3 rounded-2xl border" style={{ backgroundColor:'rgba(255,255,255,0.05)', borderColor:'rgba(255,255,255,0.08)' }}>
-                <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color:'rgba(255,255,255,0.3)' }}>Support</p>
+                <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color:'rgba(255,255,255,0.3)' }}>Support</p>
                 <a href="mailto:support@praqen.com"
                   className="text-xs font-bold hover:text-white transition flex items-center gap-1.5"
                   style={{ color: C.gold }}>
                   📧 support@praqen.com
                 </a>
-                <p className="text-[10px] mt-1" style={{ color:'rgba(255,255,255,0.3)' }}>Response within 24 hours</p>
+                <p className="text-xs mt-1" style={{ color:'rgba(255,255,255,0.3)' }}>Response within 24 hours</p>
               </div>
             </div>
           </div>
@@ -664,12 +664,12 @@ export default function LandingPage() {
 
           {/* Bottom row */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-6">
-            <p className="text-[10px]" style={{ color:'rgba(255,255,255,0.25)' }}>
+            <p className="text-xs" style={{ color:'rgba(255,255,255,0.25)' }}>
               © {new Date().getFullYear()} PRAQEN. All rights reserved. Not a financial advisor.
             </p>
             <div className="flex items-center gap-4">
               {['Privacy Policy','Terms of Service','Cookie Policy'].map(l=>(
-                <a key={l} href="#" className="text-[10px] hover:text-white transition"
+                <a key={l} href="#" className="text-xs hover:text-white transition"
                   style={{ color:'rgba(255,255,255,0.25)' }}>{l}</a>
               ))}
             </div>

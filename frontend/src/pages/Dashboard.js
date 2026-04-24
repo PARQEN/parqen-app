@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useLocalUser } from '../hooks/useLocalUser';
@@ -83,7 +83,7 @@ function StatCard({ icon:Icon, label, value, sub, color, onClick }) {
       </div>
       <p className="text-xl font-black" style={{color:C.g800}}>{value}</p>
       <p className="text-xs font-semibold mt-0.5" style={{color:C.g500}}>{label}</p>
-      {sub && <p className="text-[10px] mt-0.5" style={{color:C.g400}}>{sub}</p>}
+      {sub && <p className="text-xs mt-0.5" style={{color:C.g400}}>{sub}</p>}
     </div>
   );
 }
@@ -158,7 +158,7 @@ function ProfileSummary({ user, profile, stats }) {
         {/* Name + badge */}
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <h2 className="font-black text-lg" style={{color:C.forest}}>{profile?.username || user?.username}</h2>
-          <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full"
+          <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-full"
             style={{backgroundColor:badge.bg, color:badge.text}}>
             {badge.icon} {badge.label}
           </span>
@@ -166,7 +166,7 @@ function ProfileSummary({ user, profile, stats }) {
         </div>
 
         {/* Online status + meta */}
-        <div className="flex flex-wrap gap-3 text-[11px] mb-4" style={{color:C.g500}}>
+        <div className="flex flex-wrap gap-3 text-xs mb-4" style={{color:C.g500}}>
           <span className="flex items-center gap-1" style={{color:online?C.online:C.g400}}>
             <span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor:online?C.online:C.g400}}/>
             {online ? 'Online now' : 'Offline'}
@@ -183,7 +183,7 @@ function ProfileSummary({ user, profile, stats }) {
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {[
             {label:'Trades',   value:fmt(stats.totalTrades||0), color:C.green},
             {label:'Rating',   value:`${parseFloat(stats.averageRating||0).toFixed(1)}★`, color:C.amber},
@@ -192,7 +192,7 @@ function ProfileSummary({ user, profile, stats }) {
           ].map(({label,value,color})=>(
             <div key={label} className="text-center p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
               <p className="font-black text-base" style={{color}}>{value}</p>
-              <p className="text-[9px] font-semibold" style={{color:C.g400}}>{label}</p>
+              <p className="text-xs font-semibold" style={{color:C.g400}}>{label}</p>
             </div>
           ))}
         </div>
@@ -201,14 +201,14 @@ function ProfileSummary({ user, profile, stats }) {
         {thresh && (
           <div className="p-3 rounded-xl border" style={{backgroundColor:`${C.gold}08`, borderColor:`${C.gold}30`}}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-black" style={{color:C.g700}}>
+              <p className="text-xs font-black" style={{color:C.g700}}>
                 Next: <span style={{color:C.amber}}>{badge.nextLabel} {BADGES[nextKey]?.icon}</span>
               </p>
             </div>
             <div className="space-y-1.5">
               {thresh.trades > 0 && (
                 <div>
-                  <div className="flex justify-between text-[9px] mb-0.5" style={{color:C.g500}}>
+                  <div className="flex justify-between text-xs mb-0.5" style={{color:C.g500}}>
                     <span>Trades</span>
                     <span>{stats.totalTrades||0} / {thresh.trades}</span>
                   </div>
@@ -219,7 +219,7 @@ function ProfileSummary({ user, profile, stats }) {
               )}
               {thresh.referrals > 0 && (
                 <div>
-                  <div className="flex justify-between text-[9px] mb-0.5" style={{color:C.g500}}>
+                  <div className="flex justify-between text-xs mb-0.5" style={{color:C.g500}}>
                     <span>Referrals</span>
                     <span>{stats.totalReferrals||0} / {thresh.referrals}</span>
                   </div>
@@ -303,7 +303,7 @@ function AffiliateSection({ user, profile, earnings }) {
         <div className="relative p-5 md:p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black mb-3"
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black mb-3"
                 style={{backgroundColor:'rgba(255,255,255,0.15)', color:'#fff'}}>
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"/>
                 AFFILIATE PROGRAM
@@ -334,19 +334,19 @@ function AffiliateSection({ user, profile, earnings }) {
                 style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
                 <p className="text-lg mb-0.5">{icon}</p>
                 <p className="font-black text-sm text-white">{value}</p>
-                <p className="text-[9px]" style={{color:'rgba(255,255,255,0.55)'}}>{label}</p>
+                <p className="text-xs" style={{color:'rgba(255,255,255,0.55)'}}>{label}</p>
               </div>
             ))}
           </div>
 
           {/* Referral link box */}
           <div>
-            <p className="text-[10px] font-bold text-white/60 mb-1.5 uppercase tracking-wider">Your Referral Link</p>
+            <p className="text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wider">Your Referral Link</p>
             <div className="flex gap-2">
               <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl"
                 style={{backgroundColor:'rgba(255,255,255,0.12)'}}>
                 <span className="text-white/50 text-sm">🔗</span>
-                <p className="flex-1 text-[10px] font-mono text-white/80 truncate">{referralLink}</p>
+                <p className="flex-1 text-xs font-mono text-white/80 truncate">{referralLink}</p>
               </div>
               <button onClick={copy}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-black text-xs transition flex-shrink-0"
@@ -362,7 +362,7 @@ function AffiliateSection({ user, profile, earnings }) {
       <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-black" style={{color:C.forest}}>📣 Share Your Link</p>
-          <p className="text-[10px]" style={{color:C.g400}}>Tap to share on any platform</p>
+          <p className="text-xs" style={{color:C.g400}}>Tap to share on any platform</p>
         </div>
         <div className="grid grid-cols-3 gap-2 mb-3">
           {SHARE_LINKS.map(({label,icon,color,bg,url})=>(
@@ -370,14 +370,14 @@ function AffiliateSection({ user, profile, earnings }) {
               className="flex flex-col items-center gap-1.5 p-3 rounded-xl border transition hover:-translate-y-0.5 hover:shadow-sm"
               style={{borderColor:C.g200, backgroundColor:bg}}>
               <span className="text-xl leading-none">{icon}</span>
-              <span className="text-[10px] font-bold" style={{color}}>{label}</span>
+              <span className="text-xs font-bold" style={{color}}>{label}</span>
             </a>
           ))}
         </div>
         <div className="flex items-center gap-2 p-3 rounded-xl border"
           style={{borderColor:`${C.gold}30`, backgroundColor:`${C.gold}08`}}>
           <Zap size={12} style={{color:C.amber, flexShrink:0}}/>
-          <p className="text-[10px]" style={{color:C.g600}}>
+          <p className="text-xs" style={{color:C.g600}}>
             Commission is credited <strong style={{color:C.amber}}>instantly</strong> in BTC when your referral completes a trade.
           </p>
         </div>
@@ -387,7 +387,7 @@ function AffiliateSection({ user, profile, earnings }) {
       <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-black" style={{color:C.forest}}>🏆 Commission Tiers</p>
-          <span className="text-[10px] font-black px-2.5 py-1 rounded-full text-white"
+          <span className="text-xs font-black px-2.5 py-1 rounded-full text-white"
             style={{backgroundColor:currentTier.color}}>
             {currentTier.label} — {currentTier.reward}
           </span>
@@ -406,15 +406,15 @@ function AffiliateSection({ user, profile, earnings }) {
                   style={{backgroundColor:done||active?tier.color:C.g200}}>
                   {done||active
                     ? <CheckCircle size={12} className="text-white"/>
-                    : <span className="text-[9px] font-black" style={{color:C.g500}}>{tier.trades}</span>}
+                    : <span className="text-xs font-black" style={{color:C.g500}}>{tier.trades}</span>}
                 </div>
                 <div className="flex-1">
-                  <p className="text-[11px] font-black" style={{color:active?tier.color:done?C.g700:C.g400}}>
+                  <p className="text-xs font-black" style={{color:active?tier.color:done?C.g700:C.g400}}>
                     {tier.label}
-                    {active && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full text-white font-bold"
+                    {active && <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full text-white font-bold"
                       style={{backgroundColor:tier.color}}>YOUR TIER</span>}
                   </p>
-                  <p className="text-[9px]" style={{color:C.g400}}>{tier.trades} referral trades</p>
+                  <p className="text-xs" style={{color:C.g400}}>{tier.trades} referral trades</p>
                 </div>
                 <span className="font-black text-xs flex-shrink-0" style={{color:active?tier.color:done?tier.color:C.g400}}>
                   {tier.reward}
@@ -426,7 +426,7 @@ function AffiliateSection({ user, profile, earnings }) {
         {nextTier && (
           <div className="mt-3 p-2.5 rounded-xl border"
             style={{borderColor:`${nextTier.color}30`, backgroundColor:`${nextTier.color}08`}}>
-            <div className="flex justify-between text-[10px] mb-1">
+            <div className="flex justify-between text-xs mb-1">
               <span style={{color:C.g500}}>Progress to <strong style={{color:nextTier.color}}>{nextTier.label}</strong></span>
               <span style={{color:nextTier.color}}>{totalTrades}/{nextTier.trades} trades</span>
             </div>
@@ -447,7 +447,7 @@ function AffiliateSection({ user, profile, earnings }) {
             <p className="text-xs font-black" style={{color:C.forest}}>Recent Earnings</p>
           </div>
           {totalEarnings > 0 && (
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full text-white"
+            <span className="text-xs font-black px-2.5 py-1 rounded-full text-white"
               style={{backgroundColor:C.success}}>
               ₿ {fmtBtc(totalEarnings)} total
             </span>
@@ -473,17 +473,17 @@ function AffiliateSection({ user, profile, earnings }) {
                   <Bitcoin size={14} style={{color:C.success}}/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-black" style={{color:C.forest}}>
+                  <p className="text-xs font-black" style={{color:C.forest}}>
                     Commission Earned
                   </p>
-                  <p className="text-[10px] font-mono" style={{color:C.g400}}>
+                  <p className="text-xs font-mono" style={{color:C.g400}}>
                     #{String(e.trade_id||'').slice(0,10).toUpperCase()}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="font-black text-xs" style={{color:C.success}}>+{fmtBtc(e.commission_btc)} BTC</p>
                   {e.created_at && (
-                    <p className="text-[9px]" style={{color:C.g400}}>
+                    <p className="text-xs" style={{color:C.g400}}>
                       {new Date(e.created_at).toLocaleDateString('en-US',{day:'numeric',month:'short'})}
                     </p>
                   )}
@@ -544,14 +544,14 @@ function WithdrawModal({ balance, onClose, onSuccess }) {
                 className="w-full pl-3 pr-24 py-2.5 text-xs border-2 rounded-xl focus:outline-none"
                 style={{borderColor:amount?C.green:C.g200}}/>
               <button onClick={()=>setAmount(balance.toFixed(8))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded-lg"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold px-2 py-1 rounded-lg"
                 style={{backgroundColor:`${C.green}15`, color:C.green}}>MAX</button>
             </div>
-            <p className="text-[10px] mt-1" style={{color:C.g400}}>Available: {fmtBtc(balance)} BTC</p>
+            <p className="text-xs mt-1" style={{color:C.g400}}>Available: {fmtBtc(balance)} BTC</p>
           </div>
           <div className="flex items-start gap-2 p-2.5 rounded-xl" style={{backgroundColor:'#FEF9C3'}}>
             <AlertCircle size={12} style={{color:C.warn, flexShrink:0, marginTop:1}}/>
-            <p className="text-[10px]" style={{color:'#854D0E'}}>Double-check the address. Withdrawals are irreversible.</p>
+            <p className="text-xs" style={{color:'#854D0E'}}>Double-check the address. Withdrawals are irreversible.</p>
           </div>
           <button onClick={submit} disabled={loading}
             className="w-full py-3 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50"
@@ -657,7 +657,7 @@ export default function Dashboard({ user }) {
               Dashboard
             </h1>
             {lastRefresh && (
-              <p className="text-[10px]" style={{color:C.g400}}>
+              <p className="text-xs" style={{color:C.g400}}>
                 Updated {lastRefresh.toLocaleTimeString()}
               </p>
             )}
@@ -681,7 +681,7 @@ export default function Dashboard({ user }) {
               }}>
               <Icon size={12}/>{label}
               {id==='trades' && stats.pendingTrades > 0 && (
-                <span className="w-4 h-4 rounded-full text-white text-[9px] font-black flex items-center justify-center"
+                <span className="w-4 h-4 rounded-full text-white text-xs font-black flex items-center justify-center"
                   style={{backgroundColor:C.danger}}>{stats.pendingTrades}</span>
               )}
             </button>
@@ -736,11 +736,11 @@ export default function Dashboard({ user }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-black" style={{color:C.forest}}>#{trade.id?.slice(0,8).toUpperCase()}</p>
-                        <p className="text-[10px]" style={{color:C.g500}}>{s.text}</p>
+                        <p className="text-xs" style={{color:C.g500}}>{s.text}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-xs font-black" style={{color:C.forest}}>{fmtBtc(trade.amount_btc)} BTC</p>
-                        <p className="text-[10px]" style={{color:C.g400}}>${fmt(trade.amount_usd,0)}</p>
+                        <p className="text-xs" style={{color:C.g400}}>${fmt(trade.amount_usd,0)}</p>
                       </div>
                     </div>
                   );
@@ -780,13 +780,13 @@ export default function Dashboard({ user }) {
                     <Gift size={14} style={{color:C.purple}}/>
                     <div>
                       <p className="text-xs font-black" style={{color:C.forest}}>Active Listings</p>
-                      <p className="text-[10px]" style={{color:C.g400}}>Live on marketplace</p>
+                      <p className="text-xs" style={{color:C.g400}}>Live on marketplace</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-black" style={{color:C.purple}}>{stats.activeListings}</span>
                     <button onClick={()=>navigate('/create-offer')}
-                      className="px-2.5 py-1.5 rounded-xl text-white text-[10px] font-bold"
+                      className="px-2.5 py-1.5 rounded-xl text-white text-xs font-bold"
                       style={{backgroundColor:C.purple}}>
                       + New
                     </button>
@@ -826,8 +826,8 @@ export default function Dashboard({ user }) {
                     {icon}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black truncate" style={{color:C.forest}}>{label}</p>
-                    <p className="text-[9px]" style={{color:C.g400}}>{sub}</p>
+                    <p className="text-xs font-black truncate" style={{color:C.forest}}>{label}</p>
+                    <p className="text-xs" style={{color:C.g400}}>{sub}</p>
                   </div>
                 </button>
               ))}
@@ -875,17 +875,17 @@ export default function Dashboard({ user }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-black" style={{color:C.forest}}>#{trade.id?.slice(0,8).toUpperCase()}</p>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{backgroundColor:isBuyer?C.green:C.amber}}>
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white" style={{backgroundColor:isBuyer?C.green:C.amber}}>
                         {isBuyer?'BUYING':'SELLING'}
                       </span>
                     </div>
-                    <p className="text-[10px] mt-0.5" style={{color:C.g400}}>
+                    <p className="text-xs mt-0.5" style={{color:C.g400}}>
                       {new Date(trade.created_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs font-black" style={{color:C.forest}}>{fmtBtc(trade.amount_btc)} BTC</p>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full text-white"
                       style={{backgroundColor:s.color}}>
                       <SI size={9} className="inline mr-0.5"/>{s.text}
                     </span>
@@ -944,7 +944,7 @@ export default function Dashboard({ user }) {
               <Lock size={14} style={{color:C.green, flexShrink:0, marginTop:2}}/>
               <div>
                 <p className="text-xs font-black mb-0.5" style={{color:C.forest}}>How your wallet works</p>
-                <p className="text-[11px] leading-relaxed" style={{color:C.g500}}>
+                <p className="text-xs leading-relaxed" style={{color:C.g500}}>
                   When you sell Bitcoin, funds are held in escrow until the buyer confirms payment.
                   Once confirmed, Bitcoin is released to your wallet. Withdrawals are processed within 30 minutes.
                 </p>
@@ -1061,10 +1061,10 @@ export default function Dashboard({ user }) {
           {/* Bottom bar */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-5 border-t"
             style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[11px]" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>
               © {new Date().getFullYear()} PRAQEN. All rights reserved. Built with honesty.
             </p>
-            <p className="text-[11px] flex items-center gap-1.5" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs flex items-center gap-1.5" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={11}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

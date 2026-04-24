@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -82,13 +82,13 @@ function VerifRow({icon:Icon,label,desc,status,color,onVerify}){
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-black" style={{color:C.forest}}>{label}</p>
-        <p className="text-[10px]" style={{color:C.g400}}>{desc}</p>
+        <p className="text-xs" style={{color:C.g400}}>{desc}</p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full" style={{backgroundColor:c.bg,color:c.tc}}>
+        <span className="flex items-center gap-1 text-xs font-black px-2 py-1 rounded-full" style={{backgroundColor:c.bg,color:c.tc}}>
           <Ic size={10}/>{c.text}
         </span>
-        {status!=='verified'&&onVerify&&<button onClick={onVerify} className="text-[10px] font-black px-2.5 py-1 rounded-xl text-white" style={{backgroundColor:C.green}}>Verify</button>}
+        {status!=='verified'&&onVerify&&<button onClick={onVerify} className="text-xs font-black px-2.5 py-1 rounded-xl text-white" style={{backgroundColor:C.green}}>Verify</button>}
       </div>
     </div>
   );
@@ -243,7 +243,7 @@ export default function Profile({userId:propUserId}){
                       <h1 className="text-2xl md:text-3xl font-black text-white" style={{fontFamily:"'Syne',sans-serif"}}>{user.username}</h1>
                       <CountryFlag className="w-5 h-4" />
                     </div>
-                    <span className="text-[11px] font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:statusColor}}>{status}</span>
+                    <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:statusColor}}>{status}</span>
                     {kycOk&&<BadgeCheck size={20} style={{color:'#93C5FD'}} title="KYC Verified"/>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-white/65 mb-2">
@@ -266,8 +266,8 @@ export default function Profile({userId:propUserId}){
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="flex flex-col items-center px-4 py-3 rounded-2xl" style={{backgroundColor:'rgba(255,255,255,0.12)'}}>
                 <p className="text-3xl font-black text-white">{score}</p>
-                <p className="text-[9px] text-white/50 uppercase tracking-wider">Trust Score</p>
-                <span className="text-[9px] font-black mt-1 px-2 py-0.5 rounded-full" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
+                <p className="text-xs text-white/50 uppercase tracking-wider">Trust Score</p>
+                <span className="text-xs font-black mt-1 px-2 py-0.5 rounded-full" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
               </div>
               {own&&!editing&&<button onClick={()=>setEditing(true)}
                 className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/20 transition"
@@ -280,22 +280,22 @@ export default function Profile({userId:propUserId}){
           {/* Stats Grid with REAL Feedback Counts */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t" style={{borderColor:'rgba(255,255,255,0.15)'}}>
             <div className="text-center">
-              <p className="text-2xl font-black text-white">{fmt(user.total_trades || 0)}</p>
+              <p className="text-xl sm:text-2xl font-black text-white">{fmt(user.total_trades || 0)}</p>
               <p className="text-xs text-white/60 mt-0.5">Trades</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1">
-                <Star size={16} className="fill-yellow-400 text-yellow-400" />
-                <p className="text-2xl font-black" style={{color:C.gold}}>{parseFloat(user.average_rating || 0).toFixed(1)}</p>
+                <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                <p className="text-xl sm:text-2xl font-black" style={{color:C.gold}}>{parseFloat(user.average_rating || 0).toFixed(1)}</p>
               </div>
               <p className="text-xs text-white/60 mt-0.5">Rating</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-black text-white">{fmt(user.total_feedback_count || ((user.positive_feedback||0) + (user.negative_feedback||0)))}</p>
+              <p className="text-xl sm:text-2xl font-black text-white">{fmt(user.total_feedback_count || ((user.positive_feedback||0) + (user.negative_feedback||0)))}</p>
               <p className="text-xs text-white/60 mt-0.5">Feedback</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-black text-white">{parseFloat(user.completion_rate || 0).toFixed(0)}%</p>
+              <p className="text-xl sm:text-2xl font-black text-white">{parseFloat(user.completion_rate || 0).toFixed(0)}%</p>
               <p className="text-xs text-white/60 mt-0.5">Complete</p>
             </div>
           </div>
@@ -340,7 +340,7 @@ export default function Profile({userId:propUserId}){
                     {label:'Rating score',   done:rating>0,pts:20},
                     {label:'Account age',    done:true,    pts:10},
                   ].map(({label,done,pts})=>(
-                    <div key={label} className="flex items-center justify-between text-[10px]">
+                    <div key={label} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-1.5">
                         {done?<CheckCircle size={10} style={{color:C.success}}/>:<div className="w-2.5 h-2.5 rounded-full border" style={{borderColor:C.g300}}/>}
                         <span style={{color:done?C.g700:C.g400}}>{label}</span>
@@ -355,7 +355,7 @@ export default function Profile({userId:propUserId}){
               <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2"><Award size={13} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badges</p></div>
-                  <button onClick={()=>setTab('badges')} className="text-[11px] font-bold" style={{color:C.green}}>All →</button>
+                  <button onClick={()=>setTab('badges')} className="text-xs font-bold" style={{color:C.green}}>All →</button>
                 </div>
                 {earned.length===0?<p className="text-xs text-center py-3" style={{color:C.g400}}>No badges earned yet</p>:
                   <div className="flex flex-wrap gap-2">
@@ -372,26 +372,26 @@ export default function Profile({userId:propUserId}){
               <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2"><Lock size={13} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trade Limits</p></div>
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:tier.color}}>{tier.label} Tier</span>
+                  <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:tier.color}}>{tier.label} Tier</span>
                 </div>
                 <div className="flex items-end justify-between mb-4">
                   <div>
                     <p className="text-3xl font-black" style={{color:tier.color}}>${fmt(tier.limit)}</p>
                     <p className="text-xs" style={{color:C.g400}}>Per transaction limit</p>
                   </div>
-                  {nextTier&&<div className="text-right"><p className="text-sm font-black" style={{color:C.g600}}>${fmt(nextTier.limit)}</p><p className="text-[10px]" style={{color:C.g400}}>Next tier</p></div>}
+                  {nextTier&&<div className="text-right"><p className="text-sm font-black" style={{color:C.g600}}>${fmt(nextTier.limit)}</p><p className="text-xs" style={{color:C.g400}}>Next tier</p></div>}
                 </div>
                 <div className="flex gap-1 mb-3">
                   {TIERS.map((t,i)=><div key={i} className="flex-1 h-2 rounded-full" style={{backgroundColor:i<=tierIdx?t.color:C.g200}}/>)}
                 </div>
                 {nextTier&&own&&(
                   <div className="p-3 rounded-xl border" style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}30`}}>
-                    <p className="text-[11px] font-black mb-2" style={{color:C.forest}}>🎯 Unlock {nextTier.label} — ${fmt(nextTier.limit)}/trade</p>
+                    <p className="text-xs font-black mb-2" style={{color:C.forest}}>🎯 Unlock {nextTier.label} — ${fmt(nextTier.limit)}/trade</p>
                     <div className="space-y-1 mb-2">
                       {nextTier.requires.map(req=>{
                         const done=req==='email'?emailOk:req==='phone'?phoneOk:req==='kyc'?kycOk:trades>=50;
                         return(
-                          <div key={req} className="flex items-center gap-1.5 text-[10px]">
+                          <div key={req} className="flex items-center gap-1.5 text-xs">
                             {done?<CheckCircle size={10} style={{color:C.success}}/>:<div className="w-2.5 h-2.5 rounded-full border-2" style={{borderColor:C.warn}}/>}
                             <span style={{color:done?C.success:C.g600}}>{req==='email'?'Verify email':req==='phone'?'Verify phone':req==='kyc'?'Complete KYC':'Complete 50+ trades'}</span>
                           </div>
@@ -399,7 +399,7 @@ export default function Profile({userId:propUserId}){
                       })}
                     </div>
                     <button onClick={()=>setTab('verification')}
-                      className="w-full py-2 rounded-xl text-white text-[11px] font-black hover:opacity-90 transition"
+                      className="w-full py-2 rounded-xl text-white text-xs font-black hover:opacity-90 transition"
                       style={{backgroundColor:C.green}}>
                       Upgrade Account → Increase Trade Limits
                     </button>
@@ -417,10 +417,10 @@ export default function Profile({userId:propUserId}){
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-black text-xs" style={{color:C.forest}}>{r.reviewer?.username||'Trader'}</span>
                       <div className="flex gap-0.5">{[1,2,3,4,5].map(i=><Star key={i} size={9} className={i<=r.rating?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>)}</div>
-                      {r.is_verified_trade&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified</span>}
+                      {r.is_verified_trade&&<span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified</span>}
                     </div>
                     {r.comment&&<p className="text-xs" style={{color:C.g600}}>{r.comment}</p>}
-                    <p className="text-[10px] mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
+                    <p className="text-xs mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
                   </div>
                 </div>
               ))}
@@ -439,7 +439,7 @@ export default function Profile({userId:propUserId}){
                   <p className="font-black text-lg" style={{fontFamily:"'Syne',sans-serif"}}>{verifPct===100?'✅ Fully Verified!':'Complete Verification'}</p>
                   <p className="text-white/70 text-xs mt-0.5">{[emailOk,phoneOk,kycOk].filter(Boolean).length}/3 steps completed — unlock higher trade limits</p>
                 </div>
-                <div className="text-right"><p className="text-3xl font-black">{verifPct}%</p><p className="text-white/50 text-[10px]">Complete</p></div>
+                <div className="text-right"><p className="text-3xl font-black">{verifPct}%</p><p className="text-white/50 text-xs">Complete</p></div>
               </div>
               <div className="h-2.5 rounded-full bg-white/20"><div className="h-2.5 rounded-full" style={{width:`${verifPct}%`,backgroundColor:C.gold}}/></div>
             </div>
@@ -501,8 +501,8 @@ export default function Profile({userId:propUserId}){
                 ].map(({label,value,sub,color})=>(
                   <div key={label} className="text-center p-3 rounded-xl" style={{backgroundColor:C.g50}}>
                     <p className="text-2xl font-black" style={{color}}>{value}</p>
-                    <p className="text-[10px] font-bold mt-0.5" style={{color:C.g500}}>{label}</p>
-                    <p className="text-[9px]" style={{color:C.g400}}>{sub}</p>
+                    <p className="text-xs font-bold mt-0.5" style={{color:C.g500}}>{label}</p>
+                    <p className="text-xs" style={{color:C.g400}}>{sub}</p>
                   </div>
                 ))}
               </div>
@@ -543,10 +543,10 @@ export default function Profile({userId:propUserId}){
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="font-black text-xs" style={{color:C.forest}}>{r.reviewer?.username||'Trader'}</span>
                       <div className="flex gap-0.5">{[1,2,3,4,5].map(i=><Star key={i} size={9} className={i<=r.rating?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>)}</div>
-                      {r.is_verified_trade&&<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified Trade</span>}
+                      {r.is_verified_trade&&<span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified Trade</span>}
                     </div>
                     {r.comment&&<p className="text-xs" style={{color:C.g600}}>{r.comment}</p>}
-                    <p className="text-[10px] mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
+                    <p className="text-xs mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
                   </div>
                 </div>
               ))}
@@ -559,7 +559,7 @@ export default function Profile({userId:propUserId}){
           <div className="max-w-2xl">
             <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
               <div className="flex items-center gap-2 mb-1"><Award size={14} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badge Collection</p></div>
-              <p className="text-[11px] mb-4" style={{color:C.g400}}>{earned.length}/{BADGE_DEFS.length} badges earned</p>
+              <p className="text-xs mb-4" style={{color:C.g400}}>{earned.length}/{BADGE_DEFS.length} badges earned</p>
               <div className="space-y-3">
                 {BADGE_DEFS.map(b=>{
                   const has=badges.some(badge=>badge.badge_name===b.label&&badge.is_unlocked);
@@ -572,9 +572,9 @@ export default function Profile({userId:propUserId}){
                       <div className="flex-1">
                         <p className="text-xs font-black" style={{color:has?b.color:C.g500}}>
                           {b.label}
-                          {has&&<span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">EARNED</span>}
+                          {has&&<span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">EARNED</span>}
                         </p>
-                        <p className="text-[10px]" style={{color:C.g400}}>{b.desc}</p>
+                        <p className="text-xs" style={{color:C.g400}}>{b.desc}</p>
                       </div>
                       {has?<CheckCircle size={16} style={{color:b.color,flexShrink:0}}/>:<Lock size={14} style={{color:C.g300,flexShrink:0}}/>}
                     </div>
@@ -668,8 +668,8 @@ export default function Profile({userId:propUserId}){
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-5 border-t" style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[11px]" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-[11px] flex items-center gap-1.5" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
+            <p className="text-xs flex items-center gap-1.5" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={11}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

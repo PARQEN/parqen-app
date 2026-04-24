@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Send, Star, Clock, CheckCircle, AlertCircle, Lock,
   MessageCircle, Bitcoin, Shield, AlertTriangle,
-  X, RefreshCw, Info, Check, Timer, ChevronRight,
+  X, RefreshCw, Info, Check, CheckCheck, Timer,
   Paperclip, Flag, BadgeCheck, FileText, Copy,
   ChevronDown, ChevronUp, DollarSign, CreditCard,
-  Smartphone, Building2, ArrowLeft
+  Smartphone, Building2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -200,7 +200,7 @@ function ProfilePopup({user,label,onClose}) {
                 <h3 className="font-black text-lg">{user.username}</h3>
                 {user.kyc_verified&&<BadgeCheck size={14} style={{color:'#93C5FD'}}/>}
               </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+              <span className="text-xs font-black px-2 py-0.5 rounded-full"
                 style={{backgroundColor:badge.color,color:'#fff'}}>
                 {badge.icon} {badge.label}
               </span>
@@ -210,7 +210,7 @@ function ProfilePopup({user,label,onClose}) {
             {[1,2,3,4,5].map(s=><Star key={s} size={14} className={s<=Math.round(rating)?'fill-yellow-400 text-yellow-400':'text-white/30'}/>)}
             <span className="text-white font-bold text-xs ml-1">{rating.toFixed(1)}</span>
           </div>
-          <p className="text-white/60 text-[11px] flex items-center gap-1">
+          <p className="text-white/60 text-xs flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full" style={{backgroundColor:online?C.online:C.g400}}/>{seen}
             {user.country&&<span className="ml-2">{flag} {user.country}</span>}
           </p>
@@ -230,7 +230,7 @@ function ProfilePopup({user,label,onClose}) {
             })().map(s=>(
               <div key={s.label} className="text-center p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
                 <p className="font-black text-sm" style={{color:s.color}}>{s.value}</p>
-                <p className="text-[9px] text-gray-400">{s.label}</p>
+                <p className="text-xs text-gray-400">{s.label}</p>
               </div>
             ))}
           </div>
@@ -248,7 +248,7 @@ function ProfilePopup({user,label,onClose}) {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-center mt-2" style={{color:C.g400}}>
+          <p className="text-xs text-center mt-2" style={{color:C.g400}}>
             {label}
           </p>
         </div>
@@ -286,6 +286,7 @@ export default function TradeDetail({user}) {
   const navigate   = useNavigate();
   const { rates: USD_RATES, btcUsd: contextBtcUsd } = useRates();
   const msgEnd     = useRef(null);
+  const chatRef    = useRef(null);
   const fileRef    = useRef(null);
   const scrolled   = useRef(false);
 
@@ -362,7 +363,12 @@ export default function TradeDetail({user}) {
   },[isCompleted, trade?.user_gave_feedback, tradeCompleted]);
 
   useEffect(()=>{
-    if(messages.length>0&&scrolled.current) msgEnd.current?.scrollIntoView({behavior:'smooth'});
+    if(messages.length>0&&scrolled.current){
+      const el=chatRef.current;
+      if(!el)return;
+      const distFromBottom=el.scrollHeight-el.scrollTop-el.clientHeight;
+      if(distFromBottom<150) msgEnd.current?.scrollIntoView({behavior:'smooth'});
+    }
   },[messages]);
 
   const loadAll=async()=>{
@@ -602,6 +608,11 @@ export default function TradeDetail({user}) {
   const showCancelBtn = isTradeOpener&&isEscrow&&isActive;
   const showDispute   = isActive&&!isDisputed&&(isBuyer||isSeller);
 
+  // Read receipts: timestamp of the last message the counterparty sent
+  const lastCpMsgTime = messages
+    .filter(m=>m.sender_id&&String(m.sender_id)!==String(user?.id))
+    .reduce((max,m)=>Math.max(max,new Date(m.created_at).getTime()),0);
+
   return(
     <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50,fontFamily:"'DM Sans',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
@@ -609,77 +620,14 @@ export default function TradeDetail({user}) {
       {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3">
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[11px] mb-3" style={{color:C.g400}}>
-          <button onClick={()=>navigate('/dashboard')} className="hover:underline flex items-center gap-1">
-            <ArrowLeft size={10}/>Dashboard
-          </button>
-          <ChevronRight size={10}/>
-          <span className="font-semibold" style={{color:C.g700}}>Trade #{shortId}</span>
-        </div>
-
-        <div className="grid lg:grid-cols-12 gap-3" style={{height:'calc(100vh - 80px)'}}>
+        <div className="grid lg:grid-cols-12 gap-3 lg:[height:calc(100vh-56px)]">
 
           {/* ── LEFT PANEL ───────────────────────────────────────────────── */}
-          <div className="lg:col-span-4 space-y-3 overflow-y-auto pb-3"
-            style={{maxHeight:'calc(100vh - 80px)'}}>
-
-
-            {/* ── COUNTERPARTY CARD ────────────────────────────────────── */}
-            <button
-              onClick={()=>{setProfUser(cp);setProfLabel(isBuyer?'Seller':'Buyer');}}
-              className="w-full bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition text-left"
-              style={{borderColor:C.g200}}>
-              <div className="h-1" style={{background:`linear-gradient(90deg,${C.green},${C.sage})`}}/>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-black uppercase tracking-wider" style={{color:C.g400}}>
-                    {isBuyer?'👤 Seller':'👤 Buyer'}
-                  </p>
-                  <p className="text-[9px]" style={{color:C.g400}}>Tap to view profile</p>
-                </div>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="relative">
-                    <Avatar user={cp} size={44}/>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
-                      style={{backgroundColor:cpOnline?C.online:C.g400}}/>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="font-black text-sm" style={{color:C.forest}}>{cp?.username||'—'}</p>
-                      <span className="text-sm">{isoToFlag(cp?.country_code||cp?.country||'')}</span>
-                      {cp?.kyc_verified&&<BadgeCheck size={12} style={{color:C.paid}}/>}
-                      <span className="text-[8px] font-black px-1.5 py-0.5 rounded-sm text-white"
-                        style={{backgroundColor:cpBadge.color}}>{cpBadge.label}</span>
-                    </div>
-                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      <span className="text-[10px] font-bold" style={{color:C.success}}>👍{cpPos}</span>
-                      <span className="text-[10px] font-bold" style={{color:C.danger}}>👎{cpNeg}</span>
-                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
-                      <span className="text-[10px]" style={{color:C.g400}}>{fmt(cp?.total_trades||0)} trades</span>
-                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
-                      <span className="text-[10px]" style={{color:cpOnline?C.online:C.g400}}>{cpSeen}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    {l:'Feedback', v:`${cpFeedbackPct}%`,                                             c:C.success},
-                    {l:'Response', v:'<5 min',                                                         c:C.paid},
-                    {l:'Reviews',  v:fmt(cp?.feedback_count||cp?.review_count||cp?.total_reviews||0), c:C.warn},
-                  ].map(s=>(
-                    <div key={s.l} className="p-2 text-center rounded-xl" style={{backgroundColor:C.g50}}>
-                      <p className="font-black text-xs" style={{color:s.c}}>{s.v}</p>
-                      <p className="text-[8px] text-gray-400">{s.l}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </button>
+          <div className="order-2 lg:order-1 lg:col-span-4 space-y-3 lg:overflow-y-auto pb-3 lg:[max-height:calc(100vh-56px)]">
 
             {/* ── TRADE PROGRESS ───────────────────────────────────────── */}
             <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
-              <p className="text-[9px] font-black uppercase tracking-wider mb-3" style={{color:C.g400}}>📋 Trade Progress</p>
+              <p className="text-xs font-black uppercase tracking-wider mb-3" style={{color:C.g400}}>📋 Trade Progress</p>
               <div className="space-y-2.5">
                 {(isGiftCardTrade ? [
                   {label:'Trade opened — Alice\'s BTC locked in escrow',  done:true},
@@ -778,9 +726,9 @@ export default function TradeDetail({user}) {
                   style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
                   <CheckCircle size={24} className="mx-auto mb-1"/>
                   <p className="font-black text-sm">Trade Complete 🎉</p>
-                  <p className="text-[10px] text-white/60 mt-0.5">0.5% fee auto-collected by escrow</p>
+                  <p className="text-xs text-white/60 mt-0.5">0.5% fee auto-collected by escrow</p>
                   {!trade?.user_gave_feedback&&(
-                    <button onClick={()=>setShowFb(true)} className="mt-2 text-[11px] underline text-white/80">
+                    <button onClick={()=>setShowFb(true)} className="mt-2 text-xs underline text-white/80">
                       Leave feedback →
                     </button>
                   )}
@@ -790,7 +738,7 @@ export default function TradeDetail({user}) {
                 <div className="py-3 px-5 rounded-xl text-center border" style={{backgroundColor:C.g100,borderColor:C.g200}}>
                   <X size={20} className="mx-auto mb-1" style={{color:C.g500}}/>
                   <p className="font-bold text-sm" style={{color:C.g700}}>Trade Cancelled</p>
-                  <p className="text-[10px] mt-0.5" style={{color:C.g400}}>Escrow funds returned</p>
+                  <p className="text-xs mt-0.5" style={{color:C.g400}}>Escrow funds returned</p>
                 </div>
               )}
               {isDisputed&&(
@@ -798,7 +746,7 @@ export default function TradeDetail({user}) {
                   style={{backgroundColor:C.danger}}>
                   <AlertTriangle size={20} className="mx-auto mb-1"/>
                   <p className="font-bold text-sm">Dispute Active</p>
-                  <p className="text-[10px] text-white/70 mt-0.5">Moderator reviews within 24h</p>
+                  <p className="text-xs text-white/70 mt-0.5">Moderator reviews within 24h</p>
                 </div>
               )}
             </div>
@@ -819,7 +767,7 @@ export default function TradeDetail({user}) {
                     <span className="text-xs font-black flex-1 text-left" style={{color:C.forest}}>
                       Trade Info & Actions
                     </span>
-                    <span className="text-[9px] font-mono mr-1" style={{color:C.g400}}>#{shortId}</span>
+                    <span className="text-xs font-mono mr-1" style={{color:C.g400}}>#{shortId}</span>
                     {infoOpen?<ChevronUp size={13} style={{color:C.g400}}/>:<ChevronDown size={13} style={{color:C.g400}}/>}
                   </button>
 
@@ -827,12 +775,12 @@ export default function TradeDetail({user}) {
                     <div className="p-3 space-y-1">
                       {/* Info rows */}
                       {[
-                        {label:'Trade ID',    val:<div className="flex items-center gap-1.5"><span className="font-mono font-bold text-[11px]" style={{color:C.forest}}>#{shortId}</span><button onClick={()=>{navigator.clipboard.writeText(trade.id||'');toast.success('Copied!');}} className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100"><Copy size={10} style={{color:C.g400}}/></button></div>},
-                        {label:'Offer',       val:<div className="flex items-center gap-1.5"><span className="font-mono font-bold text-[11px]" style={{color:C.g700}}>#{String(trade.listing_id||'').slice(0,8).toUpperCase()}</span><button onClick={()=>{navigator.clipboard.writeText(trade.listing_id||'');toast.success('Copied!');}} className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100"><Copy size={10} style={{color:C.g400}}/></button></div>},
-                        {label:'Started',     val:<span className="font-bold text-[11px]" style={{color:C.g700}}>{tradeAge}</span>},
-                        {label:'Rate',        val:<span className="font-black text-[11px]" style={{color:C.forest}}>{sym}{fmt(sellerRate)} {cur}/BTC</span>},
-                        {label:'Payment',     val:<span className="font-bold text-[11px]" style={{color:C.g700}}>{payMethod}</span>},
-                        {label:'Status',      val:<span className="font-black text-[10px] px-2 py-0.5 rounded-full" style={{backgroundColor:cfg.bg,color:cfg.color}}>{cfg.label}</span>},
+                        {label:'Trade ID',    val:<div className="flex items-center gap-1.5"><span className="font-mono font-bold text-xs" style={{color:C.forest}}>#{shortId}</span><button onClick={()=>{navigator.clipboard.writeText(trade.id||'');toast.success('Copied!');}} className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100"><Copy size={10} style={{color:C.g400}}/></button></div>},
+                        {label:'Offer',       val:<div className="flex items-center gap-1.5"><span className="font-mono font-bold text-xs" style={{color:C.g700}}>#{String(trade.listing_id||'').slice(0,8).toUpperCase()}</span><button onClick={()=>{navigator.clipboard.writeText(trade.listing_id||'');toast.success('Copied!');}} className="w-5 h-5 rounded flex items-center justify-center hover:bg-gray-100"><Copy size={10} style={{color:C.g400}}/></button></div>},
+                        {label:'Started',     val:<span className="font-bold text-xs" style={{color:C.g700}}>{tradeAge}</span>},
+                        {label:'Rate',        val:<span className="font-black text-xs" style={{color:C.forest}}>{sym}{fmt(sellerRate)} {cur}/BTC</span>},
+                        {label:'Payment',     val:<span className="font-bold text-xs" style={{color:C.g700}}>{payMethod}</span>},
+                        {label:'Status',      val:<span className="font-black text-xs px-2 py-0.5 rounded-full" style={{backgroundColor:cfg.bg,color:cfg.color}}>{cfg.label}</span>},
                       ].map(({label,val})=>(
                         <div key={label} className="flex items-center justify-between py-1.5 border-b last:border-0 text-xs"
                           style={{borderColor:C.g50}}>
@@ -843,15 +791,15 @@ export default function TradeDetail({user}) {
 
                       {/* Actions */}
                       <div className="pt-2 space-y-1.5">
-                        <p className="text-[9px] font-black uppercase tracking-widest" style={{color:C.g400}}>Actions</p>
+                        <p className="text-xs font-black uppercase tracking-widest" style={{color:C.g400}}>Actions</p>
 
                         <button onClick={()=>{navigator.clipboard.writeText(trade.id||'');toast.success('Trade ID copied!');}}
                           className="w-full flex items-center gap-2 p-2.5 rounded-xl hover:bg-gray-50 transition text-left border"
                           style={{borderColor:C.g100}}>
                           <Copy size={12} style={{color:C.paid}}/>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-black" style={{color:C.g700}}>Copy Trade ID</p>
-                            <p className="text-[9px] font-mono truncate" style={{color:C.g400}}>{(trade.id||'').slice(0,20)}…</p>
+                            <p className="text-xs font-black" style={{color:C.g700}}>Copy Trade ID</p>
+                            <p className="text-xs font-mono truncate" style={{color:C.g400}}>{(trade.id||'').slice(0,20)}…</p>
                           </div>
                         </button>
 
@@ -867,7 +815,7 @@ export default function TradeDetail({user}) {
                           className="w-full flex items-center gap-2 p-2.5 rounded-xl hover:bg-red-50 transition text-left border"
                           style={{borderColor:C.g100}}>
                           <Flag size={12} style={{color:C.danger}}/>
-                          <p className="text-[11px] font-black" style={{color:C.danger}}>Report a Problem</p>
+                          <p className="text-xs font-black" style={{color:C.danger}}>Report a Problem</p>
                         </button>
 
                         <a href="https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t"
@@ -875,7 +823,7 @@ export default function TradeDetail({user}) {
                           className="w-full flex items-center gap-2 p-2.5 rounded-xl hover:bg-green-50 transition border"
                           style={{borderColor:C.g100}}>
                           <MessageCircle size={12} style={{color:C.success}}/>
-                          <p className="text-[11px] font-black" style={{color:C.forest}}>Reach PRAQEN Support</p>
+                          <p className="text-xs font-black" style={{color:C.forest}}>Reach PRAQEN Support</p>
                         </a>
                       </div>
                     </div>
@@ -896,99 +844,88 @@ export default function TradeDetail({user}) {
                 '✅ Seller confirms → releases BTC to buyer',
                 '💸 0.5% fee auto-deducted to PRAQEN wallet',
                 '🚨 Open dispute if problem — resolved in 24h',
-              ].map(t=><p key={t} className="text-[10px]" style={{color:C.g600}}>{t}</p>)}
+              ].map(t=><p key={t} className="text-xs" style={{color:C.g600}}>{t}</p>)}
             </div>
           </div>
 
           {/* ── CHAT COLUMN ──────────────────────────────────────────────── */}
-          <div className="lg:col-span-8 flex flex-col" style={{maxHeight:'calc(100vh - 80px)'}}>
+          <div className="order-1 lg:order-2 lg:col-span-8 flex flex-col min-h-[70vh] lg:min-h-0 lg:[max-height:calc(100vh-56px)]">
             <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col flex-1"
               style={{borderColor:C.g200}}>
 
-              {/* ── RICH TRADE HEADER ───────────────────────────────── */}
+              {/* ── TRADE HEADER ─────────────────────────────────── */}
               <div className="flex-shrink-0 border-b overflow-hidden"
                 style={{borderColor:C.g100, background:`linear-gradient(135deg,${C.forest} 0%,${C.green} 100%)`}}>
-                {/* Top row: user + score + timer + status */}
-                <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    {/* Counterparty avatar */}
-                    <div className="relative">
-                      <Avatar user={cp} size={36} radius="rounded-xl"/>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
+
+                {/* Top row: avatar + name + timer */}
+                <div className="flex items-center justify-between gap-2 px-3 pt-2 pb-2">
+                  <button
+                    onClick={()=>{setProfUser(cp);setProfLabel(isBuyer?'Seller':'Buyer');}}
+                    className="flex items-center gap-2 min-w-0 text-left hover:opacity-80 active:opacity-60 transition">
+                    <div className="relative flex-shrink-0">
+                      <Avatar user={cp} size={28} radius="rounded-lg"/>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
                         style={{borderColor:C.forest,backgroundColor:cpOnline?C.online:C.g400}}/>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-white text-sm">{cp?.username||'—'}</span>
-                        {cp?.kyc_verified&&<BadgeCheck size={13} style={{color:'#93C5FD'}}/>}
-                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-sm text-white"
-                          style={{backgroundColor:cpBadge.color}}>{cpBadge.label}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-black text-white text-xs">{cp?.username||'—'}</span>
+                        {cp?.kyc_verified&&<BadgeCheck size={11} style={{color:'#93C5FD'}}/>}
+                        <span className="text-xs font-black px-1 py-0.5 rounded-sm text-white"
+                          style={{backgroundColor:cpBadge.color,fontSize:'10px'}}>{cpBadge.label}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="font-bold" style={{color:'#86EFAC'}}>👍{cpPos}</span>
-                        <span className="font-bold" style={{color:'#FCA5A5'}}>👎{cpNeg}</span>
-                        <span className="text-white/40">·</span>
-                        <span style={{color:'rgba(255,255,255,0.6)'}}>{fmt(cp?.total_trades||0)} trades</span>
-                        <span className="text-white/40">·</span>
+                      <div className="flex items-center gap-1.5" style={{fontSize:'10px',color:'rgba(255,255,255,0.55)'}}>
+                        <span style={{color:'#86EFAC'}}>👍{cpPos}</span>
+                        <span style={{color:'#FCA5A5'}}>👎{cpNeg}</span>
+                        <span className="opacity-40">·</span>
+                        <span>{fmt(cp?.total_trades||0)} trades</span>
+                        <span className="opacity-40">·</span>
                         <span style={{color:cpOnline?'#86EFAC':'rgba(255,255,255,0.45)'}}>{cpSeen}</span>
                       </div>
                     </div>
-                  </div>
-                  {/* Timer + status */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-                      style={{backgroundColor:'rgba(255,255,255,0.15)'}}>
-                      <CfgIcon size={11} className="text-white/80"/>
-                      <span className="text-[10px] font-bold text-white/80">{cfg.label}</span>
+                  </button>
+                  {/* Status + Timer */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                      style={{backgroundColor:'rgba(255,255,255,0.12)',fontSize:'10px'}}>
+                      <CfgIcon size={10} className="text-white/70"/>
+                      <span className="font-bold text-white/70">{cfg.label}</span>
                     </div>
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-sm ${urgent?'animate-pulse':''}`}
-                      style={{backgroundColor:urgent?C.danger:'rgba(255,255,255,0.2)',color:'#fff'}}>
-                      <Timer size={13}/>{fmtTimer(timeLeft)}
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-black ${urgent?'animate-pulse':''}`}
+                      style={{backgroundColor:urgent?C.danger:'rgba(255,255,255,0.18)',color:'#fff',fontSize:'11px'}}>
+                      <Timer size={11}/>{fmtTimer(timeLeft)}
                     </div>
                   </div>
                 </div>
 
-                {/* ── UPDATED TRADE SUMMARY (Verified Requirements) ── */}
-                <div className="mx-4 mb-3 p-4 rounded-2xl space-y-4 shadow-inner"
-                  style={{border:'1px solid rgba(255,255,255,0.15)', backgroundColor:'rgba(255,255,255,0.05)'}}>
-                  
-                  {/* YOU PAY */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-black text-white/60 tracking-widest uppercase">💵 YOU PAY</span>
+                {/* ── Compact Trade Summary ── */}
+                <div className="mx-3 mb-2 p-2.5 rounded-xl"
+                  style={{border:'1px solid rgba(255,255,255,0.12)', backgroundColor:'rgba(255,255,255,0.06)'}}>
+
+                  {/* PAY | RECEIVE side by side */}
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <p className="text-white/60 font-semibold mb-0.5 text-xs">💵 You Pay</p>
+                      <p className="text-base font-black text-white leading-tight">{sym}{fmt(userPays, 0)}</p>
+                      <p className="text-white/60 font-semibold mt-0.5 text-xs">{cur} · {payMethod}</p>
+                    </div>
                     <div className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-2xl font-black text-white">{sym}{fmt(userPays, 0)}</span>
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/10 text-white/70">via {payMethod}</span>
-                      </div>
-                      <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider">{cur}</p>
+                      <p className="text-white/60 font-semibold mb-0.5 text-xs">🛒 You Receive</p>
+                      <p className="text-base font-black leading-tight" style={{color:C.gold}}>₿ {btcReceived.toFixed(8)}</p>
+                      <p className="text-white/60 font-semibold mt-0.5 text-xs">≈ {sym}{fmt(btcValueInLocal, 2)} {cur}</p>
                     </div>
                   </div>
 
-                  {/* YOU RECEIVE */}
-                  <div className="flex justify-between items-center border-t border-white/10 pt-3">
-                    <span className="text-sm font-black text-white/60 tracking-widest uppercase">🛒 YOU RECEIVE</span>
-                    <div className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Bitcoin size={22} style={{color:C.gold}}/>
-                        <span className="text-2xl font-black" style={{color:C.gold}}>₿ {btcReceived.toFixed(8)}</span>
-                      </div>
-                      <div className="text-xs font-bold text-white/60 mt-0.5">
-                        ≈ {sym}{fmt(btcValueInLocal, 2)} {cur} value
-                      </div>
+                  {/* Rate row */}
+                  <div className="flex items-center justify-between border-t border-white/10 pt-1.5">
+                    <div className="flex items-center gap-1 text-white/40" style={{fontSize:'10px'}}>
+                      <Lock size={9}/>
+                      <span>Rate locked</span>
                     </div>
-                  </div>
-
-                  {/* RATE */}
-                  <div className="flex justify-between items-center border-t border-white/10 pt-3">
-                    <div className="flex items-center gap-1.5 text-white/50">
-                      <Lock size={11}/>
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Rate locked:</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-white">{sym}{fmt(sellerRate, 0)} {cur}/BTC</span>
-                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full" 
-                        style={{backgroundColor:'rgba(244,164,34,0.2)', color:C.gold}}>
-                        {margin > 0 ? `+${margin}%` : `${margin}%`} above market
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-white" style={{fontSize:'10px'}}>{sym}{fmt(sellerRate, 0)} {cur}/BTC</span>
+                      <span className="font-black px-1.5 py-0.5 rounded-full" style={{backgroundColor:'rgba(244,164,34,0.2)',color:C.gold,fontSize:'10px'}}>
+                        {margin > 0 ? `+${margin}%` : `${margin}%`}
                       </span>
                     </div>
                   </div>
@@ -1002,39 +939,30 @@ export default function TradeDetail({user}) {
                   style={{backgroundColor:'#EDE9FE',borderColor:'#8B5CF6'}}>
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"/>
                   <Shield size={12} style={{color:'#6D28D9'}}/>
-                  <span className="text-[11px] font-bold" style={{color:'#6D28D9'}}>
+                  <span className="text-xs font-bold" style={{color:'#6D28D9'}}>
                     👨‍⚖️ Dispute active — Moderator reviewing within 24h
                   </span>
                 </div>
               )}
 
               {/* ── SYSTEM MESSAGE STRIP ── */}
-              <div className="flex-shrink-0 border-b px-4 py-3"
-                style={{borderColor:'#FDE68A', backgroundColor:'#FFFBEB'}}>
-                <div className="flex items-start gap-2.5">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5"
-                    style={{backgroundColor:'#F59E0B'}}>
-                    <Shield size={12} className="text-white"/>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{color:'#92400E'}}>
-                      🔔 System Message
-                    </p>
-                    <p className="text-[11px] font-bold leading-relaxed" style={{color:'#78350F'}}>
-                      Your trade has started. <span className="text-red-600">Do NOT trade outside escrow</span> and do not click any suspicious links in chat.
-                      Send payment <span className="font-black" style={{color:'#78350F'}}>via {payMethod}</span> and always remember to click <span className="font-black" style={{color:'#15803D'}}>✅ I HAVE PAID</span> once you make your payment. The trade timer is counting — complete your payment before time runs out.
-                    </p>
-                  </div>
+              <div className="flex-shrink-0 border-b px-3 py-2"
+                style={{borderColor:'rgba(180,160,80,0.2)', backgroundColor:'rgba(250,240,200,0.25)'}}>
+                <div className="flex items-center gap-2">
+                  <Shield size={11} style={{color:'#a08040',flexShrink:0}}/>
+                  <p className="text-xs leading-snug" style={{color:'#8a7040'}}>
+                    🔔 Pay via <span className="font-black">{payMethod}</span>, then tap <span className="font-black">✅ I HAVE PAID</span>. Do not share links or trade outside escrow.
+                  </p>
                 </div>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{backgroundColor:'#F9FAFB',minHeight:0}}>
+              <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{backgroundColor:'#F9FAFB',minHeight:0}}>
 
                 {/* Proof images */}
                 {images.length>0&&(
                   <div className="flex gap-2 flex-wrap">
-                    <span className="text-[10px] w-full font-bold" style={{color:C.g400}}>📎 Uploaded Proofs:</span>
+                    <span className="text-xs w-full font-bold" style={{color:C.g400}}>📎 Uploaded Proofs:</span>
                     {images.map((img,i)=>{
                       const src=img.image_url||img.url;
                       if(!src)return null;
@@ -1066,7 +994,7 @@ export default function TradeDetail({user}) {
 
                   if(isSys) return(
                     <div key={i} className="flex justify-center">
-                      <div className="px-4 py-2 rounded-xl text-[10px] max-w-[90%] text-center border"
+                      <div className="px-4 py-2 rounded-xl text-xs max-w-[90%] text-center border"
                         style={{backgroundColor:C.g100,color:C.g500,borderColor:C.g200}}>
                         {text}
                       </div>
@@ -1079,10 +1007,10 @@ export default function TradeDetail({user}) {
                         style={{backgroundColor:'#EDE9FE',borderColor:'#8B5CF6'}}>
                         <div className="flex items-center justify-center gap-1.5 mb-1.5">
                           <Shield size={12} style={{color:'#6D28D9'}}/>
-                          <span className="text-[10px] font-black" style={{color:'#6D28D9'}}>MODERATOR</span>
+                          <span className="text-xs font-black" style={{color:'#6D28D9'}}>MODERATOR</span>
                         </div>
                         <p className="text-xs text-center font-medium" style={{color:'#4C1D95'}}>{text}</p>
-                        <p className="text-[9px] text-center mt-1" style={{color:'#6D28D9'}}>
+                        <p className="text-xs text-center mt-1" style={{color:'#6D28D9'}}>
                           {new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
                         </p>
                       </div>
@@ -1099,7 +1027,7 @@ export default function TradeDetail({user}) {
                         </button>
                       )}
                       <div className="max-w-[72%]">
-                        {!isOwn&&<p className="text-[9px] font-bold mb-0.5 ml-1" style={{color:C.g400}}>{cp?.username}</p>}
+                        {!isOwn&&<p className="text-xs font-bold mb-0.5 ml-1" style={{color:C.g400}}>{cp?.username}</p>}
                         <div className="px-4 py-2 text-sm break-words shadow-sm"
                           style={{
                             backgroundColor:isOwn?C.green:'#fff',
@@ -1109,9 +1037,16 @@ export default function TradeDetail({user}) {
                           }}>
                           {text}
                         </div>
-                        <p className={`text-[9px] mt-0.5 ${isOwn?'text-right':'ml-1'}`} style={{color:C.g400}}>
-                          {new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
-                        </p>
+                        <div className={`flex items-center gap-0.5 mt-0.5 ${isOwn?'justify-end':'ml-1'}`}>
+                          <span className="text-xs" style={{color:C.g400}}>
+                            {new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                          </span>
+                          {isOwn&&(
+                            m.is_read||new Date(m.created_at).getTime()<lastCpMsgTime
+                              ?<CheckCheck size={13} style={{color:'#3B82F6'}}/>
+                              :<Check size={13} style={{color:C.g300}}/>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1140,7 +1075,7 @@ export default function TradeDetail({user}) {
                       {sending?<RefreshCw size={14} className="animate-spin"/>:<Send size={14}/>}
                     </button>
                   </form>
-                  <p className="text-[10px] text-center mt-1.5" style={{color:C.g400}}>
+                  <p className="text-xs text-center mt-1.5" style={{color:C.g400}}>
                     📎 Attach payment proof · 🔒 All messages encrypted
                   </p>
                 </div>
@@ -1154,69 +1089,6 @@ export default function TradeDetail({user}) {
           </div>
         </div>
       </div>
-
-      {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
-      <footer className="mt-4" style={{backgroundColor:C.forest}}>
-        <div className="max-w-7xl mx-auto px-4 pt-8 pb-5">
-          <div className="grid md:grid-cols-3 gap-8 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg"
-                  style={{backgroundColor:C.gold,color:C.forest}}>P</div>
-                <span className="text-white font-black" style={{fontFamily:"'Syne',sans-serif"}}>PRAQEN</span>
-              </div>
-              <p className="text-xs leading-relaxed mb-4" style={{color:'rgba(255,255,255,0.4)'}}>
-                Africa's most trusted P2P Bitcoin platform. Escrow-protected. Fast. Honest.
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  {href:'https://x.com/praqenapp?s=21',label:'𝕏',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr',label:'📸',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://www.linkedin.com/in/pra-qen-045373402/',label:'💼',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t',label:'💬',bg:'rgba(255,255,255,0.1)'},
-                  {href:'https://discord.gg/V6zCZxfdy',label:'🎮',bg:'rgba(88,101,242,0.4)'},
-                ].map(({href,label,bg})=>(
-                  <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:scale-110 transition"
-                    style={{backgroundColor:bg}}>
-                    <span className="text-white font-black">{label}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-white font-black text-sm mb-3">Trade</p>
-              <div className="space-y-2">
-                {[['Buy Bitcoin','/buy-bitcoin'],['Sell Bitcoin','/sell-bitcoin'],['Gift Cards','/gift-cards'],['My Trades','/my-trades']].map(([l,h])=>(
-                  <a key={l} href={h} className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.4)'}}>{l}</a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-white font-black text-sm mb-3">Community</p>
-              <div className="space-y-2">
-                {[
-                  ['💬 WhatsApp Community','https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t'],
-                  ['🎮 Discord','https://discord.gg/V6zCZxfdy'],
-                  ['𝕏 Twitter/X','https://x.com/praqenapp?s=21'],
-                  ['📸 Instagram','https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr'],
-                  ['💼 LinkedIn','https://www.linkedin.com/in/pra-qen-045373402/'],
-                  ['📧 support@praqen.com','mailto:support@praqen.com'],
-                ].map(([l,h])=>(
-                  <a key={l} href={h} target="_blank" rel="noopener noreferrer" className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.4)'}}>{l}</a>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t"
-            style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
-              <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
-            </p>
-          </div>
-        </div>
-      </footer>
 
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
       {profUser && <ProfilePopup user={profUser} label={profLabel} onClose={()=>setProfUser(null)}/>}

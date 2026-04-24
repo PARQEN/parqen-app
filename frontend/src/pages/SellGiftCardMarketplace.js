@@ -392,13 +392,13 @@ export default function SellGiftCardMarketplace({ user }) {
           </div>
           
           {showFilters && (
-            <div className="mt-3 pt-2 border-t border-gray-200 grid grid-cols-3 gap-2">
+            <div className="mt-3 pt-2 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
                 type="number"
                 value={filters.minAmount}
                 onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
                 placeholder="Min $"
-                className="px-2 py-1 text-xs border rounded-lg"
+                className="w-full px-3 py-2.5 text-sm border rounded-lg"
                 style={{ borderColor: PRAQEN.gray[300] }}
               />
               <input
@@ -406,13 +406,13 @@ export default function SellGiftCardMarketplace({ user }) {
                 value={filters.maxAmount}
                 onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
                 placeholder="Max $"
-                className="px-2 py-1 text-xs border rounded-lg"
+                className="w-full px-3 py-2.5 text-sm border rounded-lg"
                 style={{ borderColor: PRAQEN.gray[300] }}
               />
               <select
                 value={filters.minRating}
                 onChange={(e) => setFilters({ ...filters, minRating: e.target.value })}
-                className="px-2 py-1 text-xs border rounded-lg"
+                className="w-full px-3 py-2.5 text-sm border rounded-lg"
                 style={{ borderColor: PRAQEN.gray[300] }}
               >
                 <option value="">Rating</option>

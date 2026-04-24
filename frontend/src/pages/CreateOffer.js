@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -362,7 +362,7 @@ export default function CreateOffer() {
           {/* Country-specific methods */}
           {localMethods.length > 0 && (
             <div>
-              <p className="px-3 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest"
+              <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
                 style={{ color: C.g400 }}>
                 {curr?.flag} Available in {curr?.name}
               </p>
@@ -371,7 +371,7 @@ export default function CreateOffer() {
                 if (!items.length) return null;
                 return (
                   <div key={cat}>
-                    <p className="px-3 py-1 text-[9px] font-bold uppercase"
+                    <p className="px-3 py-1 text-xs font-bold uppercase"
                       style={{ color: CAT_COLORS[cat] || C.g500 }}>
                       {cat}
                     </p>
@@ -392,14 +392,14 @@ export default function CreateOffer() {
           {/* Other / global methods shown when searching */}
           {otherMethods.length > 0 && (
             <div>
-              <p className="px-3 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest"
+              <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
                 style={{ color: C.g400 }}>Other Methods</p>
               {otherMethods.map(m => (
                 <button key={m.id} onClick={() => { setPayMethod(m.id); setShowPayMenu(false); setPaySearch(''); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition">
                   <span className="text-base w-5 text-center flex-shrink-0">{m.icon}</span>
                   <span className="text-xs font-semibold flex-1" style={{ color: C.g800 }}>{m.name}</span>
-                  <span className="text-[9px]" style={{ color: C.g400 }}>{m.cat}</span>
+                  <span className="text-xs" style={{ color: C.g400 }}>{m.cat}</span>
                   {payMethod === m.id && <Check size={12} style={{ color: C.green }} />}
                 </button>
               ))}
@@ -424,10 +424,10 @@ export default function CreateOffer() {
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black" style={{ color: C.g800 }}>Your Offer</span>
               <span className="text-xs">{curr?.flag}</span>
-              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-sm text-white"
+              <span className="text-xs font-black px-1.5 py-0.5 rounded-sm text-white"
                 style={{ backgroundColor: C.green }}>⭐ Pro</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[9px] mt-0.5 font-black" style={{ color: C.g500 }}>
+            <div className="flex items-center gap-1.5 text-xs mt-0.5 font-black" style={{ color: C.g500 }}>
               <span style={{ color: C.success }}>👍 0</span>
               <span>·</span><span>0 Trades</span>
               <span>·</span><span style={{ color: C.success }}>● Active</span>
@@ -439,7 +439,7 @@ export default function CreateOffer() {
         {isGC ? (
           <>
             <div>
-              <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
                 {offerType === 'gc_buy' ? 'Pay BTC' : 'Receive BTC'}
               </p>
               <p className="text-xs font-black" style={{ color: C.g800 }}>
@@ -449,7 +449,7 @@ export default function CreateOffer() {
               </p>
             </div>
             <div className="border-l pl-2" style={{ borderColor: C.g100 }}>
-              <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
                 {gcBrand}
               </p>
               <p className="text-xs font-black" style={{ color: C.g800 }}>${gcFaceValue} USD</p>
@@ -458,7 +458,7 @@ export default function CreateOffer() {
         ) : (
           <>
             <div>
-              <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
                 {offerType === 'sell' ? 'BTC Amount' : 'You Pay'}
               </p>
               <p className="text-xs font-black" style={{ color: C.g800 }}>
@@ -466,7 +466,7 @@ export default function CreateOffer() {
               </p>
             </div>
             <div className="border-l pl-2" style={{ borderColor: C.g100 }}>
-              <p className="text-[8px] font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
                 {selectedPay?.name || 'Payment'}
               </p>
               <p className="text-xs font-black" style={{ color: C.g800 }}>
@@ -481,12 +481,12 @@ export default function CreateOffer() {
           <span className="text-xs font-black" style={{ color: C.danger }}>
             ₿ {sym}{fmt(effectiveRate)} {cur}
           </span>
-          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm"
+          <span className="text-xs font-black px-1.5 py-0.5 rounded-sm"
             style={{ color: C.success, backgroundColor: `${C.success}15` }}>
             +{margin}%
           </span>
         </div>
-        <div className="flex items-center justify-between text-[9px]" style={{ color: C.g400 }}>
+        <div className="flex items-center justify-between text-xs" style={{ color: C.g400 }}>
           {isGC ? (
             <span>Gift Card: ${gcFaceValue}</span>
           ) : (
@@ -498,7 +498,7 @@ export default function CreateOffer() {
         </div>
       </div>
       <div className="px-3 py-2">
-        <div className="w-full py-1.5 rounded-lg text-white text-[10px] font-black text-center"
+        <div className="w-full py-1.5 rounded-lg text-white text-xs font-black text-center"
           style={{ backgroundColor: offerType === 'sell' ? C.green : offerType === 'buy' ? C.paid : C.purple }}>
           {offerType === 'sell' ? 'Buy BTC →' : offerType === 'buy' ? 'Sell BTC →' : offerType === 'gc_buy' ? 'Sell Gift Card →' : 'Buy Gift Card →'}
         </div>
@@ -582,7 +582,7 @@ export default function CreateOffer() {
                     }}>
                     {done ? <Check size={15} /> : <Icon size={15} />}
                   </div>
-                  <p className="text-[9px] mt-0.5 font-black hidden sm:block text-center"
+                  <p className="text-xs mt-0.5 font-black hidden sm:block text-center"
                     style={{ color: active ? C.green : done ? C.success : C.g400 }}>
                     {s.label}
                   </p>
@@ -609,7 +609,7 @@ export default function CreateOffer() {
 
               {/* BTC section */}
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"
+                <p className="text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"
                   style={{ color: C.g400 }}>
                   <Bitcoin size={10} /> Bitcoin Offers
                 </p>
@@ -635,8 +635,8 @@ export default function CreateOffer() {
                           <Icon size={18} style={{ color: active ? C.white : C.g400 }} />
                         </div>
                         <p className="font-black text-sm mb-0.5" style={{ color: C.forest }}>{ot.title}</p>
-                        <p className="text-[11px] mb-2 leading-relaxed" style={{ color: C.g500 }}>{ot.desc}</p>
-                        <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        <p className="text-xs mb-2 leading-relaxed" style={{ color: C.g500 }}>{ot.desc}</p>
+                        <div className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
                           style={{ backgroundColor: `${ot.badgeColor}15`, color: ot.badgeColor }}>
                           {ot.badge}
                         </div>
@@ -648,7 +648,7 @@ export default function CreateOffer() {
 
               {/* Gift Card section — single option, full-width card */}
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"
+                <p className="text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"
                   style={{ color: C.g400 }}>
                   <Gift size={10} /> Gift Card Offers
                 </p>
@@ -681,11 +681,11 @@ export default function CreateOffer() {
                           <p className="font-black text-base mb-0.5" style={{ color: C.forest }}>{ot.title}</p>
                           <p className="text-xs mb-2 leading-relaxed" style={{ color: C.g500 }}>{ot.desc}</p>
                           <div className="flex flex-wrap gap-2 items-center">
-                            <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            <div className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: `${ot.badgeColor}15`, color: ot.badgeColor }}>
                               {ot.badge}
                             </div>
-                            <span className="text-[10px]" style={{ color: C.g400 }}>
+                            <span className="text-xs" style={{ color: C.g400 }}>
                               Supported: Amazon · Apple · Steam · Google Play · Visa + more
                             </span>
                           </div>
@@ -775,7 +775,7 @@ export default function CreateOffer() {
                   <div className="mt-3 p-3 rounded-xl flex items-center justify-between"
                     style={{ backgroundColor: `${C.purple}08`, border: `1px solid ${C.purple}20` }}>
                     <div>
-                      <p className="text-[10px] font-semibold mb-0.5" style={{ color: C.g500 }}>
+                      <p className="text-xs font-semibold mb-0.5" style={{ color: C.g500 }}>
                         BTC equivalent at market price
                       </p>
                       <p className="text-base font-black" style={{ color: C.forest }}>
@@ -783,7 +783,7 @@ export default function CreateOffer() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px]" style={{ color: C.g400 }}>Face value</p>
+                      <p className="text-xs" style={{ color: C.g400 }}>Face value</p>
                       <p className="text-sm font-black" style={{ color: C.purple }}>${gcFaceValue} USD</p>
                     </div>
                   </div>
@@ -831,7 +831,7 @@ export default function CreateOffer() {
                       <span className="text-lg flex-shrink-0">{c.flag}</span>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate" style={{ color: C.g800 }}>{c.name}</p>
-                        <p className="text-[10px] font-black" style={{ color: C.g400 }}>
+                        <p className="text-xs font-black" style={{ color: C.g400 }}>
                           {c.symbol} {c.currency}
                         </p>
                       </div>
@@ -862,7 +862,7 @@ export default function CreateOffer() {
                         <span className="text-xl">{selectedPay.icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold" style={{ color: C.g800 }}>{selectedPay.name}</p>
-                          <p className="text-[10px]" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
+                          <p className="text-xs" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
                             {selectedPay.cat}
                           </p>
                         </div>
@@ -887,7 +887,7 @@ export default function CreateOffer() {
                   {/* Category legend */}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {Object.entries(CAT_COLORS).map(([cat, color]) => (
-                      <span key={cat} className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                      <span key={cat} className="text-xs font-bold px-2 py-0.5 rounded-full"
                         style={{ backgroundColor: `${color}15`, color }}>
                         {cat}
                       </span>
@@ -915,15 +915,15 @@ export default function CreateOffer() {
                 style={{ background: `linear-gradient(135deg,${C.forest},${C.green})` }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] text-white/60 mb-0.5">Live Market Price</p>
+                    <p className="text-xs text-white/60 mb-0.5">Live Market Price</p>
                     <p className="text-2xl font-black">{loadingPrice ? '…' : `${sym}${fmt(btcLocal, 0)}`}</p>
-                    <p className="text-[10px] text-white/50 mt-0.5">{cur} per 1 BTC · Refreshes every 60s</p>
+                    <p className="text-xs text-white/50 mt-0.5">{cur} per 1 BTC · Refreshes every 60s</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-white/60 mb-0.5">USD price</p>
+                    <p className="text-xs text-white/60 mb-0.5">USD price</p>
                     <p className="text-base font-black">${fmt(btcPrice, 0)}</p>
                     <button onClick={() => setLoadingPrice(true)}
-                      className="mt-1 text-[10px] text-white/40 flex items-center gap-1 ml-auto hover:text-white/70">
+                      className="mt-1 text-xs text-white/40 flex items-center gap-1 ml-auto hover:text-white/70">
                       <RefreshCw size={9} /> Refresh
                     </button>
                   </div>
@@ -952,7 +952,7 @@ export default function CreateOffer() {
                         {pricingType === val && <Check size={12} style={{ color: C.green }} />}
                       </div>
                       <p className="font-black text-sm mb-0.5" style={{ color: C.forest }}>{title}</p>
-                      <p className="text-[10px] leading-relaxed" style={{ color: C.g500 }}>{desc}</p>
+                      <p className="text-xs leading-relaxed" style={{ color: C.g500 }}>{desc}</p>
                     </button>
                   ))}
                 </div>
@@ -966,7 +966,7 @@ export default function CreateOffer() {
                     <span className="text-xs" style={{ color: C.g500 }}>
                       Quick: {[1,3,5,8,10,15,20].map(v => (
                         <button key={v} onClick={() => setMargin(v)}
-                          className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold transition"
+                          className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold transition"
                           style={{
                             backgroundColor: margin === v ? C.green : C.g100,
                             color: margin === v ? C.white : C.g600,
@@ -1003,7 +1003,7 @@ export default function CreateOffer() {
                     <input type="range" min="1" max="100" step="0.5"
                       value={margin} onChange={e => setMargin(parseFloat(e.target.value))}
                       className="w-full" style={{ accentColor: C.success }} />
-                    <div className="flex justify-between text-[10px] mt-0.5" style={{ color: C.g400 }}>
+                    <div className="flex justify-between text-xs mt-0.5" style={{ color: C.g400 }}>
                       <span>1% (competitive)</span>
                       <span>50%</span>
                       <span>100% (max profit)</span>
@@ -1039,10 +1039,10 @@ export default function CreateOffer() {
                           {/* Header */}
                           <div className="px-3 py-2 flex items-center justify-between"
                             style={{ backgroundColor: `${C.success}12` }}>
-                            <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: C.success }}>
+                            <p className="text-xs font-black uppercase tracking-wide" style={{ color: C.success }}>
                               💡 Trade Breakdown — per $100 trade
                             </p>
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: C.success, color: C.white }}>
                               {margin}% margin
                             </span>
@@ -1051,7 +1051,7 @@ export default function CreateOffer() {
                           <div className="px-3 py-2 space-y-2" style={{ backgroundColor: `${C.success}05` }}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
                                   style={{ backgroundColor: C.paid, color: C.white }}>1</span>
                                 <span className="text-xs" style={{ color: C.g600 }}>
                                   {offerType === 'sell' ? 'Buyer pays you (cash)' : 'You pay seller (cash)'}
@@ -1063,7 +1063,7 @@ export default function CreateOffer() {
                             </div>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
                                   style={{ backgroundColor: C.paid, color: C.white }}>2</span>
                                 <span className="text-xs" style={{ color: C.g600 }}>
                                   {offerType === 'sell' ? 'Buyer receives BTC worth' : 'You receive BTC worth'}
@@ -1077,7 +1077,7 @@ export default function CreateOffer() {
                             <div className="flex items-center justify-between pt-1.5 border-t"
                               style={{ borderColor: `${C.success}25` }}>
                               <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
                                   style={{ backgroundColor: C.success, color: C.white }}>✓</span>
                                 <span className="text-xs font-bold" style={{ color: C.g700 }}>Your profit</span>
                               </div>
@@ -1086,11 +1086,11 @@ export default function CreateOffer() {
                                   +${fmt(yourProfitUSD, 2)} USD
                                 </span>
                                 {cur !== 'USD' && (
-                                  <p className="text-[10px]" style={{ color: C.success }}>
+                                  <p className="text-xs" style={{ color: C.success }}>
                                     {sym}{fmt(profitLocal, 0)} {cur}
                                   </p>
                                 )}
-                                <p className="text-[9px]" style={{ color: C.g400 }}>
+                                <p className="text-xs" style={{ color: C.g400 }}>
                                   ({fmt(yourProfitPct, 1)}% of cash received)
                                 </p>
                               </div>
@@ -1100,13 +1100,13 @@ export default function CreateOffer() {
                           <div className="px-3 py-2 flex items-center justify-between border-t"
                             style={{ borderColor: `${C.success}20`, backgroundColor: C.white }}>
                             <div>
-                              <p className="text-[10px]" style={{ color: C.g500 }}>Your offer rate</p>
+                              <p className="text-xs" style={{ color: C.g500 }}>Your offer rate</p>
                               <p className="text-sm font-black" style={{ color: C.forest }}>
                                 {sym}{fmt(effectiveRate, 0)} {cur}/BTC
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px]" style={{ color: C.g400 }}>Market rate</p>
+                              <p className="text-xs" style={{ color: C.g400 }}>Market rate</p>
                               <p className="text-xs font-semibold" style={{ color: C.g500 }}>
                                 {sym}{fmt(btcLocal, 0)} {cur}/BTC
                               </p>
@@ -1165,7 +1165,7 @@ export default function CreateOffer() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm">💼</span>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wide"
+                    <p className="text-xs font-black uppercase tracking-wide"
                       style={{ color: walletCapacityLocal > 0 ? C.forest : '#92400E' }}>
                       {offerType === 'sell' || offerType === 'gc_buy' ? 'BTC Wallet' : 'USD Wallet'}
                     </p>
@@ -1177,7 +1177,7 @@ export default function CreateOffer() {
                     </p>
                   </div>
                 </div>
-                <p className="text-[9px] font-black text-right" style={{ color: C.g500 }}>
+                <p className="text-xs font-black text-right" style={{ color: C.g500 }}>
                   Max you<br/>can offer
                 </p>
               </div>
@@ -1204,7 +1204,7 @@ export default function CreateOffer() {
                           style={{ borderColor: val ? C.green : C.g200, color: C.forest }} />
                       </div>
                       {val && effectiveRate > 0 && (
-                        <p className="text-[10px] mt-0.5 font-semibold" style={{ color: C.g400 }}>
+                        <p className="text-xs mt-0.5 font-semibold" style={{ color: C.g400 }}>
                           ≈ ₿{(parseFloat(val) / effectiveRate).toFixed(6)}
                           <span className="ml-1">(${fmt(parseFloat(val) / localRate, 0)} USD)</span>
                         </p>
@@ -1226,7 +1226,7 @@ export default function CreateOffer() {
                       <p className="text-xs font-black" style={{ color: C.danger }}>
                         Maximum exceeds your wallet balance
                       </p>
-                      <p className="text-[10px] font-semibold mt-0.5" style={{ color: C.danger }}>
+                      <p className="text-xs font-semibold mt-0.5" style={{ color: C.danger }}>
                         Your capacity: {sym}{fmt(walletCapacityLocal, 0)} {cur}. Please top up your wallet or lower the maximum.
                       </p>
                     </div>
@@ -1268,7 +1268,7 @@ export default function CreateOffer() {
                         backgroundColor: timeLimit === t ? C.green : C.white,
                         color: timeLimit === t ? C.white : C.g600,
                       }}>
-                      {t}<span className="text-[9px] font-bold ml-0.5">m</span>
+                      {t}<span className="text-xs font-bold ml-0.5">m</span>
                     </button>
                   ))}
                 </div>
@@ -1363,7 +1363,7 @@ export default function CreateOffer() {
 
                     {/* Market card preview */}
                     <div className="flex-shrink-0">
-                      <p className="text-[9px] font-black uppercase mb-2" style={{ color: C.g400 }}>Market Card Preview</p>
+                      <p className="text-xs font-black uppercase mb-2" style={{ color: C.g400 }}>Market Card Preview</p>
                       <MarketCardPreview />
                     </div>
                   </div>

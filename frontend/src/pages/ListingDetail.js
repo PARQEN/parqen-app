@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -258,7 +258,7 @@ export default function ListingDetail({ user }) {
       <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 space-y-3">
 
         {/* ── BREADCRUMB ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 text-[11px]" style={{color:C.g400}}>
+        <div className="flex items-center gap-1.5 text-xs" style={{color:C.g400}}>
           <button onClick={()=>navigate('/')} className="hover:underline">Home</button>
           <ChevronRight size={10}/>
           <button onClick={()=>navigate('/buy-bitcoin')} className="hover:underline">Marketplace</button>
@@ -281,7 +281,7 @@ export default function ListingDetail({ user }) {
                   <span className="text-sm">{cfg.icon}</span>
                   <p className="font-black text-xs tracking-wide" style={{color:C.forest}}>{cfg.label}</p>
                 </div>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white flex items-center gap-1"
+                <span className="text-xs font-black px-2 py-0.5 rounded-full text-white flex items-center gap-1"
                   style={{backgroundColor:C.success}}>
                   <span className="w-1.5 h-1.5 rounded-full bg-white inline-block animate-pulse"/>
                   Active
@@ -305,7 +305,7 @@ export default function ListingDetail({ user }) {
                       </h2>
                       {seller?.kyc_verified && <BadgeCheck size={14} style={{color:C.paid}}/>}
                       {/* Badge */}
-                      <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
+                      <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
                         style={{background:badge.bg, borderColor:badge.borderColor}}>
                         <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                         <span style={{color:badge.textColor}}>{badge.label}</span>
@@ -314,16 +314,16 @@ export default function ListingDetail({ user }) {
                     </div>
 
                     {/* Country + trades + reviews + online */}
-                    <div className="flex items-center gap-2 flex-wrap text-[11px]" style={{color:C.g500}}>
+                    <div className="flex items-center gap-2 flex-wrap text-xs" style={{color:C.g500}}>
                       <span className="flex items-center gap-1">
                         <CountryFlag countryCode={countryCode} className="w-4 h-3"/>
                         {seller?.country || listing?.country_name || ''}
                       </span>
-                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="text-xs" style={{color:C.g300}}>·</span>
                       <span className="font-bold" style={{color:C.g700}}>{fmt(trades)} Trades</span>
-                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="text-xs" style={{color:C.g300}}>·</span>
                       <span className="font-bold" style={{color:C.g700}}>{fmt(reviews)} Reviews</span>
-                      <span className="text-[10px]" style={{color:C.g300}}>·</span>
+                      <span className="text-xs" style={{color:C.g300}}>·</span>
                       <span className="font-bold flex items-center gap-1"
                         style={{color:isOnline?C.online:C.g400}}>
                         <span className="w-1.5 h-1.5 rounded-full inline-block"
@@ -343,9 +343,9 @@ export default function ListingDetail({ user }) {
                     { top:lastSeen,        bot:'Last Seen',    color:isOnline?C.online:C.g500, icon:'👁' },
                   ].map(s => (
                     <div key={s.bot} className="text-center p-2 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                      <p className="text-[9px] mb-0.5" style={{color:C.g400}}>{s.icon}</p>
+                      <p className="text-xs mb-0.5" style={{color:C.g400}}>{s.icon}</p>
                       <p className="font-black text-sm leading-tight" style={{color:s.color}}>{s.top}</p>
-                      <p className="text-[9px] font-semibold" style={{color:C.g400}}>{s.bot}</p>
+                      <p className="text-xs font-semibold" style={{color:C.g400}}>{s.bot}</p>
                     </div>
                   ))}
                 </div>
@@ -364,7 +364,7 @@ export default function ListingDetail({ user }) {
                   {listing.trade_instructions || listing.description || 'No special instructions — standard trade rules apply.'}
                 </div>
                 {listing.listing_terms && (
-                  <div className="p-3 rounded-xl text-[11px] leading-relaxed"
+                  <div className="p-3 rounded-xl text-xs leading-relaxed"
                     style={{backgroundColor:'#F0F9FF', color:C.g600, border:`1px solid ${C.paid}20`}}>
                     <p className="font-bold mb-1" style={{color:C.paid}}>Additional Terms</p>
                     {listing.listing_terms}
@@ -415,7 +415,7 @@ export default function ListingDetail({ user }) {
                 <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
                   <div className="px-4 py-3 border-b" style={{borderColor:C.g100}}>
                     <p className="font-black text-sm" style={{color:C.forest}}>Start a Trade</p>
-                    <p className="text-[10px]" style={{color:C.g400}}>Escrow locks BTC the moment you begin</p>
+                    <p className="text-xs" style={{color:C.g400}}>Escrow locks BTC the moment you begin</p>
                   </div>
 
                   <div className="p-4 space-y-3">
@@ -425,18 +425,18 @@ export default function ListingDetail({ user }) {
                       <Avatar user={seller} size={32}/>
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-xs truncate" style={{color:C.forest}}>{seller?.username||'Seller'}</p>
-                        <p className="text-[9px] flex items-center gap-1" style={{color:isOnline?C.online:C.g400}}>
+                        <p className="text-xs flex items-center gap-1" style={{color:isOnline?C.online:C.g400}}>
                           <span className="w-1.5 h-1.5 rounded-full inline-block" style={{backgroundColor:isOnline?C.online:C.g400}}/>
                           {isOnline ? 'Active Now' : lastSeen}
                         </p>
                       </div>
                       {/* Range pill instead of badge */}
                       <div className="text-right flex-shrink-0">
-                        <p className="text-[8px] font-bold uppercase" style={{color:C.g400}}>Range</p>
-                        <p className="text-[10px] font-black leading-tight" style={{color:C.forest}}>
+                        <p className="text-xs font-bold uppercase" style={{color:C.g400}}>Range</p>
+                        <p className="text-xs font-black leading-tight" style={{color:C.forest}}>
                           {sym}{fmt(minLocal,0)}–{sym}{fmt(maxLocal,0)}
                         </p>
-                        <p className="text-[8px]" style={{color:C.g400}}>{cur}</p>
+                        <p className="text-xs" style={{color:C.g400}}>{cur}</p>
                       </div>
                     </div>
 
@@ -463,10 +463,10 @@ export default function ListingDetail({ user }) {
                           style={{color:C.g500, backgroundColor:C.g100}}>{cur}</span>
                       </div>
                       {payAmtNum>0 && payAmtNum<minLocal && (
-                        <p className="text-[10px] mt-1" style={{color:C.danger}}>Min {sym}{fmt(minLocal,0)} {cur}</p>
+                        <p className="text-xs mt-1" style={{color:C.danger}}>Min {sym}{fmt(minLocal,0)} {cur}</p>
                       )}
                       {payAmtNum>maxLocal && (
-                        <p className="text-[10px] mt-1" style={{color:C.danger}}>Max {sym}{fmt(maxLocal,0)} {cur}</p>
+                        <p className="text-xs mt-1" style={{color:C.danger}}>Max {sym}{fmt(maxLocal,0)} {cur}</p>
                       )}
                     </div>
 
@@ -478,11 +478,11 @@ export default function ListingDetail({ user }) {
                         <p className="text-xs font-black" style={{color:C.g700}}>Receive</p>
                         <div className="flex items-center gap-1.5">
                           {/* BTC rate */}
-                          <p className="text-[10px] font-bold" style={{color:C.g500}}>
+                          <p className="text-xs font-bold" style={{color:C.g500}}>
                             {sym}{fmt(sellerRateLocal,2)}
                           </p>
                           {/* Margin pill */}
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full text-white"
+                          <span className="text-xs font-black px-1.5 py-0.5 rounded-full text-white"
                             style={{backgroundColor:margin>0?C.danger:margin<0?C.success:C.g400}}>
                             {margin===0?'Market':margin>0?`+${margin}%`:`${margin}%`}
                           </span>
@@ -495,7 +495,7 @@ export default function ListingDetail({ user }) {
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                             style={{backgroundColor:C.gold}}>
-                            <span className="text-white font-black text-[10px]">₿</span>
+                            <span className="text-white font-black text-xs">₿</span>
                           </div>
                           <p className="font-black text-xs" style={{color:C.forest}}>Bitcoin</p>
                         </div>
@@ -514,7 +514,7 @@ export default function ListingDetail({ user }) {
 
                         {/* Quote lock indicator */}
                         {quoteFetching && (
-                          <p className="text-[10px] mt-1 flex items-center gap-1" style={{color:C.g400}}>
+                          <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}>
                             <RefreshCw size={9} className="animate-spin"/> Locking rate…
                           </p>
                         )}
@@ -525,7 +525,7 @@ export default function ListingDetail({ user }) {
                     <div className="flex items-start gap-2 p-3 rounded-xl"
                       style={{backgroundColor:`${C.green}08`, border:`1px solid ${C.green}20`}}>
                       <Lock size={11} style={{color:C.green, flexShrink:0, marginTop:1}}/>
-                      <p className="text-[10px] leading-relaxed" style={{color:C.green}}>
+                      <p className="text-xs leading-relaxed" style={{color:C.green}}>
                         <strong>Your funds are protected by escrow</strong> for a secure trade. Released only when both parties confirm.
                       </p>
                     </div>
@@ -549,7 +549,7 @@ export default function ListingDetail({ user }) {
                         ['💰','Send payment → click "I Have Paid"'],
                         ['✅','Seller confirms → BTC released'],
                       ].map(([e,t])=>(
-                        <div key={t} className="flex items-center gap-2 text-[10px]" style={{color:C.g500}}>
+                        <div key={t} className="flex items-center gap-2 text-xs" style={{color:C.g500}}>
                           <span className="text-sm flex-shrink-0">{e}</span>{t}
                         </div>
                       ))}
@@ -566,8 +566,8 @@ export default function ListingDetail({ user }) {
                   <Lock size={12} className="text-white"/>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black mb-0.5" style={{color:C.forest}}>PRAQEN Escrow Protection</p>
-                  <p className="text-[10px] leading-relaxed" style={{color:C.g600}}>
+                  <p className="text-xs font-black mb-0.5" style={{color:C.forest}}>PRAQEN Escrow Protection</p>
+                  <p className="text-xs leading-relaxed" style={{color:C.g600}}>
                     Your funds are protected by escrow for a secure trade. Released only after both parties confirm.
                   </p>
                 </div>
@@ -630,8 +630,8 @@ export default function ListingDetail({ user }) {
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t" style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-[10px]" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
+            <p className="text-xs flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
               <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
             </p>
           </div>

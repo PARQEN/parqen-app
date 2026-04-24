@@ -8,6 +8,7 @@ const jwt        = require('jsonwebtoken');
 const crypto     = require('crypto');
 const path       = require('path');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const CoinbaseWalletService = require('./services/coinbaseWallet');
 const quoteService          = require('./services/quoteService');
 
@@ -62,6 +63,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'praqen-secret-change-in-production
 const otpStore          = new Map();
 const verificationCodes = new Map();
 
+// ── Resend ─────────────────────────────────────────────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 // ── Email transporter ──────────────────────────────────────────────────────
 const emailTransporter = nodemailer.createTransport({
   host:   process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -69,6 +73,21 @@ const emailTransporter = nodemailer.createTransport({
   secure: false,
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
+
+// ── Send verification email via Resend ─────────────────────────────────────
+async function sendVerificationEmail(email, code) {
+  try {
+    const data = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: email,
+      subject: 'Verify your PRAQEN account',
+      html: `<h1>Welcome to PRAQEN!</h1><p>Your code: <strong>${code}</strong></p>`,
+    });
+    console.log('✅ Email sent:', data.id);
+  } catch (error) {
+    console.error('❌ Email failed:', error.message);
+  }
+}
 
 // ============================================================
 // UTILITY FUNCTIONS
@@ -353,7 +372,7 @@ app.post('/api/auth/register', async (req, res) => {
     const referralCodeValue = await generateUniqueReferralCode(username);
     const { data, error } = await supabaseAdmin.from('users').insert([{
       email, password_hash: passwordHash, username, full_name: fullName || username,
-      bitcoin_wallet_address: walletAddress, is_email_verified: true, average_rating: 0,
+      bitcoin_wallet_address: walletAddress, is_email_verified: false, average_rating: 0,
       total_trades: 0, completion_rate: 100, account_status: 'ACTIVE', created_at: new Date(),
       avatar_url: null, is_admin: false, is_moderator: false,
       referred_by: referrerId, referral_code: referralCodeValue, badge: 'BEGINNER',
@@ -372,12 +391,25 @@ app.post('/api/auth/register', async (req, res) => {
     } catch (walletError) {
       console.error('⚠️ Wallet creation failed but user was created:', walletError.message);
     }
-    const token = jwt.sign({ userId: data[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Send email
+    await sendVerificationEmail(email, code);
+    // Keep in-memory copy for fast lookup
+    verificationCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, userId: data[0].id });
+    // Save code to user record in DB
+    await supabaseAdmin
+      .from('users')
+      .update({
+        verification_code: code,
+        verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
+      })
+      .eq('id', data[0].id);
     res.json({
       success: true,
-      user: { id: data[0].id, email: data[0].email, username: data[0].username, full_name: data[0].full_name,
-        average_rating: 0, total_trades: 0, avatar_url: null, is_admin: false, is_moderator: false, referral_code: data[0].referral_code },
-      token, walletAddress,
+      requiresVerification: true,
+      email,
+      message: 'Account created! Please check your email for a verification code.',
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -399,6 +431,9 @@ app.post('/api/auth/login', async (req, res) => {
     if (error || !data) return res.status(401).json({ error: 'Invalid credentials' });
     const validPassword = await bcrypt.compare(password, data.password_hash);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!data.is_email_verified) {
+      return res.status(403).json({ error: 'Please verify your email before logging in.', requiresVerification: true, email });
+    }
     const token = jwt.sign({ userId: data.id, email }, JWT_SECRET, { expiresIn: '7d' });
     await supabaseAdmin.from('users').update({ last_login: new Date() }).eq('id', data.id);
 
@@ -514,8 +549,24 @@ app.post('/api/auth/verify-code', async (req, res) => {
     if (Date.now() > stored.expiresAt) { verificationCodes.delete(email); return res.status(400).json({ error: 'Verification code expired.' }); }
     if (stored.code !== code) return res.status(400).json({ error: 'Invalid verification code' });
     verificationCodes.delete(email);
-    res.json({ success: true, message: 'Email verified successfully!' });
+    // Mark user as verified in DB
+    await supabaseAdmin.from('users').update({ is_email_verified: true }).eq('email', email);
+    // Fetch user and return token so frontend can log them in immediately
+    const { data: user } = await supabaseAdmin.from('users').select('*').eq('email', email).single();
+    const token = user ? jwt.sign({ userId: user.id, email }, JWT_SECRET, { expiresIn: '7d' }) : null;
+    res.json({
+      success: true,
+      message: 'Email verified successfully!',
+      token,
+      user: user ? {
+        id: user.id, email: user.email, username: user.username, full_name: user.full_name,
+        average_rating: user.average_rating || 0, total_trades: user.total_trades || 0,
+        avatar_url: user.avatar_url || null, is_admin: user.is_admin || false,
+        is_moderator: user.is_moderator || false, referral_code: user.referral_code || null,
+      } : null,
+    });
   } catch (error) {
+    console.error('Verify-code error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 });

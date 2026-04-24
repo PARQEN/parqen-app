@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -201,7 +201,7 @@ export default function Login({ onLogin }) {
                 <span className="text-xl flex-shrink-0">{icon}</span>
                 <div>
                   <p className="text-white text-xs font-bold">{label}</p>
-                  <p className="text-white/45 text-[10px]">{sub}</p>
+                  <p className="text-white/45 text-xs">{sub}</p>
                 </div>
               </div>
             ))}
@@ -305,7 +305,7 @@ export default function Login({ onLogin }) {
                         style={{ borderColor: C.g200, color: C.g700 }}>
                         <span>{phoneCode.flag}</span>
                         <span>{phoneCode.code}</span>
-                        <span className="text-[10px]" style={{ color: C.g400 }}>▼</span>
+                        <span className="text-xs" style={{ color: C.g400 }}>▼</span>
                       </button>
                       {showCodes && (
                         <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-2xl z-50 border max-h-48 overflow-y-auto"
@@ -347,7 +347,7 @@ export default function Login({ onLogin }) {
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-bold" style={{ color: C.g700 }}>Password</label>
                       <Link to="/forgot-password"
-                        className="text-[11px] font-bold hover:underline"
+                        className="text-xs font-bold hover:underline"
                         style={{ color: C.green }}>
                         Forgot password?
                       </Link>
@@ -451,7 +451,7 @@ export default function Login({ onLogin }) {
               {/* Divider */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px" style={{ backgroundColor: C.g200 }}/>
-                <span className="text-[10px] font-semibold" style={{ color: C.g400 }}>OR</span>
+                <span className="text-xs font-semibold" style={{ color: C.g400 }}>OR</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: C.g200 }}/>
               </div>
 
@@ -467,10 +467,10 @@ export default function Login({ onLogin }) {
             {/* Card footer */}
             <div className="px-7 py-4 border-t flex items-center justify-between"
               style={{ borderColor: C.g100, backgroundColor: C.g50 }}>
-              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: C.g400 }}>
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: C.g400 }}>
                 <Shield size={11}/> 256-bit SSL encrypted
               </div>
-              <div className="text-[10px]" style={{ color: C.g400 }}>
+              <div className="text-xs" style={{ color: C.g400 }}>
                 © 2025 PRAQEN
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -108,18 +108,18 @@ function TradeCard({ trade, user, onClose }) {
       {/* Role badge + timer */}
       <div className="flex items-center justify-between px-4 py-2.5"
         style={{ backgroundColor: isUrgent ? `${C.danger}12` : `${st.color}12` }}>
-        <span className="font-black text-[11px] px-3 py-1 rounded-full"
+        <span className="font-black text-xs px-3 py-1 rounded-full"
           style={{ backgroundColor: roleColor, color: '#fff' }}>
           {isBuyer ? '🛒 YOU ARE BUYING' : '💰 YOU ARE SELLING'}
         </span>
         <div className="flex items-center gap-2">
           {timeLeft && timeLeft !== 'Expired' && (
-            <span className={`font-mono text-[11px] font-black px-2 py-0.5 rounded-full ${isUrgent ? 'animate-pulse' : ''}`}
+            <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-full ${isUrgent ? 'animate-pulse' : ''}`}
               style={{ backgroundColor: isUrgent ? C.danger : st.color, color: '#fff' }}>
               <Timer size={9} className="inline mr-0.5" />{timeLeft}
             </span>
           )}
-          <span className="font-mono text-[10px]" style={{ color: C.g400 }}>
+          <span className="font-mono text-xs" style={{ color: C.g400 }}>
             #{String(trade.id || '').slice(0,8).toUpperCase()}
           </span>
         </div>
@@ -148,12 +148,12 @@ function TradeCard({ trade, user, onClose }) {
             <span className="font-black" style={{ color: isBuyer ? C.success : C.danger }}>
               ₿ {btcAmt}
             </span>
-            <div className="text-[10px] font-bold" style={{ color: C.g400 }}>≈ {payDisp}</div>
+            <div className="text-xs font-bold" style={{ color: C.g400 }}>≈ {payDisp}</div>
           </div>
         </div>
         <div className="flex justify-between text-xs">
           <span style={{ color: C.g500 }}>📊 Status:</span>
-          <span className="font-bold px-2 py-0.5 rounded-full text-[10px]"
+          <span className="font-bold px-2 py-0.5 rounded-full text-xs"
             style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function ActiveTradeBanner({ user, currentPage }) {
           <Bell size={16} className="text-white flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-white font-black text-sm">⚡ You Have an Active Trade</p>
-            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
               Action required — don't miss your trade window
             </p>
           </div>
@@ -254,7 +254,7 @@ export default function ActiveTradeBanner({ user, currentPage }) {
           style={{ borderColor: C.g200, backgroundColor: C.g50 }}>
           <div className="flex items-center gap-1.5">
             <Shield size={12} style={{ color: C.green }} />
-            <p className="text-[10px] font-semibold" style={{ color: C.g500 }}>
+            <p className="text-xs font-semibold" style={{ color: C.g500 }}>
               Escrow-protected · 0.5% fee on completion only
             </p>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Notifications from './Notifications';
@@ -24,7 +24,7 @@ const C = {
 function Beta({small=false}) {
   return (
     <span
-      className={`inline-flex items-center font-black rounded-full ${small?'text-[8px] px-1.5 py-0':'text-[9px] px-2 py-0.5'}`}
+      className={`inline-flex items-center font-black rounded-full ${small?'text-xs px-1.5 py-0':'text-xs px-2 py-0.5'}`}
       style={{backgroundColor:'#EF4444', color:'#fff', letterSpacing:'0.05em'}}>
       BETA
     </span>
@@ -139,7 +139,7 @@ export default function Navbar({user, onLogout}) {
                   style={{borderColor:C.g100}}>
                   {/* P2P Bitcoin */}
                   <div className="px-3 pt-3 pb-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
+                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
                       P2P BITCOIN
                     </p>
                   </div>
@@ -154,7 +154,7 @@ export default function Navbar({user, onLogout}) {
                         <p className="font-bold text-sm" style={{color:C.g800}}>Buy Bitcoin</p>
                         <Beta small/>
                       </div>
-                      <p className="text-[10px]" style={{color:C.g400}}>Pay with mobile money or bank</p>
+                      <p className="text-xs" style={{color:C.g400}}>Pay with mobile money or bank</p>
                     </div>
                   </Link>
                   <Link to="/sell-bitcoin" onClick={()=>setMarketDrop(false)}
@@ -168,13 +168,13 @@ export default function Navbar({user, onLogout}) {
                         <p className="font-bold text-sm" style={{color:C.g800}}>Sell Bitcoin</p>
                         <Beta small/>
                       </div>
-                      <p className="text-[10px]" style={{color:C.g400}}>Receive local currency instantly</p>
+                      <p className="text-xs" style={{color:C.g400}}>Receive local currency instantly</p>
                     </div>
                   </Link>
 
                   {/* Gift Cards */}
                   <div className="px-3 pt-2 pb-1 mt-1 border-t" style={{borderColor:C.g100}}>
-                    <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
+                    <p className="text-xs font-black uppercase tracking-widest mb-1" style={{color:C.g400}}>
                       GIFT CARDS
                     </p>
                   </div>
@@ -189,7 +189,7 @@ export default function Navbar({user, onLogout}) {
                         <p className="font-bold text-sm" style={{color:C.g800}}>Gift Cards</p>
                         <Beta small/>
                       </div>
-                      <p className="text-[10px]" style={{color:C.g400}}>Amazon, iTunes, Steam & more</p>
+                      <p className="text-xs" style={{color:C.g400}}>Amazon, iTunes, Steam & more</p>
                     </div>
                   </Link>
 
@@ -276,7 +276,7 @@ export default function Navbar({user, onLogout}) {
                     </div>
                     <div className="min-w-0">
                       <p className="font-black text-sm truncate" style={{color:C.forest}}>{displayUser?.username||'User'}</p>
-                      <p className="text-[11px] truncate" style={{color:C.g400}}>{displayUser?.email||''}</p>
+                      <p className="text-xs truncate" style={{color:C.g400}}>{displayUser?.email||''}</p>
                     </div>
                   </div>
 
@@ -293,7 +293,7 @@ export default function Navbar({user, onLogout}) {
                         <Icon size={16} style={{color:C.green,flexShrink:0}}/>
                         <div>
                           <p className="font-semibold text-sm" style={{color:C.g800}}>{label}</p>
-                          <p className="text-[10px]" style={{color:C.g400}}>{sub}</p>
+                          <p className="text-xs" style={{color:C.g400}}>{sub}</p>
                         </div>
                       </Link>
                     ))}
@@ -303,7 +303,7 @@ export default function Navbar({user, onLogout}) {
                       <HelpCircle size={16} style={{color:C.green,flexShrink:0}}/>
                       <div>
                         <p className="font-semibold text-sm" style={{color:C.g800}}>Submit an idea</p>
-                        <p className="text-[10px]" style={{color:C.g400}}>Help us improve PRAQEN</p>
+                        <p className="text-xs" style={{color:C.g400}}>Help us improve PRAQEN</p>
                       </div>
                     </button>
                     <div className="border-t mx-3 my-1" style={{borderColor:C.g100}}/>
@@ -312,7 +312,7 @@ export default function Navbar({user, onLogout}) {
                       <LogOut size={16} className="text-red-500 flex-shrink-0"/>
                       <div>
                         <p className="font-semibold text-sm text-red-600">Log out</p>
-                        <p className="text-[10px]" style={{color:C.g400}}>Sign out of your account</p>
+                        <p className="text-xs" style={{color:C.g400}}>Sign out of your account</p>
                       </div>
                     </button>
                   </div>

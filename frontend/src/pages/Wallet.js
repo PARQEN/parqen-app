@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -89,7 +89,7 @@ function WithdrawModal({ balance, onClose, onSend }) {
                 className="w-full px-4 py-3 text-sm border-2 rounded-xl focus:outline-none"
                 style={{ borderColor: !amount ? C.g200 : hasEnough ? C.green : C.danger }} />
               <button onClick={() => setAmount((parseFloat(balance || 0) * 0.999).toFixed(8))}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black px-2 py-1 rounded-lg"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black px-2 py-1 rounded-lg"
                 style={{ backgroundColor: `${C.green}15`, color: C.green }}>MAX</button>
             </div>
             {amount && !hasEnough && (
@@ -131,7 +131,7 @@ function WithdrawModal({ balance, onClose, onSend }) {
 
           <div className="flex items-start gap-2 p-3 rounded-xl" style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
             <AlertTriangle size={12} style={{ color: C.warn, flexShrink: 0, marginTop: 1 }} />
-            <p className="text-[10px] font-semibold" style={{ color: '#92400E' }}>
+            <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
               Double-check the address. Sending to the wrong address results in permanent loss of funds.
             </p>
           </div>
@@ -206,7 +206,7 @@ function ReceiveModal({ address, network, onClose }) {
 
           <div className="flex items-start gap-2 p-3 rounded-xl" style={{ backgroundColor: '#EFF6FF', border: `1px solid ${C.paid}20` }}>
             <Shield size={12} style={{ color: C.paid, flexShrink: 0, marginTop: 1 }} />
-            <p className="text-[10px] font-semibold text-blue-700">
+            <p className="text-xs font-semibold text-blue-700">
               Only send Bitcoin (BTC) to this address. Other coins will be lost permanently.
             </p>
           </div>
@@ -238,17 +238,17 @@ function TxRow({ tx }) {
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-bold" style={{ color: C.g800 }}>{label}</p>
           {isPending && (
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+            <span className="text-xs font-black px-1.5 py-0.5 rounded-full"
               style={{ backgroundColor: `${C.warn}20`, color: C.warn }}>PENDING</span>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <p className="text-[10px] truncate" style={{ color: C.g400 }}>
+          <p className="text-xs truncate" style={{ color: C.g400 }}>
             {tx.notes || (txHash ? `${txHash.slice(0, 14)}…` : fmtAge(tx.created_at))}
           </p>
           {txHash && (
             <a href={`${explorerBase}/${txHash}`} target="_blank" rel="noopener noreferrer"
-              className="text-[9px] font-bold flex-shrink-0 hover:underline"
+              className="text-xs font-bold flex-shrink-0 hover:underline"
               style={{ color: C.paid }}>↗</a>
           )}
         </div>
@@ -257,7 +257,7 @@ function TxRow({ tx }) {
         <p className="text-sm font-black" style={{ color }}>
           {isSend ? '−' : '+'}₿{fmt(Math.abs(tx.amount_btc || 0))}
         </p>
-        <p className="text-[10px]" style={{ color: C.g400 }}>{fmtAge(tx.created_at)}</p>
+        <p className="text-xs" style={{ color: C.g400 }}>{fmtAge(tx.created_at)}</p>
       </div>
     </div>
   );
@@ -407,7 +407,7 @@ export default function WalletPage({ user }) {
                 </div>
                 <div>
                   <p className="text-white font-black text-sm">Bitcoin Wallet</p>
-                  <p className="text-white/60 text-[10px]">{user?.username} · {network.toUpperCase()}</p>
+                  <p className="text-white/60 text-xs">{user?.username} · {network.toUpperCase()}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -432,7 +432,7 @@ export default function WalletPage({ user }) {
                   <p className="text-4xl font-black text-white tracking-tight">₿ {fmt(balance)}</p>
                   <p className="text-white/60 text-sm mt-0.5">≈ {fmtUsd(balUsd)}</p>
                   {btcPrice > 0 && (
-                    <p className="text-white/40 text-[10px] mt-0.5">
+                    <p className="text-white/40 text-xs mt-0.5">
                       Live BTC: {fmtUsd(btcPrice)}
                     </p>
                   )}
@@ -456,7 +456,7 @@ export default function WalletPage({ user }) {
                     style={{ backgroundColor: `${color}25` }}>
                     <Icon size={15} style={{ color }} />
                   </div>
-                  <span className="text-white text-[11px] font-bold">{label}</span>
+                  <span className="text-white text-xs font-bold">{label}</span>
                 </button>
               ))}
             </div>
@@ -470,7 +470,7 @@ export default function WalletPage({ user }) {
               <ArrowDownLeft size={15} style={{ color: C.success }} />
               <p className="font-black text-sm" style={{ color: C.g800 }}>Your Deposit Address</p>
             </div>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+            <span className="text-xs font-black px-2 py-0.5 rounded-full"
               style={{
                 backgroundColor: walletData?.address ? `${C.success}15` : `${C.warn}15`,
                 color: walletData?.address ? C.success : C.warn
@@ -526,7 +526,7 @@ export default function WalletPage({ user }) {
           <div className="mt-3 flex items-start gap-2 p-3 rounded-xl"
             style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
             <AlertTriangle size={12} style={{ color: C.warn, flexShrink: 0, marginTop: 1 }} />
-            <p className="text-[10px] font-semibold" style={{ color: '#92400E' }}>
+            <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
               Only send Bitcoin (BTC) to this address. Sending other coins will result in permanent loss.
             </p>
           </div>
@@ -541,7 +541,7 @@ export default function WalletPage({ user }) {
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border p-4 shadow-sm text-center" style={{ borderColor: C.g200 }}>
               <p className="text-xl font-black" style={{ color }}>{value}</p>
-              <p className="text-[10px] font-semibold mt-0.5" style={{ color: C.g400 }}>{label}</p>
+              <p className="text-xs font-semibold mt-0.5" style={{ color: C.g400 }}>{label}</p>
             </div>
           ))}
         </div>
@@ -562,7 +562,7 @@ export default function WalletPage({ user }) {
                 <span className="text-lg flex-shrink-0">{icon}</span>
                 <div>
                   <p className="text-xs font-bold" style={{ color: C.g700 }}>{label}</p>
-                  <p className="text-[10px]" style={{ color: C.g400 }}>{desc}</p>
+                  <p className="text-xs" style={{ color: C.g400 }}>{desc}</p>
                 </div>
               </div>
             ))}
@@ -573,7 +573,7 @@ export default function WalletPage({ user }) {
         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: C.g200 }}>
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: C.g100 }}>
             <p className="font-black text-sm" style={{ color: C.g800 }}>Transaction History</p>
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+            <span className="text-xs font-black px-2 py-0.5 rounded-full"
               style={{ backgroundColor: C.g100, color: C.g500 }}>
               {transactions.length} records
             </span>
@@ -657,10 +657,10 @@ export default function WalletPage({ user }) {
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t"
             style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
               © {new Date().getFullYear()} PRAQEN. All rights reserved.
             </p>
-            <p className="text-[10px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <p className="text-xs flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
               <Shield size={10} /> Self-Custodial HD Wallet · 0.5% fee on trades
             </p>
           </div>

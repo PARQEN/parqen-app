@@ -189,48 +189,69 @@ function FeedbackModal({name,onClose,onSubmit,submitting}) {
 // ─── Confirm action modal (Pay / Release) ────────────────────────────────────
 function ConfirmActionModal({icon:Icon, iconBg, title, lines, confirmLabel, confirmBg, confirmColor='#fff', onClose, onConfirm, submitting}) {
   return(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)'}}>
-      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
-        style={{animation:'slideUp .3s ease'}}>
-
-        {/* Icon header */}
-        <div className="flex flex-col items-center pt-7 pb-4 px-6">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
-            style={{backgroundColor:iconBg}}>
-            <Icon size={32} className="text-white"/>
+    <div style={{
+      position:'fixed',inset:0,zIndex:50,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      padding:'16px',
+      backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',
+    }}>
+      <div style={{
+        backgroundColor:'#fff',width:'100%',maxWidth:'360px',
+        borderRadius:'20px',overflow:'hidden',
+        boxShadow:'0 25px 60px rgba(0,0,0,0.3)',
+        animation:'popIn .25s ease',
+        boxSizing:'border-box',
+      }}>
+        {/* Icon + title */}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'24px 20px 16px'}}>
+          <div style={{
+            width:56,height:56,borderRadius:14,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            backgroundColor:iconBg,marginBottom:12,
+            boxShadow:'0 4px 14px rgba(0,0,0,0.15)',
+          }}>
+            <Icon size={26} style={{color:'#fff'}}/>
           </div>
-          <h2 className="text-lg font-black text-center" style={{color:'#1E293B'}}>{title}</h2>
+          <p style={{fontWeight:900,fontSize:16,color:'#1E293B',margin:0,textAlign:'center'}}>{title}</p>
         </div>
 
-        {/* Lines */}
-        <div className="px-6 pb-5 space-y-2">
+        {/* Info lines */}
+        <div style={{padding:'0 16px 16px',display:'flex',flexDirection:'column',gap:8}}>
           {lines.map((l,i)=>(
-            <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl"
-              style={{backgroundColor:'#F8FAFC'}}>
-              <span className="text-base flex-shrink-0">{l.icon}</span>
-              <p className="text-sm leading-snug" style={{color:'#334155'}}>{l.text}</p>
+            <div key={i} style={{
+              display:'flex',alignItems:'flex-start',gap:10,
+              padding:'10px 12px',borderRadius:12,backgroundColor:'#F8FAFC',
+              boxSizing:'border-box',
+            }}>
+              <span style={{fontSize:16,flexShrink:0,lineHeight:1.3}}>{l.icon}</span>
+              <p style={{fontSize:12,color:'#334155',margin:0,lineHeight:1.5}}>{l.text}</p>
             </div>
           ))}
         </div>
 
         {/* Buttons */}
-        <div className="px-6 pb-8 sm:pb-6 grid grid-cols-2 gap-3">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'0 16px 20px',boxSizing:'border-box'}}>
           <button onClick={onClose} disabled={submitting}
-            className="py-3.5 rounded-2xl font-bold text-sm border-2 transition hover:bg-gray-50 disabled:opacity-40"
-            style={{borderColor:'#E2E8F0',color:'#64748B'}}>
+            style={{
+              padding:'13px 0',borderRadius:14,fontWeight:700,fontSize:13,
+              border:'2px solid #E2E8F0',backgroundColor:'#fff',color:'#64748B',
+              cursor:'pointer',
+            }}>
             Go Back
           </button>
           <button onClick={onConfirm} disabled={submitting}
-            className="py-3.5 rounded-2xl font-black text-sm transition hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
-            style={{backgroundColor:confirmBg,color:confirmColor}}>
-            {submitting
-              ? <><RefreshCw size={15} className="animate-spin"/>Processing…</>
-              : confirmLabel}
+            style={{
+              padding:'13px 0',borderRadius:14,fontWeight:900,fontSize:13,
+              backgroundColor:confirmBg,color:confirmColor,border:'none',
+              cursor:submitting?'not-allowed':'pointer',
+              opacity:submitting?0.5:1,
+              display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+            }}>
+            {submitting?<><RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/>Processing…</>:confirmLabel}
           </button>
         </div>
       </div>
-      <style>{`@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+      <style>{`@keyframes popIn{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
@@ -239,28 +260,67 @@ function ConfirmActionModal({icon:Icon, iconBg, title, lines, confirmLabel, conf
 function CancelModal({onClose,onConfirm,submitting}) {
   const [reason,setReason]=useState('');
   return(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{backgroundColor:'rgba(0,0,0,0.65)',backdropFilter:'blur(4px)'}}>
-      <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
-        <div className="flex items-center gap-2">
-          <AlertTriangle size={18} style={{color:C.danger}}/>
-          <h2 className="text-base font-black">Cancel Trade?</h2>
+    <div style={{
+      position:'fixed',inset:0,zIndex:50,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      padding:'16px',
+      backgroundColor:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',
+    }}>
+      <div style={{
+        backgroundColor:'#fff',width:'100%',maxWidth:'360px',
+        borderRadius:'20px',overflow:'hidden',boxShadow:'0 25px 60px rgba(0,0,0,0.3)',
+        animation:'popIn .25s ease',
+      }}>
+        {/* Header */}
+        <div style={{padding:'20px 20px 16px',borderBottom:'1px solid #F1F5F9',display:'flex',alignItems:'center',gap:'12px'}}>
+          <div style={{width:42,height:42,borderRadius:12,backgroundColor:'#FEE2E2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <AlertTriangle size={20} style={{color:C.danger}}/>
+          </div>
+          <div>
+            <p style={{fontWeight:900,fontSize:15,color:'#1E293B',margin:0}}>Cancel Trade?</p>
+            <p style={{fontSize:12,color:C.g500,margin:0,marginTop:2}}>Escrow returns to seller</p>
+          </div>
         </div>
-        <p className="text-xs text-gray-500">This will release the escrow back to the seller. Please provide a reason.</p>
-        <textarea value={reason} onChange={e=>setReason(e.target.value)}
-          placeholder="Reason for cancellation…" rows={3}
-          className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none resize-none"
-          style={{borderColor:C.g200}}/>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl font-bold text-sm border"
-            style={{borderColor:C.g200,color:C.g600}}>Back</button>
-          <button onClick={()=>onConfirm(reason)} disabled={!reason.trim()||submitting}
-            className="flex-1 py-2.5 rounded-xl text-white font-black text-sm disabled:opacity-40"
-            style={{backgroundColor:C.danger}}>
-            {submitting?'Cancelling…':'Confirm Cancel'}
-          </button>
+
+        {/* Body */}
+        <div style={{padding:'16px 20px 20px'}}>
+          <p style={{fontSize:12,color:C.g600,marginBottom:8,fontWeight:600}}>Reason for cancelling:</p>
+          <textarea
+            value={reason}
+            onChange={e=>setReason(e.target.value)}
+            placeholder="e.g. Payment method not working…"
+            rows={3}
+            style={{
+              width:'100%',boxSizing:'border-box',
+              padding:'10px 12px',fontSize:13,
+              border:`2px solid ${reason.trim()?C.danger:C.g200}`,
+              borderRadius:12,outline:'none',resize:'none',
+              fontFamily:'inherit',color:'#1E293B',
+            }}
+          />
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:14}}>
+            <button onClick={onClose} disabled={submitting}
+              style={{
+                padding:'12px 0',borderRadius:14,fontWeight:700,fontSize:13,
+                border:`2px solid ${C.g200}`,backgroundColor:'#fff',color:C.g600,
+                cursor:'pointer',
+              }}>
+              Go Back
+            </button>
+            <button onClick={()=>onConfirm(reason)} disabled={!reason.trim()||submitting}
+              style={{
+                padding:'12px 0',borderRadius:14,fontWeight:900,fontSize:13,
+                backgroundColor:C.danger,color:'#fff',border:'none',
+                cursor:reason.trim()&&!submitting?'pointer':'not-allowed',
+                opacity:reason.trim()&&!submitting?1:0.45,
+                display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+              }}>
+              {submitting?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/>Cancelling…</>:'Confirm Cancel'}
+            </button>
+          </div>
         </div>
       </div>
+      <style>{`@keyframes popIn{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
@@ -392,7 +452,9 @@ export default function TradeDetail({user}) {
   const msgEnd     = useRef(null);
   const chatRef    = useRef(null);
   const fileRef    = useRef(null);
-  const scrolled   = useRef(false);
+  const scrolled        = useRef(false);
+  const prevMsgCount    = useRef(0);
+  const autoCancelled   = useRef(false);
 
   const [trade,     setTrade]     = useState(null);
   const [btcPrice,  setBtcPrice]  = useState(68000); // Default to standard market price during load
@@ -452,11 +514,16 @@ export default function TradeDetail({user}) {
 
   useEffect(()=>{
     if(!trade?.created_at||!isActive)return;
-    const mins=parseInt(trade.time_limit||trade.listing?.time_limit||30);
+    const LIMIT_MINS = 30; // Fixed 30-minute payment window
+    const deadline = new Date(trade.created_at).getTime() + LIMIT_MINS * 60 * 1000;
     const iv=setInterval(()=>{
-      const rem=Math.max(0,Math.floor((new Date(trade.created_at).getTime()+mins*60000-Date.now())/1000));
+      const rem=Math.max(0, Math.floor((deadline - Date.now()) / 1000));
       setTimeLeft(rem);
-      if(rem<=0&&isEscrow)autoCancel();
+      if(rem<=0 && isEscrow && !autoCancelled.current){
+        autoCancelled.current = true;
+        clearInterval(iv);
+        autoCancel();
+      }
     },1000);
     return()=>clearInterval(iv);
   },[trade?.created_at,status]);
@@ -469,12 +536,14 @@ export default function TradeDetail({user}) {
   },[isCompleted, trade?.user_gave_feedback, tradeCompleted]);
 
   useEffect(()=>{
-    if(messages.length>0&&scrolled.current){
-      const el=chatRef.current;
-      if(!el)return;
-      const distFromBottom=el.scrollHeight-el.scrollTop-el.clientHeight;
-      if(distFromBottom<150) msgEnd.current?.scrollIntoView({behavior:'smooth'});
-    }
+    if(messages.length===0)return;
+    const isNewMsg=messages.length>prevMsgCount.current;
+    prevMsgCount.current=messages.length;
+    if(!isNewMsg||!scrolled.current)return;
+    const el=chatRef.current;
+    if(!el)return;
+    const distFromBottom=el.scrollHeight-el.scrollTop-el.clientHeight;
+    if(distFromBottom<150) el.scrollTop=el.scrollHeight;
   },[messages]);
 
   const loadAll=async()=>{
@@ -515,7 +584,7 @@ export default function TradeDetail({user}) {
       setMessages(msgs);
       if(!scrolled.current&&msgs.length>0){
         scrolled.current=true;
-        setTimeout(()=>msgEnd.current?.scrollIntoView({behavior:'auto'}),100);
+        setTimeout(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},100);
       }
     }catch{}
   };
@@ -536,7 +605,7 @@ export default function TradeDetail({user}) {
     try{
       await axios.post(`${API_URL}/messages`,{tradeId:id,message:msg},{headers:authH()});
       setMsg('');await loadMessages();
-      setTimeout(()=>msgEnd.current?.scrollIntoView({behavior:'smooth'}),100);
+      setTimeout(()=>{if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight;},100);
     }catch{toast.error('Send failed');}
     finally{setSending(false);}
   };
@@ -598,8 +667,10 @@ export default function TradeDetail({user}) {
 
   const autoCancel=async()=>{
     try{
-      await axios.post(`${API_URL}/trades/${id}/auto-cancel`,{reason:'Time expired'},{headers:authH()});
-      toast.warning('Trade auto-cancelled — time expired');await loadTrade();
+      await axios.post(`${API_URL}/trades/${id}/auto-cancel`,{reason:'30-minute payment window expired'},{headers:authH()});
+      await postSys('⏰ Time expired — 30-minute payment window closed. Trade cancelled and Bitcoin returned to seller\'s wallet.');
+      toast.warning('⏰ Time expired — Bitcoin returned to seller wallet');
+      await loadTrade();
     }catch(e){console.error('Auto cancel error:',e);}
   };
 
@@ -679,7 +750,7 @@ export default function TradeDetail({user}) {
 
   const localAmt     = userPays; // map for legacy button logic
   const usdRate      = (USD_RATES && USD_RATES[cur]) ? USD_RATES[cur] : 0;
-  const timeLimit    = parseInt(trade.time_limit || 45);
+  const timeLimit    = 30; // Fixed 30-minute payment window
   const urgent       = timeLeft !== null && timeLeft < 300 && timeLeft > 0;
   const payMethod    = trade.payment_method || 'Mobile Money';
 
@@ -721,7 +792,7 @@ export default function TradeDetail({user}) {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
 
       {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3">
+      <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3 pb-36 lg:pb-3">
 
         <div className="grid lg:grid-cols-12 gap-3 lg:[height:calc(100vh-56px)]">
 
@@ -787,10 +858,10 @@ export default function TradeDetail({user}) {
                 </div>
               )}
 
-              {/* ── MARK PAID / SENT CODE button ─────────────────────── */}
+              {/* ── MARK PAID / SENT CODE button — desktop only (mobile uses sticky bar) ── */}
               {showMarkPaid&&(
                 <button onClick={()=>setShowPayConfirm(true)} disabled={submitting}
-                  className="w-full py-4 rounded-xl font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition"
+                  className="hidden lg:flex w-full py-4 rounded-xl font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 items-center justify-center gap-2 transition"
                   style={{backgroundColor:C.gold,color:C.forest}}>
                   {submitting
                     ?<><RefreshCw size={16} className="animate-spin"/>Processing…</>
@@ -800,10 +871,10 @@ export default function TradeDetail({user}) {
                 </button>
               )}
 
-              {/* ── RELEASE BITCOIN button ────────────────────────────── */}
+              {/* ── RELEASE BITCOIN button — desktop only (mobile uses sticky bar) ── */}
               {showRelease&&(
                 <button onClick={()=>setShowRelConfirm(true)} disabled={submitting}
-                  className="w-full py-4 rounded-xl text-white font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition"
+                  className="hidden lg:flex w-full py-4 rounded-xl text-white font-black text-base shadow-lg hover:opacity-90 disabled:opacity-50 items-center justify-center gap-2 transition"
                   style={{backgroundColor:C.green}}>
                   {submitting
                     ?<><RefreshCw size={16} className="animate-spin"/>Processing…</>
@@ -952,7 +1023,7 @@ export default function TradeDetail({user}) {
           </div>
 
           {/* ── CHAT COLUMN ──────────────────────────────────────────────── */}
-          <div className="order-1 lg:order-2 lg:col-span-8 flex flex-col min-h-[70vh] lg:min-h-0 lg:[max-height:calc(100vh-56px)]">
+          <div className="order-1 lg:order-2 lg:col-span-8 flex flex-col min-h-[55vh] lg:min-h-0 lg:[max-height:calc(100vh-56px)]">
             <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col flex-1"
               style={{borderColor:C.g200}}>
 
@@ -987,17 +1058,11 @@ export default function TradeDetail({user}) {
                       </div>
                     </div>
                   </button>
-                  {/* Status + Timer */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg"
-                      style={{backgroundColor:'rgba(255,255,255,0.12)',fontSize:'10px'}}>
-                      <CfgIcon size={10} className="text-white/70"/>
-                      <span className="font-bold text-white/70">{cfg.label}</span>
-                    </div>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-black ${urgent?'animate-pulse':''}`}
-                      style={{backgroundColor:urgent?C.danger:'rgba(255,255,255,0.18)',color:'#fff',fontSize:'11px'}}>
-                      <Timer size={11}/>{fmtTimer(timeLeft)}
-                    </div>
+                  {/* Status badge */}
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg flex-shrink-0"
+                    style={{backgroundColor:'rgba(255,255,255,0.12)',fontSize:'10px'}}>
+                    <CfgIcon size={10} className="text-white/70"/>
+                    <span className="font-bold text-white/70">{cfg.label}</span>
                   </div>
                 </div>
 
@@ -1034,6 +1099,29 @@ export default function TradeDetail({user}) {
                   </div>
 
                 </div>
+
+                {/* ── Prominent Timer Banner ── */}
+                {isActive&&(
+                  <div className={urgent?'animate-pulse':''} style={{
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:10,
+                    padding:'10px 12px',
+                    backgroundColor: timeLeft===0 ? '#7f1d1d' : urgent ? C.danger : 'rgba(0,0,0,0.28)',
+                    borderTop:'1px solid rgba(255,255,255,0.08)',
+                  }}>
+                    <Timer size={15} style={{color: urgent||timeLeft===0 ? '#fff' : C.gold, flexShrink:0}}/>
+                    <span style={{fontWeight:900,color:'#fff',fontSize:22,letterSpacing:'0.06em',lineHeight:1}}>
+                      {timeLeft===0 ? 'EXPIRED' : fmtTimer(timeLeft)}
+                    </span>
+                    <div style={{display:'flex',flexDirection:'column',gap:1}}>
+                      <span style={{color:'rgba(255,255,255,0.5)',fontSize:10,fontWeight:600,lineHeight:1}}>
+                        {timeLeft===0 ? '⚠️ Trade cancelled' : urgent ? '⚠️ Pay now!' : '30 min limit'}
+                      </span>
+                      <span style={{color:'rgba(255,255,255,0.35)',fontSize:9,lineHeight:1}}>
+                        {timeLeft===0 ? 'BTC returned to seller' : 'BTC returns to seller on expiry'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dispute active banner */}
@@ -1220,6 +1308,33 @@ export default function TradeDetail({user}) {
           </div>
         </div>
       </div>
+
+      {/* ── MOBILE STICKY ACTION BAR ─────────────────────────────────────── */}
+      {(showMarkPaid||showRelease)&&(
+        <div className="lg:hidden fixed left-0 right-0 z-40 px-3 py-2.5"
+          style={{bottom:'60px',backgroundColor:'rgba(255,255,255,0.97)',borderTop:`1px solid ${C.g200}`,backdropFilter:'blur(8px)'}}>
+          {showMarkPaid&&(
+            <button onClick={()=>setShowPayConfirm(true)} disabled={submitting}
+              className="w-full py-4 rounded-2xl font-black text-base shadow-lg active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{backgroundColor:C.gold,color:C.forest}}>
+              {submitting
+                ?<><RefreshCw size={16} className="animate-spin"/>Processing…</>
+                :isGiftCardTrade
+                  ?<><Check size={18}/>🎁 I SENT THE CODE</>
+                  :<><Check size={18}/>✅ I HAVE PAID</>}
+            </button>
+          )}
+          {showRelease&&(
+            <button onClick={()=>setShowRelConfirm(true)} disabled={submitting}
+              className="w-full py-4 rounded-2xl text-white font-black text-base shadow-lg active:opacity-80 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{backgroundColor:C.green}}>
+              {submitting
+                ?<><RefreshCw size={16} className="animate-spin"/>Processing…</>
+                :<><Bitcoin size={18}/>🔓 RELEASE BITCOIN</>}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── MODALS ─────────────────────────────────────────────────────────── */}
       {profUser && <ProfilePopup user={profUser} label={profLabel} onClose={()=>setProfUser(null)}/>}

@@ -31,6 +31,7 @@ import TradeChat from './pages/TradeChat';
 import BuyBitcoin from './pages/BuyBitcoin';
 import SellBitcoin from './pages/SellBitcoin';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import SellGiftCardMarketplace from './pages/SellGiftCardMarketplace';
 import VerifyOTP from './pages/VerifyOTP';  // ✅ ADDED OTP PAGE
 import ResetPassword from './pages/ResetPassword';  // ✅ ADDED RESET PASSWORD PAGE
@@ -143,7 +144,7 @@ function App() {
   return (
     <RatesProvider>
     <Router>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
         <Navbar user={user} onLogout={logout} />
         
         <Routes>
@@ -165,7 +166,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           
           {/* ✅ OTP AND RESET PASSWORD ROUTES - ADDED */}
-          <Route path="/verify-otp" element={<VerifyOTP />} />
+          <Route path="/verify-otp" element={<VerifyOTP onLogin={login} />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/confirm" element={<EmailConfirmation />} />
           
@@ -204,6 +205,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
 
+        <BottomNav user={user} />
         <ToastContainer position="bottom-right" autoClose={3000} />
       </div>
     </Router>

@@ -8,7 +8,6 @@ const jwt        = require('jsonwebtoken');
 const crypto     = require('crypto');
 const path       = require('path');
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 const CoinbaseWalletService = require('./services/coinbaseWallet');
 const quoteService          = require('./services/quoteService');
 
@@ -63,30 +62,134 @@ const JWT_SECRET = process.env.JWT_SECRET || 'praqen-secret-change-in-production
 const otpStore          = new Map();
 const verificationCodes = new Map();
 
-// ── Resend ─────────────────────────────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// ── Email transporter ──────────────────────────────────────────────────────
-const emailTransporter = nodemailer.createTransport({
-  host:   process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port:   parseInt(process.env.EMAIL_PORT || 587),
-  secure: false,
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
-// ── Send verification email via Resend ─────────────────────────────────────
 async function sendVerificationEmail(email, code) {
-  try {
-    const data = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'Verify your PRAQEN account',
-      html: `<h1>Welcome to PRAQEN!</h1><p>Your code: <strong>${code}</strong></p>`,
-    });
-    console.log('✅ Email sent:', data.id);
-  } catch (error) {
-    console.error('❌ Email failed:', error.message);
-  }
+    const year = new Date().getFullYear();
+    try {
+        await transporter.sendMail({
+            from: '"PRAQEN" <kendevdash@gmail.com>',
+            to: email,
+            subject: '🔐 Your PRAQEN verification code',
+            html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify your PRAQEN account</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F0FAF5;font-family:Arial,Helvetica,sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0FAF5;padding:40px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background-color:#FFFFFF;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(27,67,50,0.10);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1B4332 0%,#2D6A4F 60%,#40916C 100%);padding:36px 32px 28px;text-align:center;">
+              <!-- Logo mark -->
+              <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:16px;padding:10px 22px;margin-bottom:14px;">
+                <span style="font-size:26px;font-weight:900;color:#FFFFFF;letter-spacing:2px;font-family:Georgia,serif;">PRA</span><span style="font-size:26px;font-weight:900;color:#F4A422;letter-spacing:2px;font-family:Georgia,serif;">QEN</span>
+              </div>
+              <p style="color:#A7C4B5;font-size:13px;margin:0;letter-spacing:0.5px;">Africa's Trusted P2P Bitcoin Platform</p>
+              <!-- Tagline strip -->
+              <table cellpadding="0" cellspacing="0" style="margin:16px auto 0;">
+                <tr>
+                  <td style="background:rgba(244,164,34,0.15);border-radius:20px;padding:5px 16px;">
+                    <span style="color:#F4A422;font-size:11px;font-weight:700;letter-spacing:1px;">🔒 ESCROW PROTECTED &nbsp;·&nbsp; FAST &nbsp;·&nbsp; HONEST</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 32px 32px;text-align:center;">
+
+              <!-- Icon circle -->
+              <div style="width:68px;height:68px;background:linear-gradient(135deg,#F0FAF5,#D1FAE5);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:22px;border:3px solid #A7C4B5;">
+                <span style="font-size:30px;line-height:1;">🔐</span>
+              </div>
+
+              <h2 style="color:#1B4332;font-size:22px;font-weight:900;margin:0 0 10px 0;letter-spacing:-0.3px;">
+                Verify Your Email Address
+              </h2>
+              <p style="color:#64748B;font-size:14px;line-height:1.7;margin:0 0 28px 0;max-width:360px;display:inline-block;">
+                Welcome to PRAQEN! Use the verification code below to activate your account and start trading safely.
+              </p>
+
+              <!-- Code box -->
+              <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:linear-gradient(135deg,#F0FAF5,#ECFDF5);border:2px dashed #52B788;border-radius:14px;padding:28px 20px;text-align:center;">
+                    <p style="color:#52B788;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:3px;margin:0 0 12px 0;">
+                      Your Verification Code
+                    </p>
+                    <div style="font-size:44px;font-weight:900;letter-spacing:10px;color:#1B4332;font-family:'Courier New',Courier,monospace;line-height:1;">
+                      ${code}
+                    </div>
+                    <p style="color:#94A3B8;font-size:11px;margin:12px 0 0 0;">
+                      ⏱ Expires in <strong>10 minutes</strong>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color:#94A3B8;font-size:12px;line-height:1.6;margin:0 0 24px 0;">
+                If you didn't create a PRAQEN account, you can safely ignore this email.
+              </p>
+
+              <!-- Divider -->
+              <table cellpadding="0" cellspacing="0" width="100%">
+                <tr><td style="border-top:1px solid #E2E8F0;padding-top:20px;"></td></tr>
+              </table>
+
+              <!-- Security note -->
+              <table cellpadding="0" cellspacing="0" style="margin-top:16px;background:#FFF7ED;border-radius:10px;border:1px solid #FDE68A;">
+                <tr>
+                  <td style="padding:12px 16px;text-align:left;">
+                    <span style="color:#92400E;font-size:11px;font-weight:700;">🔒 Security reminder:</span>
+                    <span style="color:#A16207;font-size:11px;"> PRAQEN will never ask for your code via chat, phone, or email. Never share it with anyone.</span>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 32px;text-align:center;">
+              <p style="color:#94A3B8;font-size:11px;margin:0 0 4px 0;">
+                © ${year} PRAQEN. All rights reserved.
+              </p>
+              <p style="color:#CBD5E1;font-size:10px;margin:0;">
+                Africa's most trusted P2P Bitcoin platform — trade safely with escrow protection.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End card -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`
+        });
+        console.log('✅ Verification email sent to:', email);
+    } catch (error) {
+        console.error('❌ Email send failed:', error.message);
+    }
 }
 
 // ============================================================
@@ -544,16 +647,46 @@ app.post('/api/auth/verify-code', async (req, res) => {
   try {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+
+    // Check in-memory map first, fall back to database (handles server restarts)
     const stored = verificationCodes.get(email);
-    if (!stored) return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
-    if (Date.now() > stored.expiresAt) { verificationCodes.delete(email); return res.status(400).json({ error: 'Verification code expired.' }); }
-    if (stored.code !== code) return res.status(400).json({ error: 'Invalid verification code' });
-    verificationCodes.delete(email);
-    // Mark user as verified in DB
-    await supabaseAdmin.from('users').update({ is_email_verified: true }).eq('email', email);
-    // Fetch user and return token so frontend can log them in immediately
+    if (stored) {
+      if (Date.now() > stored.expiresAt) {
+        verificationCodes.delete(email);
+        return res.status(400).json({ error: 'Verification code expired. Request a new one.' });
+      }
+      if (stored.code !== String(code)) {
+        return res.status(400).json({ error: 'Invalid verification code.' });
+      }
+      verificationCodes.delete(email);
+    } else {
+      // Fallback: check the code saved in the database
+      const { data: dbUser } = await supabaseAdmin
+        .from('users')
+        .select('verification_code, verification_code_expires, is_email_verified')
+        .eq('email', email)
+        .single();
+
+      if (!dbUser) return res.status(400).json({ error: 'Account not found.' });
+      if (dbUser.is_email_verified) return res.json({ success: true, message: 'Already verified. Please login.' });
+      if (!dbUser.verification_code) return res.status(400).json({ error: 'No code found. Please request a new one.' });
+      if (new Date() > new Date(dbUser.verification_code_expires)) {
+        return res.status(400).json({ error: 'Verification code expired. Request a new one.' });
+      }
+      if (String(dbUser.verification_code) !== String(code)) {
+        return res.status(400).json({ error: 'Invalid verification code.' });
+      }
+    }
+
+    // Mark user verified and clear the stored code
+    await supabaseAdmin
+      .from('users')
+      .update({ is_email_verified: true, verification_code: null, verification_code_expires: null })
+      .eq('email', email);
+
     const { data: user } = await supabaseAdmin.from('users').select('*').eq('email', email).single();
     const token = user ? jwt.sign({ userId: user.id, email }, JWT_SECRET, { expiresIn: '7d' }) : null;
+
     res.json({
       success: true,
       message: 'Email verified successfully!',
@@ -568,6 +701,33 @@ app.post('/api/auth/verify-code', async (req, res) => {
   } catch (error) {
     console.error('Verify-code error:', error);
     res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// Resend verification code
+app.post('/api/auth/resend-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const { data: user } = await supabaseAdmin.from('users').select('id, is_email_verified').eq('email', email).single();
+    if (!user) return res.status(404).json({ error: 'Account not found' });
+    if (user.is_email_verified) return res.status(400).json({ error: 'Email is already verified' });
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+
+    verificationCodes.set(email, { code, expiresAt, userId: user.id });
+    await supabaseAdmin.from('users').update({
+      verification_code: code,
+      verification_code_expires: new Date(expiresAt),
+    }).eq('email', email);
+
+    await sendVerificationEmail(email, code);
+    res.json({ success: true, message: 'New verification code sent' });
+  } catch (error) {
+    console.error('Resend-code error:', error);
+    res.status(500).json({ error: 'Failed to resend code' });
   }
 });
 
@@ -1259,21 +1419,72 @@ app.post('/api/trades/:id/cancel', verifyToken, async (req, res) => {
 app.post('/api/trades/:id/auto-cancel', async (req, res) => {
   try {
     const { reason } = req.body;
-    const { data: trade } = await supabaseAdmin.from('trades').select('*').eq('id', req.params.id).single();
-    if (trade && ['CREATED', 'FUNDS_LOCKED'].includes(trade.status)) {
-      const { data: escrow } = await supabaseAdmin.from('escrow_locks').select('*').eq('trade_id', req.params.id).single();
-      if (escrow && escrow.status === 'LOCKED') {
-        const { data: sellerBalance } = await supabaseAdmin.from('user_balances').select('balance_btc').eq('user_id', trade.seller_id).single();
-        await supabaseAdmin.from('user_balances').update({ balance_btc: parseFloat(sellerBalance?.balance_btc || 0) + parseFloat(escrow.amount_btc) }).eq('user_id', trade.seller_id);
-        await supabaseAdmin.from('escrow_locks').update({ status: 'REFUNDED' }).eq('trade_id', req.params.id);
-      }
+    const tradeId = req.params.id;
+
+    const { data: trade } = await supabaseAdmin.from('trades').select('*').eq('id', tradeId).single();
+    if (!trade) return res.status(404).json({ error: 'Trade not found' });
+
+    const cancellableStatuses = ['CREATED', 'FUNDS_LOCKED', 'ESCROW', 'ACTIVE', 'OPEN', 'PAYMENT_SENT'];
+    if (!cancellableStatuses.includes(trade.status)) {
+      return res.json({ success: true, message: `Trade already in status: ${trade.status}` });
     }
+
+    // Refund BTC back to whoever locked it
+    const { data: escrow } = await supabaseAdmin
+      .from('escrow_locks').select('*').eq('trade_id', tradeId).single();
+
+    if (escrow && escrow.status === 'LOCKED') {
+      // escrow.seller_id = btcProviderId (set correctly for both BTC and gift card trades)
+      const btcProviderId = escrow.seller_id || trade.seller_id;
+      const refundAmount  = parseFloat(escrow.amount_btc || trade.amount_btc || 0);
+
+      const { data: providerBal } = await supabaseAdmin
+        .from('user_balances').select('balance_btc').eq('user_id', btcProviderId).single();
+
+      const newBalance = parseFloat((parseFloat(providerBal?.balance_btc || 0) + refundAmount).toFixed(8));
+
+      await supabaseAdmin.from('user_balances')
+        .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', btcProviderId);
+
+      await supabaseAdmin.from('escrow_locks')
+        .update({ status: 'REFUNDED', released_at: new Date().toISOString() })
+        .eq('trade_id', tradeId);
+
+      // Log the refund
+      await supabaseAdmin.from('wallet_transactions').insert({
+        user_id:    btcProviderId,
+        type:       'ESCROW_RELEASE',
+        amount_btc: refundAmount,
+        status:     'CONFIRMED',
+        notes:      `Auto-cancel refund — trade #${tradeId.slice(0,8)} (30 min expired)`,
+        created_at: new Date().toISOString(),
+      });
+
+      console.log(`✅ Auto-cancel: refunded ${refundAmount} BTC to ${btcProviderId.slice(0,8)}`);
+    }
+
+    // Mark trade as cancelled
     const { data, error } = await supabaseAdmin.from('trades')
-      .update({ status: 'CANCELLED', cancel_reason: reason || 'Trade expired', cancelled_at: new Date() })
-      .eq('id', req.params.id).select().single();
+      .update({ status: 'CANCELLED', cancel_reason: reason || '30-minute payment window expired', cancelled_at: new Date().toISOString() })
+      .eq('id', tradeId).select().single();
+
     if (error) return res.status(400).json({ error: error.message });
+
+    // Notify both parties
+    for (const uid of [trade.buyer_id, trade.seller_id].filter(Boolean)) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: uid, type: 'trade', is_read: false,
+        title:   '⏰ Trade Expired',
+        message: `Trade #${tradeId.slice(0,8).toUpperCase()} cancelled — 30-minute window expired. Bitcoin returned to seller wallet.`,
+        action:  `/trade/${tradeId}`,
+        created_at: new Date().toISOString(),
+      });
+    }
+
     res.json({ success: true, trade: data });
   } catch (error) {
+    console.error('Auto-cancel error:', error);
     res.status(500).json({ error: error.message });
   }
 });

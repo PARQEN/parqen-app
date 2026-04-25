@@ -5,25 +5,27 @@ import { useRates } from '../contexts/RatesContext';
 import Notifications from './Notifications';
 import {
   Wallet, User, Settings, LogOut, ChevronDown,
-  BarChart3, Gift, List, Eye, EyeOff, ShoppingCart, Tag,
+  BarChart3, Gift, List, Eye, EyeOff, ShoppingCart, Tag, TrendingUp,
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const C = {
-  forest:'#1B4332', green:'#2D6A4F', mint:'#40916C',
-  gold:'#F4A422', mist:'#F0FAF5',
-  g100:'#F1F5F9', g200:'#E2E8F0',
-  g400:'#94A3B8', g500:'#64748B', g700:'#334155', g800:'#1E293B',
+  forest: '#1B4332', green: '#2D6A4F', mint: '#40916C',
+  gold: '#F4A422', goldDark: '#D4891A', goldLight: '#FEF3C7',
+  mist: '#F0FAF5', dark: '#0D1F14',
+  g100: '#F1F5F9', g200: '#E2E8F0',
+  g400: '#94A3B8', g500: '#64748B', g700: '#334155', g800: '#1E293B',
+  purple: '#8B5CF6', purpleLight: '#EDE9FE',
 };
 
-const fmt    = (n,d=2) => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
-const fmtBtc = (n)    => parseFloat(n||0).toFixed(4);
+const fmt    = (n, d = 2) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: d }).format(n || 0);
+const fmtBtc = (n)        => parseFloat(n || 0).toFixed(4);
 
-export default function Navbar({user, onLogout}) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const {rates: USD_RATES, btcUsd} = useRates();
+export default function Navbar({ user, onLogout }) {
+  const navigate   = useNavigate();
+  const location   = useLocation();
+  const { rates: USD_RATES, btcUsd } = useRates();
   const [profileDrop, setProfileDrop] = useState(false);
   const [marketDrop,  setMarketDrop]  = useState(false);
   const [balance,     setBalance]     = useState(0);
@@ -33,292 +35,372 @@ export default function Navbar({user, onLogout}) {
   const dropRef   = useRef(null);
   const marketRef = useRef(null);
 
-  // Sync user from localStorage / profile updates
-  useEffect(()=>{
-    const sync=()=>{
-      const s=JSON.parse(localStorage.getItem('user')||'{}');
-      if(s?.id) setLocalUser(s);
+  useEffect(() => {
+    const sync = () => {
+      const s = JSON.parse(localStorage.getItem('user') || '{}');
+      if (s?.id) setLocalUser(s);
     };
     sync();
-    window.addEventListener('storage',sync);
-    window.addEventListener('userUpdated',sync);
-    return()=>{ window.removeEventListener('storage',sync); window.removeEventListener('userUpdated',sync); };
-  },[]);
+    window.addEventListener('storage', sync);
+    window.addEventListener('userUpdated', sync);
+    return () => { window.removeEventListener('storage', sync); window.removeEventListener('userUpdated', sync); };
+  }, []);
 
-  useEffect(()=>{ if(user?.id) setLocalUser(user); },[user?.id]);
+  useEffect(() => { if (user?.id) setLocalUser(user); }, [user?.id]);
 
-  // Poll wallet balance every 30 s
-  useEffect(()=>{
-    if(!user) return;
+  useEffect(() => {
+    if (!user) return;
     loadBalance();
-    const iv=setInterval(loadBalance,30000);
-    return()=>clearInterval(iv);
-  },[user]);
+    const iv = setInterval(loadBalance, 30000);
+    return () => clearInterval(iv);
+  }, [user]);
 
-  const loadBalance = async()=>{
+  const loadBalance = async () => {
     try {
-      const tk=localStorage.getItem('token');
-      const [r1,r2]=await Promise.allSettled([
-        axios.get(`${API_URL}/wallet`,          {headers:{Authorization:`Bearer ${tk}`}}),
-        axios.get(`${API_URL}/hd-wallet/wallet`,{headers:{Authorization:`Bearer ${tk}`}}),
+      const tk = localStorage.getItem('token');
+      const [r1, r2] = await Promise.allSettled([
+        axios.get(`${API_URL}/wallet`,           { headers: { Authorization: `Bearer ${tk}` } }),
+        axios.get(`${API_URL}/hd-wallet/wallet`, { headers: { Authorization: `Bearer ${tk}` } }),
       ]);
-      setBalance  (r1.status==='fulfilled'?r1.value.data.wallet?.balance_btc||0:0);
-      setHdBalance(r2.status==='fulfilled'?r2.value.data.balance_btc||0:0);
+      setBalance  (r1.status === 'fulfilled' ? r1.value.data.wallet?.balance_btc || 0 : 0);
+      setHdBalance(r2.status === 'fulfilled' ? r2.value.data.balance_btc          || 0 : 0);
     } catch {}
   };
 
-  // Close dropdowns on outside click
-  useEffect(()=>{
-    const h=e=>{
-      if(dropRef.current   && !dropRef.current.contains(e.target))   setProfileDrop(false);
-      if(marketRef.current && !marketRef.current.contains(e.target)) setMarketDrop(false);
+  useEffect(() => {
+    const h = e => {
+      if (dropRef.current   && !dropRef.current.contains(e.target))   setProfileDrop(false);
+      if (marketRef.current && !marketRef.current.contains(e.target)) setMarketDrop(false);
     };
-    document.addEventListener('mousedown',h);
-    return()=>document.removeEventListener('mousedown',h);
-  },[]);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
-  const displayUser    = localUser?.id ? localUser : user;
-  const totalBtc       = parseFloat(balance||0)+parseFloat(hdBalance||0);
-  const ghsRate        = USD_RATES?.GHS||0;
-  const btcToGhs       = (btcUsd||0)*ghsRate;
-  const totalLocal     = totalBtc * btcToGhs;
-  const localSym       = '₵';
-  const handleLogout   = ()=>{ onLogout(); navigate('/login'); };
+  const displayUser = localUser?.id ? localUser : user;
+  const totalBtc    = parseFloat(balance || 0) + parseFloat(hdBalance || 0);
+  const ghsRate     = USD_RATES?.GHS || 0;
+  const btcToGhs    = (btcUsd || 0) * ghsRate;
+  const totalLocal  = totalBtc * btcToGhs;
+  const localCode   = localUser?.currency || 'GHS';
+  const handleLogout = () => { onLogout(); navigate('/login'); };
 
   const isActive       = (path) => location.pathname === path;
-  const isMarketActive = ['/buy-bitcoin','/sell-bitcoin','/gift-cards'].some(p => location.pathname.startsWith(p));
+  const isMarketActive = ['/buy-bitcoin', '/sell-bitcoin'].some(p => location.pathname.startsWith(p));
+  const isGiftActive   = location.pathname.startsWith('/gift-cards');
 
-  const navLink = (path) =>
-    isActive(path)
-      ? 'px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap bg-[#F0FAF5] text-[#1B4332]'
-      : 'px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap text-[#334155] hover:bg-gray-50 hover:text-[#1B4332]';
-
-  // ── Shared Nav Links ────────────────────────────────────────────────────────
+  // ── Desktop Nav Links ───────────────────────────────────────────────────────
   const DesktopNavLinks = () => (
-    <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center">
+    <div className="hidden md:flex items-center gap-3 flex-1 justify-center">
 
-      <Link to="/dashboard" className={navLink('/dashboard')}>Dashboard</Link>
+      {/* Dashboard */}
+      <Link to="/dashboard"
+        style={{
+          color: isActive('/dashboard') ? '#fff' : C.forest,
+          background: isActive('/dashboard') ? C.forest : 'transparent',
+          borderRadius: '10px', padding: '9px 18px',
+          fontSize: '14px', fontWeight: 800,
+          textDecoration: 'none', whiteSpace: 'nowrap',
+          border: isActive('/dashboard') ? `1px solid ${C.forest}` : `1px solid transparent`,
+          transition: 'all 0.2s',
+        }}>
+        Dashboard
+      </Link>
 
-      {/* Marketplace Dropdown */}
+      {/* P2P Marketplace Dropdown */}
       <div className="relative" ref={marketRef}>
         <button
           onClick={() => setMarketDrop(!marketDrop)}
-          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-black transition whitespace-nowrap ${
-            isMarketActive
-              ? 'bg-[#F0FAF5] text-[#1B4332]'
-              : 'text-[#334155] hover:bg-gray-50 hover:text-[#1B4332]'
-          }`}>
-          Marketplace
-          <span className="text-[10px] bg-[#F4A422] text-white px-1.5 py-0.5 rounded-full font-black">BETA</span>
-          <ChevronDown size={14} className={`transition-transform ${marketDrop?'rotate-180':''}`} />
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            color: isMarketActive ? '#fff' : C.green,
+            background: isMarketActive ? C.green : '#F0FAF5',
+            borderRadius: '10px', padding: '9px 18px',
+            fontSize: '14px', fontWeight: 800,
+            border: `1px solid ${isMarketActive ? C.green : '#c8e6d4'}`,
+            cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+          }}>
+          <TrendingUp size={14} />
+          P2P Trade
+          <span style={{
+            fontSize: '9px', background: C.gold, color: '#fff',
+            padding: '2px 5px', borderRadius: '20px', fontWeight: 900,
+          }}>BETA</span>
+          <ChevronDown size={13} style={{ transform: marketDrop ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
         </button>
 
         {marketDrop && (
-          <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-            <Link to="/buy-bitcoin" onClick={()=>setMarketDrop(false)}
-              className={`flex items-center gap-3 px-4 py-3 transition border-b border-gray-100 ${isActive('/buy-bitcoin')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
-              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <ShoppingCart size={16} className="text-[#2D6A4F]" />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+            width: '200px', background: '#fff', borderRadius: '14px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.18)', border: `1px solid ${C.g100}`,
+            overflow: 'hidden', zIndex: 50,
+          }}>
+            <Link to="/buy-bitcoin" onClick={() => setMarketDrop(false)}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', textDecoration: 'none', borderBottom: `1px solid ${C.g100}`, background: isActive('/buy-bitcoin') ? C.mist : '#fff', transition: 'background 0.15s' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShoppingCart size={16} color="#16A34A" />
               </div>
               <div>
-                <p className={`text-sm font-black ${isActive('/buy-bitcoin')?'text-[#1B4332]':'text-[#1E293B]'}`}>Buy Bitcoin</p>
-                <p className="text-[10px] text-gray-400">Pay with local currency</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.g800 }}>Buy Bitcoin</p>
+                <p style={{ margin: 0, fontSize: 10, color: C.g400 }}>Pay with local currency</p>
               </div>
             </Link>
-            <Link to="/sell-bitcoin" onClick={()=>setMarketDrop(false)}
-              className={`flex items-center gap-3 px-4 py-3 transition border-b border-gray-100 ${isActive('/sell-bitcoin')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
-              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                <Tag size={16} className="text-[#F4A422]" />
+            <Link to="/sell-bitcoin" onClick={() => setMarketDrop(false)}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', textDecoration: 'none', background: isActive('/sell-bitcoin') ? C.mist : '#fff', transition: 'background 0.15s' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: '#FEF9C3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Tag size={16} color={C.goldDark} />
               </div>
               <div>
-                <p className={`text-sm font-black ${isActive('/sell-bitcoin')?'text-[#1B4332]':'text-[#1E293B]'}`}>Sell Bitcoin</p>
-                <p className="text-[10px] text-gray-400">Get paid in local currency</p>
-              </div>
-            </Link>
-            <Link to="/gift-cards" onClick={()=>setMarketDrop(false)}
-              className={`flex items-center gap-3 px-4 py-3 transition ${isActive('/gift-cards')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
-              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                <Gift size={16} className="text-[#8B5CF6]" />
-              </div>
-              <div>
-                <p className={`text-sm font-black ${isActive('/gift-cards')?'text-[#1B4332]':'text-[#1E293B]'}`}>Gift Cards</p>
-                <p className="text-[10px] text-gray-400">Trade cards for Bitcoin</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: C.g800 }}>Sell Bitcoin</p>
+                <p style={{ margin: 0, fontSize: 10, color: C.g400 }}>Get paid in local currency</p>
               </div>
             </Link>
           </div>
         )}
       </div>
 
-      <Link to="/my-trades" className={navLink('/my-trades')}>My Trades</Link>
+      {/* Gift Cards — direct link */}
+      <Link to="/gift-cards"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          color: isGiftActive ? '#fff' : C.purple,
+          background: isGiftActive ? C.purple : '#F5F3FF',
+          borderRadius: '10px',
+          fontSize: '14px', fontWeight: 800,
+          textDecoration: 'none', whiteSpace: 'nowrap', padding: '9px 18px',
+          border: `1px solid ${isGiftActive ? C.purple : '#d4c5ff'}`,
+          transition: 'all 0.2s',
+        }}>
+        <Gift size={14} color={isGiftActive ? '#fff' : C.purple} />
+        Gift Cards
+      </Link>
+
+      {/* My Trades */}
+      <Link to="/my-trades"
+        style={{
+          color: isActive('/my-trades') ? '#fff' : C.g700,
+          background: isActive('/my-trades') ? C.g700 : 'transparent',
+          borderRadius: '10px', padding: '9px 18px',
+          fontSize: '14px', fontWeight: 800,
+          textDecoration: 'none', whiteSpace: 'nowrap',
+          border: isActive('/my-trades') ? `1px solid ${C.g700}` : `1px solid transparent`,
+          transition: 'all 0.2s',
+        }}>
+        My Trades
+      </Link>
 
       {/* Create Offer CTA */}
       <Link to="/create-offer"
-        className={`px-3 py-2 rounded-xl text-sm font-black text-white transition whitespace-nowrap ${
-          isActive('/create-offer') ? 'bg-[#2D6A4F]' : 'bg-[#1B4332] hover:bg-[#2D6A4F]'
-        }`}>
+        style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          background: isActive('/create-offer')
+            ? `linear-gradient(135deg, ${C.goldDark}, ${C.gold})`
+            : `linear-gradient(135deg, ${C.gold}, #FBBF24)`,
+          color: '#0D1F14', borderRadius: '10px', padding: '9px 20px',
+          fontSize: '14px', fontWeight: 900,
+          textDecoration: 'none', whiteSpace: 'nowrap',
+          boxShadow: '0 2px 12px rgba(244,164,34,0.45)',
+          transition: 'all 0.2s',
+        }}>
         + Create Offer
       </Link>
     </div>
   );
 
-  // ── Guest navbar (unauthenticated) ─────────────────────────────────────────
-  if(!user) return (
-    <nav className="bg-white sticky top-0 z-50 border-b"
-      style={{borderColor:C.g200, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', fontFamily:"'DM Sans',sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-      <div className="max-w-7xl mx-auto px-3">
-        <div className="flex items-center justify-between h-14 gap-2">
-          {/* Logo */}
-          <Link to="/" className="flex-shrink-0 select-none">
-            <span className="text-xl font-black tracking-tight">
-              <span style={{color:C.forest}}>PRA</span><span style={{color:C.gold}}>QEN</span>
+  // ── Guest Navbar ────────────────────────────────────────────────────────────
+  if (!user) return (
+    <nav style={{
+      background: '#ffffff',
+      position: 'sticky', top: 0, zIndex: 50,
+      borderBottom: `1px solid ${C.g200}`,
+      boxShadow: '0 2px 16px rgba(0,0,0,0.07)',
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, gap: 24 }}>
+          <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+              <span style={{ color: C.forest }}>PRA</span><span style={{ color: C.gold }}>QEN</span>
             </span>
           </Link>
-          {/* Desktop Nav Links */}
           <DesktopNavLinks />
-          {/* Right: auth buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Link to="/login"
-              className="px-4 py-2 rounded-xl text-sm font-black border-2 transition hover:bg-gray-50"
-              style={{
-                borderColor: isActive('/login') ? C.forest : C.g200,
-                color:       isActive('/login') ? C.forest : C.g700,
-                backgroundColor: isActive('/login') ? C.mist : undefined,
-              }}>
-              Log In
-            </Link>
-            <Link to="/register"
-              className="px-4 py-2 rounded-xl text-sm font-black text-white transition hover:opacity-90"
-              style={{backgroundColor: isActive('/register') ? C.green : C.forest}}>
-              Sign Up
-            </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Link to="/login" style={{
+              padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800,
+              border: `2px solid ${C.g200}`, color: C.forest,
+              textDecoration: 'none', transition: 'all 0.2s', background: 'transparent',
+            }}>Log In</Link>
+            <Link to="/register" style={{
+              padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800,
+              background: `linear-gradient(135deg, ${C.gold}, #FBBF24)`,
+              color: C.dark, textDecoration: 'none',
+              boxShadow: '0 2px 12px rgba(244,164,34,0.4)',
+            }}>Sign Up</Link>
           </div>
         </div>
       </div>
     </nav>
   );
 
+  // ── Authenticated Navbar ────────────────────────────────────────────────────
   return (
-    <nav className="bg-white sticky top-0 z-50 border-b"
-      style={{borderColor:C.g200, boxShadow:'0 1px 6px rgba(0,0,0,0.06)', fontFamily:"'DM Sans',sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-      <div className="max-w-7xl mx-auto px-3">
-        <div className="flex items-center justify-between h-14 gap-2">
+    <nav style={{
+      background: '#ffffff',
+      position: 'sticky', top: 0, zIndex: 50,
+      borderBottom: `1px solid ${C.g200}`,
+      boxShadow: '0 2px 16px rgba(0,0,0,0.07)',
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, gap: 24 }}>
 
-          {/* ── LOGO ───────────────────────────────────────────────── */}
-          <Link to="/" className="flex-shrink-0 select-none">
-            <span className="text-xl font-black tracking-tight">
-              <span style={{color:C.forest}}>PRA</span><span style={{color:C.gold}}>QEN</span>
+          {/* Logo */}
+          <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+              <span style={{ color: C.forest }}>PRA</span><span style={{ color: C.gold }}>QEN</span>
             </span>
           </Link>
 
-          {/* ── CENTER: Desktop Nav Links ───────────────────────────── */}
+          {/* Center Nav */}
           <DesktopNavLinks />
 
-          {/* ── RIGHT: Wallet · Avatar · Bell ──────────────────────── */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Right: Wallet · Avatar · Bell */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
 
-            {/* Wallet balance */}
-            <div className="flex items-center gap-1 px-3 py-2 rounded-xl border"
-              style={{borderColor:`${C.green}30`, backgroundColor: isActive('/wallet') ? '#d9f0e5' : C.mist}}>
-              <button onClick={()=>setShowBal(!showBal)}
-                className="flex-shrink-0 hover:opacity-70 transition"
-                title={showBal?'Hide balance':'Show balance'}>
+            {/* Wallet balance pill */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: C.mist,
+              border: `1px solid #c8e6d4`,
+              borderRadius: 10, padding: '6px 12px',
+            }}>
+              <button onClick={() => setShowBal(!showBal)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                title={showBal ? 'Hide balance' : 'Show balance'}>
                 {showBal
-                  ? <Eye size={14} style={{color:C.green}}/>
-                  : <EyeOff size={14} style={{color:C.g400}}/>}
+                  ? <Eye size={14} color={C.green} />
+                  : <EyeOff size={14} color={C.g400} />}
               </button>
-              <Link to="/wallet" className="flex items-center gap-1 hover:opacity-80 transition">
-                <span className="text-sm font-black" style={{color:C.forest}}>
-                  {showBal ? `${localSym}${fmt(totalLocal,2)}` : '••••'}
+              <Link to="/wallet" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Wallet size={13} color={C.forest} />
+                <span style={{ fontSize: 13, fontWeight: 900, color: C.forest }}>
+                  {showBal ? `${localCode} ${fmt(totalLocal, 2)}` : '••••••'}
                 </span>
               </Link>
             </div>
 
             {/* Avatar + dropdown */}
-            <div className="relative" ref={dropRef}>
+            <div style={{ position: 'relative' }} ref={dropRef}>
               <button
-                onClick={()=>setProfileDrop(!profileDrop)}
-                className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-50 transition">
-                <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center font-black text-sm text-white flex-shrink-0"
-                  style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
+                onClick={() => setProfileDrop(!profileDrop)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: C.g100, border: `1px solid ${C.g200}`,
+                  borderRadius: 10, padding: '5px 10px 5px 5px',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, overflow: 'hidden',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, fontSize: 13, color: '#fff', flexShrink: 0,
+                  background: `linear-gradient(135deg, ${C.gold}, #FBBF24)`,
+                }}>
                   {displayUser?.avatar_url
-                    ? <img src={displayUser.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
-                    : displayUser?.username?.charAt(0)?.toUpperCase()||'U'}
+                    ? <img src={displayUser.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ color: C.dark }}>{displayUser?.username?.charAt(0)?.toUpperCase() || 'U'}</span>}
                 </div>
-                <span className="hidden md:block text-sm font-black truncate max-w-[80px]" style={{color:C.g700}}>
-                  {displayUser?.username||'User'}
+                <span className="hidden md:block" style={{ fontSize: 13, fontWeight: 800, color: C.g800, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayUser?.username || 'User'}
                 </span>
-                <ChevronDown size={14}
-                  className={`transition-transform ${profileDrop?'rotate-180':''}`}
-                  style={{color:C.g400}}/>
+                <ChevronDown size={13} color={C.g400}
+                  style={{ transform: profileDrop ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
-              {/* ── DROPDOWN ─────────────────────────────────────────── */}
-              {profileDrop&&(
-                <div className="absolute top-full right-0 mt-1.5 w-60 bg-white rounded-2xl shadow-2xl border overflow-hidden z-50"
-                  style={{borderColor:C.g100}}>
-
-                  <div className="flex items-center gap-3 px-4 py-3 border-b" style={{borderColor:C.g100,backgroundColor:C.mist}}>
-                    <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center font-black text-sm text-white flex-shrink-0"
-                      style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
+              {/* Dropdown */}
+              {profileDrop && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  width: 240, background: '#fff', borderRadius: 16,
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.18)', border: `1px solid ${C.g100}`,
+                  overflow: 'hidden', zIndex: 50,
+                }}>
+                  {/* User header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: `1px solid ${C.g100}`, background: C.mist }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10, overflow: 'hidden', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 900, fontSize: 14,
+                      background: `linear-gradient(135deg, ${C.gold}, #FBBF24)`,
+                    }}>
                       {displayUser?.avatar_url
-                        ? <img src={displayUser.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
-                        : displayUser?.username?.charAt(0)?.toUpperCase()||'U'}
+                        ? <img src={displayUser.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ color: C.dark }}>{displayUser?.username?.charAt(0)?.toUpperCase() || 'U'}</span>}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-black text-sm truncate" style={{color:C.forest}}>
-                        {displayUser?.username||'User'}
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 900, fontSize: 13, color: C.forest, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayUser?.username || 'User'}
                       </p>
-                      <p className="text-xs font-bold truncate" style={{color:C.g400}}>
-                        {displayUser?.email||''}
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: C.g400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayUser?.email || ''}
                       </p>
                     </div>
                   </div>
 
-                  {/* Wallet row */}
-                  <Link to="/wallet" onClick={()=>setProfileDrop(false)}
-                    className={`flex items-center justify-between px-4 py-2.5 transition border-b ${isActive('/wallet')?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}
-                    style={{borderColor:C.g100}}>
-                    <div className="flex items-center gap-2.5">
-                      <Wallet size={14} style={{color: isActive('/wallet') ? C.forest : C.green, flexShrink:0}}/>
-                      <span className="text-sm font-bold" style={{color: isActive('/wallet') ? C.forest : C.g800}}>My Wallet</span>
-                    </div>
-                    <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                      style={{backgroundColor:C.mist,color:C.forest,border:`1px solid ${C.green}30`}}>
-                      ₿ {fmtBtc(totalBtc)}
-                    </span>
+                  {/* P2P Trade row */}
+                  <Link to="/buy-bitcoin" onClick={() => setProfileDrop(false)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 16px', textDecoration: 'none',
+                      borderBottom: `1px solid ${C.g100}`,
+                      background: isMarketActive ? C.mist : '#fff',
+                    }}>
+                    <TrendingUp size={14} color={isMarketActive ? C.forest : C.green} />
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isMarketActive ? C.forest : C.g800 }}>P2P Trade</span>
                   </Link>
 
                   {/* Nav links */}
-                  <div className="py-1">
+                  <div style={{ padding: '6px 0' }}>
                     {[
-                      {to:'/profile',      icon:User,     label:'Your Profile'},
-                      {to:'/my-trades',    icon:List,     label:'My Trades'},
-                      {to:'/my-listings',  icon:BarChart3,label:'My Listings'},
-                      {to:'/gift-cards',   icon:Gift,     label:'Gift Cards'},
-                      {to:'/settings',     icon:Settings, label:'Settings'},
-                    ].map(({to,icon:Icon,label})=>(
-                      <Link key={to} to={to} onClick={()=>setProfileDrop(false)}
-                        className={`flex items-center gap-3 px-4 py-2 transition ${isActive(to)?'bg-[#F0FAF5]':'hover:bg-gray-50'}`}>
-                        <Icon size={14} style={{color: isActive(to) ? C.forest : C.green, flexShrink:0}}/>
-                        <span className="text-sm font-bold" style={{color: isActive(to) ? C.forest : C.g800}}>{label}</span>
+                      { to: '/profile',     icon: User,     label: 'Your Profile',  color: C.green },
+                      { to: '/my-trades',   icon: List,     label: 'My Trades',     color: C.green },
+                      { to: '/my-listings', icon: BarChart3, label: 'My Offers',    color: C.green },
+                      { to: '/gift-cards',  icon: Gift,     label: 'Gift Cards',    color: C.purple },
+                      { to: '/settings',    icon: Settings, label: 'Settings',      color: C.green },
+                    ].map(({ to, icon: Icon, label, color }) => (
+                      <Link key={to} to={to} onClick={() => setProfileDrop(false)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '9px 16px', textDecoration: 'none',
+                          background: isActive(to) ? C.mist : '#fff',
+                          transition: 'background 0.15s',
+                        }}>
+                        <Icon size={14} color={isActive(to) ? C.forest : color} style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 800, color: isActive(to) ? C.forest : C.g800 }}>{label}</span>
                       </Link>
                     ))}
                   </div>
 
-                  <div className="border-t mx-3 my-1" style={{borderColor:C.g100}}/>
-                  <button onClick={()=>{setProfileDrop(false);handleLogout();}}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition text-left mb-1">
-                    <LogOut size={14} className="text-red-500 flex-shrink-0"/>
-                    <span className="text-sm font-bold text-red-600">Log out</span>
+                  <div style={{ borderTop: `1px solid ${C.g100}`, margin: '2px 12px' }} />
+                  <button onClick={() => { setProfileDrop(false); handleLogout(); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 16px', background: 'none', border: 'none',
+                      cursor: 'pointer', textAlign: 'left', marginBottom: 4,
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                    <LogOut size={14} color="#EF4444" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#DC2626' }}>Log out</span>
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Notifications bell */}
-            <Notifications user={displayUser}/>
+            {/* Notifications */}
+            <Notifications user={displayUser} />
           </div>
         </div>
       </div>

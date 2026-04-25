@@ -267,6 +267,31 @@ export default function Register({ onLogin }) {
   // Send OTP
   const sendOTP = async () => {
     if (!validateContact()) return;
+
+    // Email: no pre-registration OTP — /auth/register sends the code itself.
+    // Skip straight to the profile / password form.
+    if (method === 'email') {
+      if (mode === 'forgot') {
+        // Forgot-password email flow: still need to send a reset code first
+        setLoading(true);
+        setGlobalError('');
+        try {
+          await axios.post(`${API_URL}/auth/send-otp`, { method, contact, purpose: 'forgot-password' });
+          setStep('f2');
+          setOtpTimer(60);
+        } catch (err) {
+          setGlobalError(err.response?.data?.error || 'Failed to send code. Try again.');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Register email flow: go straight to profile form
+        setStep(3);
+      }
+      return;
+    }
+
+    // Phone: send OTP via SMS as before
     setLoading(true);
     setGlobalError('');
     try {
@@ -290,7 +315,13 @@ export default function Register({ onLogin }) {
     setLoading(true);
     setOtpError('');
     try {
-      await axios.post(`${API_URL}/auth/verify-otp`, { contact, otp, purpose: mode === 'register' ? 'register' : 'forgot-password' });
+      if (method === 'email') {
+        // Email codes are verified via /auth/verify-code (used by the standalone VerifyOTP page too)
+        await axios.post(`${API_URL}/auth/verify-code`, { email: contact, code: otp });
+      } else {
+        // Phone OTP
+        await axios.post(`${API_URL}/auth/verify-otp`, { contact, otp, purpose: mode === 'register' ? 'register' : 'forgot-password' });
+      }
       setStep(mode === 'register' ? 3 : 'f3');
     } catch (err) {
       setOtpError(err.response?.data?.error || 'Incorrect code. Try again.');
@@ -306,13 +337,21 @@ export default function Register({ onLogin }) {
     setGlobalError('');
     try {
       const res = await axios.post(`${API_URL}/auth/register`, {
-        method, contact, otp,
+        method,
+        contact,
+        // Only send OTP for phone registrations; email uses post-registration verify
+        otp: method === 'phone' ? otp : undefined,
         email: method === 'email' ? email : undefined,
         phone: method === 'phone' ? contact : undefined,
         username: username.toLowerCase(),
         fullName, password,
       });
-      if (res.data.success) {
+      if (res.data.requiresVerification) {
+        // Email verification required — go to OTP page
+        const userEmail = res.data.email || email;
+        localStorage.setItem('pendingEmail', userEmail);
+        navigate('/verify-otp', { state: { email: userEmail, purpose: 'verify' } });
+      } else if (res.data.success && res.data.token) {
         onLogin(res.data.user, res.data.token);
         setStep(4);
         setTimeout(() => navigate('/buy-bitcoin'), 2000);

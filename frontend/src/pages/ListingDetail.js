@@ -2,11 +2,7 @@
 import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import {
-  Shield, Info,
-  ArrowRight, BadgeCheck, RefreshCw,
-  Lock, ChevronRight,
-} from 'lucide-react';
+import { ArrowRight, BadgeCheck, RefreshCw, Lock, ChevronRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 
@@ -102,8 +98,24 @@ export default function ListingDetail({ user }) {
   const [loading,    setLoading]    = useState(true);
   const [payAmt,     setPayAmt]     = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [quote,       setQuote]       = useState(null);  // { quoteId, executableRate, expiresAt }
-  const [quoteFetching, setQuoteFetching] = useState(false);
+  const [quote,             setQuote]             = useState(null);
+  const [quoteFetching,     setQuoteFetching]     = useState(false);
+  const [showSellerProfile, setShowSellerProfile] = useState(false);
+  const [popupOpen,         setPopupOpen]         = useState(false);
+
+  // Slide up after listing loads
+  useEffect(() => {
+    if (!loading && listing) {
+      const t = setTimeout(() => setPopupOpen(true), 80);
+      return () => clearTimeout(t);
+    }
+  }, [loading, listing]);
+
+  // Lock body scroll while sheet is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   const isOwner = user && listing && user.id === listing.seller_id;
 
@@ -252,391 +264,373 @@ export default function ListingDetail({ user }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50, fontFamily:"'DM Sans',sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+    <div style={{ fontFamily: "'DM Sans',sans-serif", minHeight: '100vh', background: `linear-gradient(160deg, #061208 0%, #0f2318 50%, #1B4332 100%)` }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
-      <div className="flex-1 max-w-5xl mx-auto w-full px-3 py-4 space-y-3">
+      {/* Styles */}
+      <style>{`
+        * { box-sizing: border-box; }
 
-        {/* ── BREADCRUMB ──────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 text-xs" style={{color:C.g400}}>
-          <button onClick={()=>navigate('/')} className="hover:underline">Home</button>
-          <ChevronRight size={10}/>
-          <button onClick={()=>navigate('/buy-bitcoin')} className="hover:underline">Marketplace</button>
-          <ChevronRight size={10}/>
-          <span style={{color:C.g700}} className="font-semibold">Listing #{String(listing.id||id).slice(0,8).toUpperCase()}</span>
+        .prq-backdrop {
+          position: fixed;
+          top: 0; left: 0;
+          width: 100%; height: 100%;
+          z-index: 100;
+          background: rgba(5, 18, 10, 0.45);
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
+          transition: opacity 0.3s ease;
+        }
+
+        /* ── MOBILE first — full-width bottom sheet ── */
+        .prq-sheet {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          z-index: 101;
+          height: 88vh;
+          display: flex;
+          flex-direction: column;
+          border-radius: 20px 20px 0 0;
+          background: #f1f5f2;
+          box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+          transition: transform 0.4s cubic-bezier(0.32,0.72,0,1);
+          overflow: hidden;
+        }
+        .prq-sheet.open   { transform: translateY(0); }
+        .prq-sheet.closed { transform: translateY(100%); }
+
+        .prq-sheet-scroll {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          padding: 6px 16px 32px;
+        }
+        .prq-sheet-scroll::-webkit-scrollbar { display: none; }
+        .prq-sheet-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ── TABLET & DESKTOP ── */
+        @media (min-width: 640px) {
+          .prq-sheet {
+            top: 50%;
+            left: 50%;
+            bottom: auto;
+            width: 92%;
+            max-width: 500px;
+            height: auto;
+            max-height: 88vh;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            transition: transform 0.35s cubic-bezier(0.32,0.72,0,1), opacity 0.3s ease;
+          }
+          .prq-sheet.open   { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+          .prq-sheet.closed { transform: translate(-50%, -46%) scale(0.95); opacity: 0; }
+          .prq-sheet-scroll { padding: 6px 20px 32px; }
+        }
+      `}</style>
+
+      {/* Backdrop — semi-transparent so marketplace shows through */}
+      <div
+        className="prq-backdrop"
+        style={{ opacity: popupOpen ? 1 : 0, pointerEvents: popupOpen ? 'auto' : 'none' }}
+        onClick={() => navigate(-1)}
+      />
+
+      {/* Sheet */}
+      <div className={`prq-sheet ${popupOpen ? 'open' : 'closed'}`}>
+
+        {/* Drag handle — fixed, never scrolls */}
+        <div style={{ padding: '10px 0 4px', display: 'flex', justifyContent: 'center', flexShrink: 0, background: '#f1f5f2' }}>
+          <div style={{ width: 34, height: 4, borderRadius: 4, background: '#c4d0ca' }} />
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-3">
+        {/* Scrollable content */}
+        <div className="prq-sheet-scroll">
 
-          {/* ════════════════ LEFT COLUMN (3/5) ════════════════════════════ */}
-          <div className="lg:col-span-3 space-y-3">
+        {/* ── Back button ── */}
+        <button onClick={() => navigate(-1)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: C.g500, fontSize: 13, fontWeight: 700, marginBottom: 20, padding: 0 }}>
+          <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back
+        </button>
 
-            {/* ── SELLER CARD ─────────────────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+        {/* ── Seller card ── */}
+        <div style={{ background: '#fff', borderRadius: 18, marginBottom: 14, border: `1px solid ${C.g200}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(27,67,50,0.06)' }}>
 
-              {/* Type strip */}
-              <div className="px-4 py-2 flex items-center justify-between border-b"
-                style={{borderColor:C.g100, background:`linear-gradient(90deg,${C.g50},${C.white})`}}>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{cfg.icon}</span>
-                  <p className="font-black text-xs tracking-wide" style={{color:C.forest}}>{cfg.label}</p>
-                </div>
-                <span className="text-xs font-black px-2 py-0.5 rounded-full text-white flex items-center gap-1"
-                  style={{backgroundColor:C.success}}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-white inline-block animate-pulse"/>
-                  Active
+          {/* Green header bar */}
+          <div style={{ background: `linear-gradient(135deg, ${C.forest}, ${C.green})`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }}>SELLER</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: isOnline ? '#6EE7B7' : 'rgba(255,255,255,0.5)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: isOnline ? '#6EE7B7' : 'rgba(255,255,255,0.3)', display: 'inline-block' }} />
+              {isOnline ? 'Online Now' : `Seen ${lastSeen}`}
+            </span>
+          </div>
+
+          {/* Avatar + name */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px 12px' }}>
+            <button onClick={() => setShowSellerProfile(true)}
+              style={{ position: 'relative', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <Avatar user={seller} size={50} />
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: '50%', border: '2px solid #fff', backgroundColor: isOnline ? C.online : C.g300 }} />
+            </button>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                <button onClick={() => setShowSellerProfile(true)}
+                  style={{ fontSize: 15, fontWeight: 900, color: C.forest, background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>
+                  {seller?.username || 'Seller'}
+                </button>
+                {seller?.kyc_verified && <BadgeCheck size={13} color={C.paid} />}
+                <span style={{ fontSize: 10, fontWeight: 800, color: badge.textColor, background: badge.bg, border: `1px solid ${badge.borderColor}`, borderRadius: 4, padding: '2px 7px' }}>
+                  {badge.icon} {badge.label}
                 </span>
               </div>
-
-              <div className="p-4">
-                {/* ── Profile row ─────────────────────────────────────────── */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="relative flex-shrink-0">
-                    <Avatar user={seller} size={52}/>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
-                      style={{backgroundColor:isOnline?C.online:C.g300}}/>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* Name + badge + flag */}
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <h2 className="font-black text-base leading-tight" style={{color:C.forest, fontFamily:"'Syne',sans-serif"}}>
-                        {seller?.username || 'Seller'}
-                      </h2>
-                      {seller?.kyc_verified && <BadgeCheck size={14} style={{color:C.paid}}/>}
-                      {/* Badge */}
-                      <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-sm border tracking-wide"
-                        style={{background:badge.bg, borderColor:badge.borderColor}}>
-                        <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
-                        <span style={{color:badge.textColor}}>{badge.label}</span>
-                        <BadgeCheck size={7} style={{color:badge.textColor,opacity:0.9}}/>
-                      </span>
-                    </div>
-
-                    {/* Country + trades + reviews + online */}
-                    <div className="flex items-center gap-2 flex-wrap text-xs" style={{color:C.g500}}>
-                      <span className="flex items-center gap-1">
-                        <CountryFlag countryCode={countryCode} className="w-4 h-3"/>
-                        {seller?.country || listing?.country_name || ''}
-                      </span>
-                      <span className="text-xs" style={{color:C.g300}}>·</span>
-                      <span className="font-bold" style={{color:C.g700}}>{fmt(trades)} Trades</span>
-                      <span className="text-xs" style={{color:C.g300}}>·</span>
-                      <span className="font-bold" style={{color:C.g700}}>{fmt(reviews)} Reviews</span>
-                      <span className="text-xs" style={{color:C.g300}}>·</span>
-                      <span className="font-bold flex items-center gap-1"
-                        style={{color:isOnline?C.online:C.g400}}>
-                        <span className="w-1.5 h-1.5 rounded-full inline-block"
-                          style={{backgroundColor:isOnline?C.online:C.g400}}/>
-                        {isOnline ? 'Online Now' : lastSeen}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Stats row ───────────────────────────────────────────── */}
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { top:`👍${posFeedback} 👎${negFeedback}`, bot:'Feedback', color:C.success, icon:'💬' },
-                    { top:responseTime,    bot:'Response',     color:C.paid,                  icon:'⚡' },
-                    { top:fmt(trades),     bot:'Trades',       color:C.forest,                icon:'🔄' },
-                    { top:lastSeen,        bot:'Last Seen',    color:isOnline?C.online:C.g500, icon:'👁' },
-                  ].map(s => (
-                    <div key={s.bot} className="text-center p-2 rounded-xl border" style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                      <p className="text-xs mb-0.5" style={{color:C.g400}}>{s.icon}</p>
-                      <p className="font-black text-sm leading-tight" style={{color:s.color}}>{s.top}</p>
-                      <p className="text-xs font-semibold" style={{color:C.g400}}>{s.bot}</p>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.g400, fontWeight: 600 }}>
+                <CountryFlag countryCode={countryCode} className="w-4 h-3" />
+                <span>{seller?.country || ''}</span>
               </div>
             </div>
 
-            {/* ── TRADE TERMS — always visible ────────────────────────────── */}
-            <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
-              <div className="px-4 py-3 border-b flex items-center gap-2" style={{borderColor:C.g100}}>
-                <Info size={13} style={{color:C.green}}/>
-                <p className="font-black text-sm" style={{color:C.forest}}>Trade Terms</p>
+            {/* Tap to view profile */}
+            <button onClick={() => setShowSellerProfile(true)}
+              style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, color: C.green, background: C.mist, border: `1px solid ${C.green}30`, borderRadius: 20, padding: '5px 10px', cursor: 'pointer' }}>
+              View Profile
+            </button>
+          </div>
+
+          {/* Stats strip */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: `1px solid ${C.g100}` }}>
+            {[
+              { icon: '🔄', value: fmt(trades),                       label: 'Trades'   },
+              { icon: '',   value: `👍${posFeedback} · 👎${negFeedback}`, label: 'Feedback' },
+              { icon: '⚡', value: responseTime,                       label: 'Response' },
+            ].map((s, i) => (
+              <div key={s.label} style={{
+                padding: '10px 8px', textAlign: 'center',
+                borderRight: i < 2 ? `1px solid ${C.g100}` : 'none',
+                background: i === 1 ? C.g50 : '#fff',
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: C.forest, marginBottom: 2 }}>{s.icon} {s.value}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
               </div>
-              <div className="p-4 space-y-2">
-                <div className="p-3 rounded-xl text-xs leading-relaxed whitespace-pre-wrap"
-                  style={{backgroundColor:C.mist, color:C.g700, border:`1px solid ${C.g200}`}}>
-                  {listing.trade_instructions || listing.description || 'No special instructions — standard trade rules apply.'}
+            ))}
+          </div>
+        </div>
+
+        {/* ── Seller profile popup ── */}
+        {showSellerProfile && (
+          <div onClick={() => setShowSellerProfile(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+
+              {/* Popup header — brand green */}
+              <div style={{ background: `linear-gradient(135deg, ${C.forest}, ${C.green})`, padding: '14px 16px 16px', textAlign: 'center' }}>
+                <div style={{ width: 32, height: 3, background: 'rgba(255,255,255,0.3)', borderRadius: 4, margin: '0 auto 12px' }} />
+                <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 8px' }}>
+                  <Avatar user={seller} size={52} />
+                  <div style={{ position: 'absolute', bottom: 1, right: 1, width: 13, height: 13, borderRadius: '50%', border: '2px solid #fff', backgroundColor: isOnline ? C.online : C.g300 }} />
                 </div>
-                {listing.listing_terms && (
-                  <div className="p-3 rounded-xl text-xs leading-relaxed"
-                    style={{backgroundColor:'#F0F9FF', color:C.g600, border:`1px solid ${C.paid}20`}}>
-                    <p className="font-bold mb-1" style={{color:C.paid}}>Additional Terms</p>
-                    {listing.listing_terms}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>{seller?.username || 'Seller'}</span>
+                  {seller?.kyc_verified && <BadgeCheck size={14} color="#6EE7B7" />}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: badge.textColor, background: badge.bg, borderRadius: 4, padding: '2px 8px' }}>
+                    {badge.icon} {badge.label}
+                  </span>
+                  <span style={{ fontSize: 11, color: isOnline ? '#6EE7B7' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+                    {isOnline ? '● Online' : `Seen ${lastSeen}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stats grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderBottom: `1px solid ${C.g100}` }}>
+                {[
+                  { label: 'Trades',   value: fmt(trades) },
+                  { label: '👍 Pos',   value: posFeedback },
+                  { label: '👎 Neg',   value: negFeedback },
+                ].map((s, i) => (
+                  <div key={s.label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: i < 2 ? `1px solid ${C.g100}` : 'none' }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: C.forest }}>{s.value}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>{s.label}</div>
                   </div>
-                )}
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
+                {[
+                  { label: 'Response', value: responseTime },
+                  { label: 'Country',  value: seller?.country || '—' },
+                  { label: 'KYC',      value: seller?.kyc_verified ? '✓ Verified' : 'Unverified' },
+                ].map((s, i) => (
+                  <div key={s.label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: i < 2 ? `1px solid ${C.g100}` : 'none', background: C.g50 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: C.g800 }}>{s.value}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Close */}
+              <div style={{ padding: '12px 16px 28px' }}>
+                <button onClick={() => setShowSellerProfile(false)}
+                  style={{ width: '100%', padding: '12px', borderRadius: 12, background: C.forest, color: '#fff', border: 'none', fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>
+                  Close
+                </button>
               </div>
             </div>
           </div>
+        )}
 
-          {/* ════════════════ RIGHT COLUMN — Trade Box ══════════════════════ */}
-          <div className="lg:col-span-2">
-            <div className="sticky top-4 space-y-3">
-
-              {isOwner ? (
-                /* ── Owner view ──────────────────────────────────────────── */
-                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
-                  <div className="px-4 py-3 border-b" style={{borderColor:C.g100, backgroundColor:`${C.green}06`}}>
-                    <p className="font-black text-sm" style={{color:C.forest}}>Your Listing</p>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div className="p-3 rounded-xl" style={{backgroundColor:`${C.success}10`, border:`1px solid ${C.success}20`}}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.success}}/>
-                        <p className="text-xs font-black" style={{color:C.success}}>Active — visible to buyers</p>
-                      </div>
-                    </div>
-                    {[
-                      ['Rate',      `$${fmt(sellerRateUSD)} USD/BTC`],
-                      ['Range',     `${sym}${fmt(minLocal)} – ${sym}${fmt(maxLocal)}`],
-                      ['Payment',   pmRaw || '—'],
-                      ['Margin',    margin===0?'Market rate':margin>0?`+${margin}%`:`${margin}%`],
-                      ['Time limit',`${listing.time_limit||30} min`],
-                    ].map(([l,v])=>(
-                      <div key={l} className="flex justify-between text-xs py-1.5 border-b" style={{borderColor:C.g100}}>
-                        <span style={{color:C.g500}}>{l}</span>
-                        <span className="font-bold" style={{color:C.g800}}>{v}</span>
-                      </div>
-                    ))}
-                    <button onClick={()=>navigate('/my-listings')}
-                      className="w-full py-3 rounded-xl font-black text-sm text-white hover:opacity-90 transition"
-                      style={{backgroundColor:C.green}}>
-                      Manage My Listings →
-                    </button>
-                  </div>
+        {isOwner ? (
+          /* ── Owner view ── */
+          <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.g200}`, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.g100}`, background: C.mist }}>
+              <p style={{ fontWeight: 900, fontSize: 15, color: C.forest, margin: 0 }}>Your Listing</p>
+              <p style={{ fontSize: 12, color: C.g400, margin: '2px 0 0' }}>This offer is live and visible to buyers</p>
+            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ background: `${C.success}10`, border: `1px solid ${C.success}25`, borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: C.success }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: C.success }}>Active — visible to buyers</span>
+              </div>
+              {[
+                ['Rate',       `${sym}${fmt(sellerRateLocal, 0)} per BTC`],
+                ['Range',      `${sym}${fmt(minLocal, 0)} – ${sym}${fmt(maxLocal, 0)}`],
+                ['Payment',    pmRaw || '—'],
+                ['Margin',     margin === 0 ? 'Market rate' : margin > 0 ? `+${margin}%` : `${margin}%`],
+                ['Time limit', `${listing.time_limit || 30} min`],
+              ].map(([l, v]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${C.g100}`, fontSize: 13 }}>
+                  <span style={{ color: C.g500 }}>{l}</span>
+                  <span style={{ fontWeight: 800, color: C.g800 }}>{v}</span>
                 </div>
-              ) : (
-                /* ── Trade box ────────────────────────────────────────────── */
-                <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
-                  <div className="px-4 py-3 border-b" style={{borderColor:C.g100}}>
-                    <p className="font-black text-sm" style={{color:C.forest}}>Start a Trade</p>
-                    <p className="text-xs" style={{color:C.g400}}>Escrow locks BTC the moment you begin</p>
+              ))}
+              <button onClick={() => navigate('/my-listings')}
+                style={{ width: '100%', marginTop: 16, padding: '14px', borderRadius: 12, background: C.green, color: '#fff', fontWeight: 900, fontSize: 14, border: 'none', cursor: 'pointer' }}>
+                Manage My Listings →
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── Trade box ── */
+          <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${C.g200}`, overflow: 'hidden' }}>
+
+            {/* Payment method + range */}
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.g100}`, background: C.g50, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 11, color: C.g400, fontWeight: 700, marginBottom: 2 }}>PAY WITH</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.g800 }}>{pm.icon} {pm.label}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: C.g400, fontWeight: 700, marginBottom: 2 }}>LIMIT</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.forest }}>{sym}{fmt(minLocal, 0)} – {sym}{fmt(maxLocal, 0)}</div>
+              </div>
+            </div>
+
+            <div style={{ padding: 20 }}>
+
+              {/* Amount input */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: C.g600, marginBottom: 8 }}>
+                  YOU PAY ({cur})
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 16, fontWeight: 900, color: C.g400 }}>{sym}</span>
+                  <input
+                    type="number"
+                    value={payAmt}
+                    onChange={e => setPayAmt(e.target.value)}
+                    placeholder="0.00"
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      paddingLeft: 36, paddingRight: 56, paddingTop: 16, paddingBottom: 16,
+                      fontSize: 22, fontWeight: 900,
+                      border: `2px solid ${payAmtNum > 0 && (payAmtNum < minLocal || payAmtNum > maxLocal) ? C.danger : payAmtNum > 0 ? C.green : C.g200}`,
+                      borderRadius: 14, outline: 'none', color: C.g800,
+                    }}
+                  />
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 800, color: C.g500, background: C.g100, padding: '3px 7px', borderRadius: 6 }}>{cur}</span>
+                </div>
+                {payAmtNum > 0 && payAmtNum < minLocal && <p style={{ fontSize: 11, color: C.danger, marginTop: 6, fontWeight: 700 }}>Minimum is {sym}{fmt(minLocal, 0)}</p>}
+                {payAmtNum > maxLocal && <p style={{ fontSize: 11, color: C.danger, marginTop: 6, fontWeight: 700 }}>Maximum is {sym}{fmt(maxLocal, 0)}</p>}
+              </div>
+
+              {/* You receive */}
+              <div style={{ background: C.mist, borderRadius: 14, padding: '14px 16px', marginBottom: 16, border: `1px solid ${C.green}20` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: C.g500 }}>YOU RECEIVE</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: margin > 0 ? C.danger : margin < 0 ? C.success : C.g400, borderRadius: 20, padding: '2px 8px' }}>
+                    {margin === 0 ? 'Market' : margin > 0 ? `+${margin}%` : `${margin}%`}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: '#fff', fontWeight: 900, fontSize: 13 }}>₿</span>
                   </div>
-
-                  <div className="p-4 space-y-3">
-
-                    {/* Seller mini row — avatar + name + online + range */}
-                    <div className="flex items-center gap-2 p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
-                      <Avatar user={seller} size={32}/>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-xs truncate" style={{color:C.forest}}>{seller?.username||'Seller'}</p>
-                        <p className="text-xs flex items-center gap-1" style={{color:isOnline?C.online:C.g400}}>
-                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{backgroundColor:isOnline?C.online:C.g400}}/>
-                          {isOnline ? 'Active Now' : lastSeen}
-                        </p>
-                      </div>
-                      {/* Range pill instead of badge */}
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold uppercase" style={{color:C.g400}}>Range</p>
-                        <p className="text-xs font-black leading-tight" style={{color:C.forest}}>
-                          {sym}{fmt(minLocal,0)}–{sym}{fmt(maxLocal,0)}
-                        </p>
-                        <p className="text-xs" style={{color:C.g400}}>{cur}</p>
-                      </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: C.forest, lineHeight: 1 }}>
+                      {btcAfterFee > 0 ? fmtBtc(btcAfterFee) : <span style={{ color: C.g300 }}>0.00000000</span>}
                     </div>
-
-                    {/* YOU PAY */}
-                    <div>
-                      <p className="text-sm font-black mb-1.5" style={{color:C.forest}}>
-                        You Pay via <span style={{color:C.green}}>{pm.label}</span>
-                      </p>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black" style={{color:C.g500}}>{sym}</span>
-                        <input
-                          type="number"
-                          value={payAmt}
-                          onChange={e=>setPayAmt(e.target.value)}
-                          placeholder="Enter amount…"
-                          className="w-full pl-8 pr-16 py-3.5 text-lg font-black border-2 rounded-xl focus:outline-none"
-                          style={{
-                            borderColor: payAmtNum>0 && (payAmtNum<minLocal||payAmtNum>maxLocal) ? C.danger
-                                       : payAmtNum>0 ? C.green : C.g200,
-                            color: C.g800,
-                          }}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black px-1.5 py-0.5 rounded"
-                          style={{color:C.g500, backgroundColor:C.g100}}>{cur}</span>
-                      </div>
-                      {payAmtNum>0 && payAmtNum<minLocal && (
-                        <p className="text-xs mt-1" style={{color:C.danger}}>Min {sym}{fmt(minLocal,0)} {cur}</p>
-                      )}
-                      {payAmtNum>maxLocal && (
-                        <p className="text-xs mt-1" style={{color:C.danger}}>Max {sym}{fmt(maxLocal,0)} {cur}</p>
-                      )}
-                    </div>
-
-                    {/* YOU RECEIVE — always visible, updates live */}
-                    <div className="rounded-xl border overflow-hidden" style={{borderColor:C.g200}}>
-                      {/* Header */}
-                      <div className="px-3 py-2 border-b flex items-center justify-between"
-                        style={{borderColor:C.g100, backgroundColor:C.g50}}>
-                        <p className="text-xs font-black" style={{color:C.g700}}>Receive</p>
-                        <div className="flex items-center gap-1.5">
-                          {/* BTC rate */}
-                          <p className="text-xs font-bold" style={{color:C.g500}}>
-                            {sym}{fmt(sellerRateLocal,2)}
-                          </p>
-                          {/* Margin pill */}
-                          <span className="text-xs font-black px-1.5 py-0.5 rounded-full text-white"
-                            style={{backgroundColor:margin>0?C.danger:margin<0?C.success:C.g400}}>
-                            {margin===0?'Market':margin>0?`+${margin}%`:`${margin}%`}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Body */}
-                      <div className="px-3 py-3" style={{backgroundColor:C.mist}}>
-                        {/* Bitcoin icon + label row */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{backgroundColor:C.gold}}>
-                            <span className="text-white font-black text-xs">₿</span>
-                          </div>
-                          <p className="font-black text-xs" style={{color:C.forest}}>Bitcoin</p>
-                        </div>
-
-                        {/* BTC amount — big */}
-                        <p className="font-black text-2xl leading-tight mb-0.5" style={{color:C.forest}}>
-                          {btcAfterFee > 0 ? fmtBtc(btcAfterFee) : <span style={{color:C.g300}}>0.00000000</span>}
-                        </p>
-
-                        {/* Fiat equivalent at market rate */}
-                        {fiatEquivalent > 0 && (
-                          <p className="text-xs font-bold" style={{color:C.g500}}>
-                            ≈ {sym}{fmt(fiatEquivalent, 2)} {cur} value
-                          </p>
-                        )}
-
-                        {/* Quote lock indicator */}
-                        {quoteFetching && (
-                          <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}>
-                            <RefreshCw size={9} className="animate-spin"/> Locking rate…
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Escrow note */}
-                    <div className="flex items-start gap-2 p-3 rounded-xl"
-                      style={{backgroundColor:`${C.green}08`, border:`1px solid ${C.green}20`}}>
-                      <Lock size={11} style={{color:C.green, flexShrink:0, marginTop:1}}/>
-                      <p className="text-xs leading-relaxed" style={{color:C.green}}>
-                        <strong>Your funds are protected by escrow</strong> for a secure trade. Released only when both parties confirm.
-                      </p>
-                    </div>
-
-                    {/* CTA */}
-                    <button
-                      onClick={handleStartTrade}
-                      disabled={submitting || !payAmt || payAmtNum<=0 || payAmtNum<minLocal || payAmtNum>maxLocal}
-                      className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-40"
-                      style={{backgroundColor:cfg.color}}>
-                      {submitting
-                        ? <><RefreshCw size={14} className="animate-spin"/>Opening…</>
-                        : <><Lock size={13}/> Proceed with Payment <ArrowRight size={13}/></>}
-                    </button>
-
-                    {/* Steps */}
-                    <div className="space-y-1.5">
-                      {[
-                        ['🔒','BTC locked in escrow'],
-                        ['💬','Trade chat opens with seller'],
-                        ['💰','Send payment → click "I Have Paid"'],
-                        ['✅','Seller confirms → BTC released'],
-                      ].map(([e,t])=>(
-                        <div key={t} className="flex items-center gap-2 text-xs" style={{color:C.g500}}>
-                          <span className="text-sm flex-shrink-0">{e}</span>{t}
-                        </div>
-                      ))}
-                    </div>
+                    {fiatEquivalent > 0 && <div style={{ fontSize: 11, color: C.g400, fontWeight: 600, marginTop: 2 }}>≈ {sym}{fmt(fiatEquivalent, 2)} {cur}</div>}
                   </div>
+                  {quoteFetching && <RefreshCw size={13} color={C.g300} style={{ marginLeft: 'auto' }} className="animate-spin" />}
+                </div>
+              </div>
+
+              {/* Trade terms (if any) */}
+              {(listing.trade_instructions || listing.description) && (
+                <div style={{ background: C.g50, borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: `1px solid ${C.g200}`, fontSize: 12, color: C.g600, lineHeight: 1.6 }}>
+                  <span style={{ fontWeight: 800, color: C.g700, display: 'block', marginBottom: 4 }}>Seller's instructions</span>
+                  {listing.trade_instructions || listing.description}
                 </div>
               )}
 
-              {/* PRAQEN escrow banner */}
-              <div className="flex items-start gap-3 p-3 rounded-xl border"
-                style={{backgroundColor:`${C.green}08`, borderColor:`${C.green}25`}}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{backgroundColor:C.green}}>
-                  <Lock size={12} className="text-white"/>
-                </div>
-                <div>
-                  <p className="text-xs font-black mb-0.5" style={{color:C.forest}}>PRAQEN Escrow Protection</p>
-                  <p className="text-xs leading-relaxed" style={{color:C.g600}}>
-                    Your funds are protected by escrow for a secure trade. Released only after both parties confirm.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+              {/* CTA */}
+              <button
+                onClick={handleStartTrade}
+                disabled={submitting || !payAmt || payAmtNum <= 0 || payAmtNum < minLocal || payAmtNum > maxLocal}
+                style={{
+                  width: '100%', padding: '16px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                  background: submitting || !payAmt || payAmtNum <= 0 || payAmtNum < minLocal || payAmtNum > maxLocal
+                    ? C.g200 : `linear-gradient(135deg, ${C.forest}, ${C.green})`,
+                  color: submitting || !payAmt || payAmtNum <= 0 || payAmtNum < minLocal || payAmtNum > maxLocal
+                    ? C.g400 : '#fff',
+                  boxShadow: (!submitting && payAmt && payAmtNum >= minLocal && payAmtNum <= maxLocal)
+                    ? '0 6px 24px rgba(27,67,50,0.4)' : 'none',
+                  fontWeight: 900, fontSize: 15,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  transition: 'all 0.2s',
+                }}>
+                {submitting
+                  ? <><RefreshCw size={15} className="animate-spin" /> Opening trade…</>
+                  : <><Lock size={14} /> Proceed to Payment <ArrowRight size={14} /></>}
+              </button>
 
-      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
-      <footer className="mt-8" style={{backgroundColor:C.forest}}>
-        <div className="max-w-5xl mx-auto px-4 pt-8 pb-5">
-          <div className="grid md:grid-cols-3 gap-8 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg" style={{backgroundColor:C.gold,color:C.forest}}>P</div>
-                <span className="text-white font-black" style={{fontFamily:"'Syne',sans-serif"}}>PRAQEN</span>
-              </div>
-              <p className="text-xs leading-relaxed mb-4" style={{color:'rgba(255,255,255,0.4)'}}>
-                Africa's most trusted P2P Bitcoin platform. Escrow-protected. Fast. Honest.
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  {href:'https://x.com/praqenapp?s=21',label:'𝕏'},
-                  {href:'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr',label:'📸'},
-                  {href:'https://www.linkedin.com/in/pra-qen-045373402/',label:'💼'},
-                  {href:'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t',label:'💬'},
-                  {href:'https://discord.gg/V6zCZxfdy',label:'🎮'},
-                ].map(({href,label})=>(
-                  <a key={href} href={href} target="_blank" rel="noopener noreferrer"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:scale-110 transition"
-                    style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-                    <span className="text-white font-black">{label}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-white font-black text-sm mb-3">Trade</p>
-              <div className="space-y-2">
-                {[['Buy Bitcoin','/buy-bitcoin'],['Sell Bitcoin','/sell-bitcoin'],['Gift Cards','/gift-cards'],['Create Offer','/create-offer'],['My Trades','/my-trades']].map(([l,h])=>(
-                  <a key={l} href={h} className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.4)'}}>{l}</a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-white font-black text-sm mb-3">Community</p>
-              <div className="space-y-2">
-                {[
-                  ['💬 WhatsApp','https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t'],
-                  ['🎮 Discord','https://discord.gg/V6zCZxfdy'],
-                  ['𝕏 Twitter/X','https://x.com/praqenapp?s=21'],
-                  ['📸 Instagram','https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr'],
-                  ['💼 LinkedIn','https://www.linkedin.com/in/pra-qen-045373402/'],
-                  ['📧 support@praqen.com','mailto:support@praqen.com'],
-                ].map(([l,h])=>(
-                  <a key={l} href={h} target="_blank" rel="noopener noreferrer" className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.4)'}}>{l}</a>
+              {/* Simple steps */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.g100}` }}>
+                {[['🔒','Escrow locks'],['💬','Chat opens'],['💸','Send payment'],['✅','BTC released']].map(([e,t])=>(
+                  <div key={t} style={{ textAlign:'center', flex:1 }}>
+                    <div style={{ fontSize:18, marginBottom:3 }}>{e}</div>
+                    <div style={{ fontSize:10, fontWeight:700, color:C.g400, lineHeight:1.3 }}>{t}</div>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t" style={{borderColor:'rgba(255,255,255,0.08)'}}>
-            <p className="text-xs" style={{color:'rgba(255,255,255,0.3)'}}>© {new Date().getFullYear()} PRAQEN. All rights reserved.</p>
-            <p className="text-xs flex items-center gap-1" style={{color:'rgba(255,255,255,0.3)'}}>
-              <Shield size={10}/> Escrow Protected · 0.5% fee on completion only
-            </p>
-          </div>
+        )}
+
+        {/* ── Safety notice ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:20, padding:'10px 14px', borderRadius:12, background:`${C.green}10`, border:`1px solid ${C.green}20` }}>
+          <Lock size={11} color={C.green} style={{ flexShrink:0 }}/>
+          <p style={{ margin:0, fontSize:11, fontWeight:700, color:C.green, textAlign:'center', lineHeight:1.5 }}>
+            Your funds are protected by escrow — trade safely on <strong>PRAQEN.com</strong>
+          </p>
         </div>
-      </footer>
+
+        </div>{/* end prq-sheet-scroll */}
+      </div>{/* end prq-sheet */}
     </div>
   );
 }

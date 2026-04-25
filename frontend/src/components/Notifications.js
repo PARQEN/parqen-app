@@ -286,7 +286,7 @@ export default function Notifications({ user }) {
       {/* ── Dropdown ── */}
       {showDrop && (
         <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border overflow-hidden z-50 w-[92vw] sm:w-[420px] max-h-[82vh]"
-          style={{ borderColor: C.g200, display: 'flex', flexDirection: 'column' }}>
+          style={{ borderColor: C.g200, display: 'flex', flexDirection: 'column', maxWidth: 'calc(100vw - 16px)' }}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"

@@ -99,7 +99,7 @@ const getBrand = (l) => l.gift_card_brand||l.giftCardBrand||l.card_brand||'Gift 
 const getFaceVal = (l) => { const v=l.face_value||l.card_value||l.amount_usd; return v?parseFloat(v):null; };
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-function Avatar({user, size=44, radius='rounded-xl'}) {
+function Avatar({user, size=48, radius='rounded-xl'}) {
   const [err,setErr] = useState(false);
   const u = getUser(user);
   if(u?.avatar_url&&!err) return (
@@ -147,7 +147,7 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
       style={{borderColor:C.g200}}>
 
       {/* ─ Brand header ──────────────────────────────────────────── */}
-      <div className="px-3 pt-2.5 pb-2 border-b flex items-center justify-between"
+      <div className="px-4 pt-2.5 pb-2 border-b flex items-center justify-between"
         style={{borderColor:C.g100, backgroundColor:C.g50}}>
         <span className="text-sm font-black tracking-tight" style={{color:C.g800}}>{brand}</span>
         {fv && (
@@ -159,13 +159,13 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
       </div>
 
       {/* ─ Seller row ────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-2">
+      <div className="px-4 pt-3 pb-2">
         <div className="flex items-start gap-2">
 
           {/* Avatar + online */}
           <div className="relative flex-shrink-0">
             <button onClick={onViewSeller}>
-              <Avatar user={u} size={44} radius="rounded-xl"/>
+              <Avatar user={u} size={48} radius="rounded-xl"/>
             </button>
             {seen.online && (
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
@@ -177,8 +177,8 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 overflow-hidden">
               <button onClick={onViewSeller}
-                className="font-black text-xs hover:underline leading-tight truncate flex-shrink min-w-0"
-                style={{color:C.g800}}>
+                className="font-black text-sm hover:underline leading-tight truncate flex-shrink min-w-0"
+                style={{color:C.g800, maxWidth:'160px'}}>
                 {u.username||'Seller'}
               </button>
               {isVerified(u) && <BadgeCheck size={13} style={{color:'#3B82F6',flexShrink:0}}/>}
@@ -188,12 +188,12 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
               <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded border flex-shrink-0"
                 style={{background:badge.bg,borderColor:badge.borderColor}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
-                <span style={{color:badge.textColor,fontSize:11}}> {badge.label}</span>
+                <span style={{color:badge.textColor}}> {badge.label}</span>
               </span>
             </div>
 
             {/* Single stats line — no wrap */}
-            <div className="flex items-center gap-1 mt-0.5 overflow-hidden whitespace-nowrap">
+            <div className="flex items-center gap-1 mt-1 overflow-hidden whitespace-nowrap">
               <span className="text-xs font-bold flex-shrink-0" style={{color:C.success}}>👍 {fmt(pos)}</span>
               <span className="text-xs flex-shrink-0" style={{color:C.g300}}>·</span>
               <span className="text-xs font-bold flex-shrink-0" style={{color:C.danger}}>👎 {fmt(neg)}</span>
@@ -208,11 +208,12 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
               </span>
             </div>
 
-            {/* Payment badge — text only, no icon */}
+            {/* Payment badge */}
             <div className="mt-1.5">
-              <span className="inline-flex items-center text-xs font-bold px-2 py-1 rounded-lg"
-                style={{backgroundColor:C.g100,color:C.g700}}>
-                {pmLabel}
+              <span className="inline-flex flex-col px-2 py-1 rounded-lg"
+                style={{backgroundColor:C.g100}}>
+                <span className="text-xs font-normal leading-tight" style={{color:C.g400}}>I'm receiving with</span>
+                <span className="text-xs font-black leading-tight tracking-wide" style={{color:C.g700}}>{pmLabel.toUpperCase()}</span>
               </span>
             </div>
           </div>
@@ -223,23 +224,23 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
       <div style={{height:1,backgroundColor:C.g100}}/>
 
       {/* ─ You Give / You Receive ────────────────────────────────── */}
-      <div className="px-3 py-2.5 grid grid-cols-2 gap-2">
+      <div className="px-4 py-3 grid grid-cols-2 gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU GIVE</p>
-          <p className="text-lg font-black leading-tight" style={{color:C.g800}}>
+          <p className="text-2xl font-black leading-tight" style={{color:C.g800}}>
             {fv?`$${fv}`:`${sym}${fmt(minLocal)}`}
           </p>
           <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>{fv?'USD card':cur}</p>
         </div>
         <div className="border-l pl-2.5" style={{borderColor:C.g100}}>
           <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU RECEIVE</p>
-          <p className="text-lg font-black leading-tight" style={{color:C.gold}}>₿{fBtc(btcOut)}</p>
+          <p className="text-2xl font-black leading-tight" style={{color:C.gold}}>₿{fBtc(btcOut)}</p>
           <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>Bitcoin</p>
         </div>
       </div>
 
       {/* ─ Card face value range ─────────────────────────────────── */}
-      <div className="px-3 pb-1 flex items-center gap-1">
+      <div className="px-4 pb-1 flex items-center gap-1">
         <span className="text-xs font-semibold" style={{color:C.g500}}>Limit:</span>
         <span className="text-xs font-black" style={{color:C.g800}}>
           {fv ? `$${fv}` : '$10 – $1,000'}
@@ -247,7 +248,7 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
       </div>
 
       {/* ─ Rate + margin ─────────────────────────────────────────── */}
-      <div className="px-3 pb-2 flex items-center justify-between">
+      <div className="px-4 pb-2 flex items-center justify-between">
         <p className="text-xs font-semibold" style={{color:C.g600}}>
           Rate: {sym}{fmt(rateLocal)}/BTC
         </p>
@@ -258,14 +259,14 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
       </div>
 
       {/* ─ Actions ───────────────────────────────────────────────── */}
-      <div className="px-3 pb-3 flex items-center gap-2">
+      <div className="px-4 pb-3 flex items-center gap-2">
         <button onClick={onViewSeller}
-          className="w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 hover:bg-gray-50 transition"
+          className="w-10 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 hover:bg-gray-50 transition"
           style={{borderColor:C.g200}}>
           <Info size={14} style={{color:C.g400}}/>
         </button>
         <button onClick={onTrade}
-          className="flex-1 py-2.5 rounded-xl text-white font-black text-sm flex items-center justify-center gap-1.5 hover:opacity-90 transition"
+          className="flex-1 h-11 rounded-xl text-white font-black text-base flex items-center justify-center gap-1.5 hover:opacity-90 transition active:scale-[0.98]"
           style={{backgroundColor:C.forest}}>
           TRADE <ArrowRight size={14}/>
         </button>
@@ -297,11 +298,11 @@ function SellerModal({seller, listing, onClose, onTrade}) {
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
       style={{backgroundColor:'rgba(0,0,0,0.55)',backdropFilter:'blur(4px)'}}>
-      <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl"
+      <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         style={{border:`1px solid ${C.g200}`,animation:'slideUp .25s ease'}}>
 
         {/* Header */}
-        <div className="relative p-5 text-white"
+        <div className="relative p-5 text-white flex-shrink-0"
           style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
           <button onClick={onClose}
             className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
@@ -361,7 +362,7 @@ function SellerModal({seller, listing, onClose, onTrade}) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b" style={{borderColor:C.g200}}>
+        <div className="flex border-b flex-shrink-0" style={{borderColor:C.g200}}>
           {[['rules','📋 Trade Rules'],['offer','📊 Offer Details']].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)}
               className="flex-1 py-2.5 text-xs font-bold transition"
@@ -375,7 +376,7 @@ function SellerModal({seller, listing, onClose, onTrade}) {
           ))}
         </div>
 
-        <div className="p-4 max-h-64 overflow-y-auto">
+        <div className="p-4 overflow-y-auto flex-1">
           {tab==='rules'?(
             <div className="space-y-3">
               <div className="p-3 rounded-xl text-xs leading-relaxed whitespace-pre-wrap"
@@ -416,12 +417,12 @@ function SellerModal({seller, listing, onClose, onTrade}) {
           )}
         </div>
 
-        <div className="p-4 pt-0 flex gap-2">
+        <div className="p-4 pt-0 flex gap-2 flex-shrink-0">
           <button onClick={onClose}
             className="flex-1 py-2.5 rounded-xl border text-sm font-semibold hover:bg-gray-50"
             style={{borderColor:C.g200,color:C.g600}}>Close</button>
           <button onClick={()=>{onClose();onTrade();}}
-            className="flex-1 py-2.5 rounded-xl text-white text-sm font-black flex items-center justify-center gap-1.5"
+            className="flex-1 py-2.5 rounded-xl text-white text-sm font-black flex items-center justify-center gap-1.5 active:scale-[0.98] transition"
             style={{backgroundColor:C.forest}}>
             Trade Now <ArrowRight size={14}/>
           </button>
@@ -450,11 +451,14 @@ function BottomNav() {
           const active=id===activeId;
           return (
             <button key={id} onClick={()=>navigate(to)}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all"
-              style={{color:active?C.forest:C.g400}}>
-              <Icon size={21} strokeWidth={active?2.5:1.8}/>
-              <span className="text-xs font-bold">{label}</span>
-              {active&&<span className="w-1 h-1 rounded-full" style={{backgroundColor:C.forest}}/>}
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all"
+              style={{
+                color:active?C.forest:C.g400,
+                backgroundColor:active?`${C.forest}12`:'transparent',
+                minWidth:'52px',
+              }}>
+              <Icon size={22} strokeWidth={active?2.5:1.8}/>
+              <span className="text-xs font-bold leading-tight">{label}</span>
             </button>
           );
         })}
@@ -548,14 +552,15 @@ export default function GiftCards({user}) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0"
-      style={{backgroundColor:C.g100,fontFamily:"'DM Sans',sans-serif"}}>
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0 overflow-x-hidden"
+      style={{backgroundColor:C.g100,fontFamily:"'DM Sans',sans-serif",overscrollBehavior:'none'}}>
 
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
       <style>{`
         @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+        *{-webkit-tap-highlight-color:transparent}
       `}</style>
 
       {/* ══════════════════════════════════════════════════
@@ -565,7 +570,7 @@ export default function GiftCards({user}) {
         <div className="max-w-7xl mx-auto px-4 py-3.5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <p className="text-2xl md:text-3xl font-black text-white leading-tight mb-1.5">
+              <p className="text-base sm:text-xl md:text-3xl font-black text-white leading-tight mb-1.5">
                 Gift Card <span style={{color:C.gold}}>Marketplace</span>
               </p>
               <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
@@ -593,22 +598,24 @@ export default function GiftCards({user}) {
       ══════════════════════════════════════════════════ */}
       <div className="bg-white border-b sticky top-0 z-30" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3">
-          <div className="flex items-center">
-            {[
-              {label:'Buy BTC',    path:'/buy-bitcoin',  active:false},
-              {label:'Sell BTC',   path:'/sell-bitcoin', active:false},
-              {label:'Gift Cards', path:'/gift-cards',   active:true},
-            ].map(tab=>(
-              <Link key={tab.path} to={tab.path}
-                className="px-4 py-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
-                style={{
-                  borderColor:tab.active?C.forest:'transparent',
-                  color:tab.active?C.forest:C.g500,
-                }}>
-                {tab.label}
-              </Link>
-            ))}
-            <div className="ml-auto flex items-center gap-1.5 py-2">
+          <div className="flex items-center overflow-x-auto">
+            <div className="flex items-center min-w-max">
+              {[
+                {label:'Buy BTC',    path:'/buy-bitcoin',  active:false},
+                {label:'Sell BTC',   path:'/sell-bitcoin', active:false},
+                {label:'Gift Cards', path:'/gift-cards',   active:true},
+              ].map(tab=>(
+                <Link key={tab.path} to={tab.path}
+                  className="px-4 py-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
+                  style={{
+                    borderColor:tab.active?C.forest:'transparent',
+                    color:tab.active?C.forest:C.g500,
+                  }}>
+                  {tab.label}
+                </Link>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 py-2 pl-4 flex-shrink-0">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
               <span className="text-xs font-semibold" style={{color:C.g400}}>{onlineCnt} online</span>
             </div>
@@ -646,7 +653,7 @@ export default function GiftCards({user}) {
       <div className="bg-white border-b" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 py-2.5">
 
-          {/* Row 2 — Currency | Payment | Filter */}
+          {/* Row — Currency | Payment | Filter */}
           <div className="flex items-center gap-2">
 
             {/* Currency selector */}
@@ -673,7 +680,7 @@ export default function GiftCards({user}) {
                       <span className="text-base">{c.flag}</span>
                       <div className="flex-1 text-left">
                         <p className="font-bold text-xs" style={{color:C.g800}}>{c.name}</p>
-                        <p style={{color:C.g400,fontSize:11}}>{c.currency}</p>
+                        <p className="text-xs" style={{color:C.g400}}>{c.currency}</p>
                       </div>
                       {selCountry.code===c.code&&<CheckCircle size={13} style={{color:C.green}}/>}
                     </button>

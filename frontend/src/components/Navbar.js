@@ -217,8 +217,8 @@ export default function Navbar({ user, onLogout }) {
       fontFamily: "'DM Sans', sans-serif",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, gap: 24 }}>
+      <div className="max-w-[1280px] mx-auto px-4 md:px-8">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, gap: 12 }}>
           <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
             <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
               <span style={{ color: C.forest }}>PRA</span><span style={{ color: C.gold }}>QEN</span>
@@ -226,7 +226,7 @@ export default function Navbar({ user, onLogout }) {
           </Link>
           <DesktopNavLinks />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <Link to="/login" style={{
+            <Link to="/login" className="hidden sm:inline-block" style={{
               padding: '8px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800,
               border: `2px solid ${C.g200}`, color: C.forest,
               textDecoration: 'none', transition: 'all 0.2s', background: 'transparent',
@@ -253,8 +253,8 @@ export default function Navbar({ user, onLogout }) {
       fontFamily: "'DM Sans', sans-serif",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 40px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72, gap: 24 }}>
+      <div className="max-w-[1400px] mx-auto px-4 md:px-10">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64, gap: 12 }}>
 
           {/* Logo */}
           <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
@@ -266,16 +266,29 @@ export default function Navbar({ user, onLogout }) {
           {/* Center Nav */}
           <DesktopNavLinks />
 
-          {/* Right: Wallet · Avatar · Bell */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          {/* Right: Wallet (desktop) · Avatar · Bell */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-            {/* Wallet balance pill */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: C.mist,
-              border: `1px solid #c8e6d4`,
-              borderRadius: 10, padding: '6px 12px',
-            }}>
+            {/* Wallet — compact mobile pill */}
+            <div className="flex md:hidden items-center"
+              style={{ background: C.mist, border: `1px solid #c8e6d4`, borderRadius: 8, overflow: 'hidden' }}>
+              <Link to="/wallet"
+                style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '5px 8px', textDecoration: 'none' }}>
+                <Wallet size={12} color={C.forest} />
+                <span style={{ fontSize: 11, fontWeight: 900, color: C.forest, whiteSpace: 'nowrap', maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {showBal ? `${localCode} ${fmt(totalLocal, 0)}` : '•••'}
+                </span>
+              </Link>
+              <button
+                onClick={() => setShowBal(!showBal)}
+                style={{ background: 'none', border: 'none', borderLeft: `1px solid #c8e6d4`, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px 6px' }}>
+                {showBal ? <Eye size={11} color={C.green} /> : <EyeOff size={11} color={C.g400} />}
+              </button>
+            </div>
+
+            {/* Wallet balance pill — desktop only */}
+            <div className="hidden md:flex items-center"
+              style={{ gap: 6, background: C.mist, border: `1px solid #c8e6d4`, borderRadius: 10, padding: '6px 12px' }}>
               <button onClick={() => setShowBal(!showBal)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
                 title={showBal ? 'Hide balance' : 'Show balance'}>

@@ -25,20 +25,21 @@ class RateService {
     this._fetchPromise = (async () => {
       try {
         const API_KEY = 'd51dba3e8a731b12d73e8d72';
-        
-        // Fetch all rates from ExchangeRate-API (supports GHS, NGN, all currencies)
-        const [fxRes, btcRes] = await Promise.all([
-          fetch(`https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`),
-          fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'),
-        ]);
 
-        if (fxRes.ok) {
-          const fxData = await fxRes.json();
-          if (fxData.result === 'success' && fxData.conversion_rates) {
-            // Use ALL rates from ExchangeRate-API (includes GHS, NGN)
-            Object.assign(this.rates, fxData.conversion_rates);
-            console.log('✅ Rates updated from ExchangeRate-API');
-          }
+        let fxData;
+        try {
+          const res = await fetch('https://open.er-api.com/v6/latest/USD');
+          fxData = await res.json();
+        } catch (e) {
+          // Fallback to ExchangeRate-API if open.er-api.com is down
+          const res = await fetch(`https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`);
+          fxData = await res.json();
+        }
+        const btcRes = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+
+        if (fxData && fxData.result === 'success' && fxData.rates) {
+          Object.assign(this.rates, fxData.rates);
+          console.log('✅ Rates updated from open.er-api.com');
         }
 
         if (btcRes.ok) {

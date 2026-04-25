@@ -15,7 +15,6 @@ import ActiveTradeBanner from '../components/ActiveTradeBanner';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-// ── Color palette ─────────────────────────────────────────────────────────────
 const C = {
   forest:'#1B4332', green:'#2D6A4F', mint:'#40916C',
   gold:'#F4A422', mist:'#F0FAF5', white:'#FFFFFF',
@@ -26,7 +25,6 @@ const C = {
   warn:'#F59E0B',
 };
 
-// ── Trust badge map ───────────────────────────────────────────────────────────
 const TRUST_MAP = {
   LEGEND:     { label:'LEGEND',     icon:'♛', iconColor:'#F4A422', textColor:'#1B4332', borderColor:'#A7F3D0', bg:'#ECFDF5' },
   AMBASSADOR: { label:'AMBASSADOR', icon:'◈', iconColor:null,      textColor:'#FFFFFF',  borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#2D6A4F)' },
@@ -84,7 +82,7 @@ const getLastSeen = (u) => {
   const d = u?.last_login||u?.last_seen||u?.updated_at||u?.created_at;
   if (!d) return {label:'—', online:false};
   const s = (Date.now()-new Date(d))/1000;
-  if (s<300)   return {label:'Active',           online:true};
+  if (s<300)   return {label:'Active',            online:true};
   if (s<3600)  return {label:`${~~(s/60)}m ago`,  online:false};
   if (s<86400) return {label:`${~~(s/3600)}h ago`, online:false};
   return {label:`${~~(s/86400)}d ago`, online:false};
@@ -120,17 +118,17 @@ function Avatar({user, size=36, radius='rounded-xl'}) {
   );
 }
 
-// ── Compact Offer Card — Noones-inspired ──────────────────────────────────────
+// ── Offer Card ────────────────────────────────────────────────────────────────
 function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLike}) {
   const { rates: USD_RATES } = useRates();
-  const u       = getUser(listing.users);
-  const badge   = deriveBadge(u);
-  const seen    = getLastSeen(u);
-  const trades  = getTrades(u);
-  const margin  = parseFloat(listing.margin||0);
-  const cur     = listing.currency || 'GHS';
-  const sym     = listing.currency_symbol || CUR_SYM[cur] || '₵';
-  const usdRate = USD_RATES[cur] || 1;
+  const u         = getUser(listing.users);
+  const badge     = deriveBadge(u);
+  const seen      = getLastSeen(u);
+  const trades    = getTrades(u);
+  const margin    = parseFloat(listing.margin||0);
+  const cur       = listing.currency || 'GHS';
+  const sym       = listing.currency_symbol || CUR_SYM[cur] || '₵';
+  const usdRate   = USD_RATES[cur] || 1;
   const rateLocal = getRateUSD(listing, btcPriceUSD) * usdRate;
 
   const minLocal = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd*usdRate : 100*usdRate);
@@ -142,31 +140,23 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
   const marginLabel = margin===0 ? 'Market' : margin>0 ? `+${margin}%` : `${margin}%`;
   const marginBg    = margin>0 ? C.danger : margin<0 ? C.success : C.g400;
 
-  // Feedback % (positive / total)
   const pos   = parseInt(u.positive_feedback||0);
   const neg   = parseInt(u.negative_feedback||0);
-  const total = pos + neg;
-  const pct   = total>0 ? Math.round((pos/total)*100) : (u.average_rating ? Math.round(u.average_rating*20) : 0);
 
-  // Payment icon
-  const pm     = String(listing.payment_method||'').toLowerCase();
-  const pmIcon = pm.includes('mtn')||pm.includes('mobile') ? '📱'
-               : pm.includes('vodafone')||pm.includes('airteltigo') ? '📱'
-               : pm.includes('bank') ? '🏦' : '💳';
   const pmLabel = listing.payment_method || 'Payment';
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border hover:shadow-lg transition-all w-full"
       style={{borderColor:C.g200}}>
 
-      {/* ─ Seller header ─────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex items-start gap-2">
+      {/* ─ Seller header ─────────────────────────────────────── */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="flex items-start gap-3">
 
           {/* Avatar + online dot */}
           <div className="relative flex-shrink-0">
             <button onClick={onViewSeller}>
-              <Avatar user={u} size={44} radius="rounded-xl"/>
+              <Avatar user={u} size={48} radius="rounded-xl"/>
             </button>
             {seen.online && (
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
@@ -174,28 +164,27 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
             )}
           </div>
 
-          {/* Name + badge row */}
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="flex items-center gap-1 flex-wrap">
+          {/* Name + badge + stats */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button onClick={onViewSeller}
-                className="font-black text-xs hover:underline leading-tight truncate"
-                style={{color:C.g800, maxWidth:'120px'}}>
+                className="font-black text-sm hover:underline leading-tight truncate"
+                style={{color:C.g800, maxWidth:'160px'}}>
                 {u.username||'Seller'}
               </button>
-              {isVerified(u) && <BadgeCheck size={13} style={{color:'#3B82F6', flexShrink:0}}/>}
+              {isVerified(u) && <BadgeCheck size={14} style={{color:'#3B82F6', flexShrink:0}}/>}
               <CountryFlag
                 countryCode={(u?.country_code||u?.country||'gh').toLowerCase()}
                 className="w-4 h-3 rounded-sm flex-shrink-0"/>
-              {/* Trust badge */}
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-black px-1 py-0.5 rounded border flex-shrink-0"
+              <span className="inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded border flex-shrink-0"
                 style={{background:badge.bg, borderColor:badge.borderColor}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
-                <span style={{color:badge.textColor, fontSize:10}}>{badge.label}</span>
+                <span style={{color:badge.textColor}}>{badge.label}</span>
               </span>
             </div>
 
-            {/* Single stats line */}
-            <div className="flex items-center gap-1 mt-0.5 flex-wrap text-[11px]">
+            {/* Stats — single line, no wrap */}
+            <div className="flex items-center gap-1 mt-1 overflow-hidden text-xs">
               <span className="font-bold flex-shrink-0" style={{color:C.success}}>👍 {fmt(pos)}</span>
               <span className="flex-shrink-0" style={{color:C.g300}}>·</span>
               <span className="font-bold flex-shrink-0" style={{color:C.danger}}>👎 {fmt(neg)}</span>
@@ -210,91 +199,91 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
               </span>
             </div>
           </div>
-
         </div>
 
-        {/* Payment method badge */}
-        <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-lg"
-            style={{backgroundColor:C.g100, color:C.g700}}>
-            {pmIcon} Pay: {pmLabel}
+        {/* Payment method */}
+        <div className="mt-2.5">
+          <span className="inline-flex flex-col px-2.5 py-1.5 rounded-lg"
+            style={{backgroundColor:C.g100}}>
+            <span className="text-xs font-normal leading-tight" style={{color:C.g400}}>I'm receiving with</span>
+            <span className="text-xs font-black leading-tight tracking-wide" style={{color:C.g700}}>{pmLabel.toUpperCase()}</span>
           </span>
         </div>
       </div>
 
-      {/* ─ Divider ───────────────────────────────────────────────── */}
+      {/* ─ Divider ───────────────────────────────────────────── */}
       <div style={{height:1, backgroundColor:C.g100}}/>
 
-      {/* ─ You Pay / You Receive ────────────────────────────────── */}
-      <div className="px-3 py-2.5 grid grid-cols-2 gap-2">
+      {/* ─ You Pay / You Receive ────────────────────────────── */}
+      <div className="px-4 py-3 grid grid-cols-2 gap-2">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU PAY</p>
-          <p className="text-base font-black leading-tight truncate" style={{color:C.g800}}>
+          <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{color:C.g500}}>YOU PAY</p>
+          <p className="text-2xl font-black leading-tight truncate" style={{color:C.g800}}>
             {sym}{fmt(examplePay)}
           </p>
-          <p className="text-[10px] font-semibold mt-0.5" style={{color:C.g400}}>{cur}</p>
+          <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>{cur}</p>
         </div>
-        <div className="border-l pl-2.5" style={{borderColor:C.g100}}>
-          <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU RECEIVE</p>
-          <p className="text-base font-black leading-tight truncate" style={{color:C.gold}}>₿{fBtc(btcReceived)}</p>
-          <p className="text-[10px] font-semibold mt-0.5" style={{color:C.g400}}>Bitcoin</p>
+        <div className="border-l pl-3" style={{borderColor:C.g100}}>
+          <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{color:C.g500}}>YOU RECEIVE</p>
+          <p className="text-2xl font-black leading-tight truncate" style={{color:C.gold}}>₿{fBtc(btcReceived)}</p>
+          <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>Bitcoin +{margin}%</p>
         </div>
       </div>
 
-      {/* ─ Rate + margin ─────────────────────────────────────────── */}
-      <div className="px-3 pb-2 flex items-center justify-between flex-wrap gap-1">
-        <p className="text-[11px] font-semibold" style={{color:C.g600}}>
+      {/* ─ Rate + margin ─────────────────────────────────────── */}
+      <div className="px-4 pb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold truncate" style={{color:C.g600}}>
           Rate: {sym}{fmt(rateLocal)}/BTC
         </p>
-        <span className="text-[10px] font-black px-1.5 py-0.5 rounded"
+        <span className="text-xs font-black px-2 py-0.5 rounded flex-shrink-0"
           style={{backgroundColor:marginBg, color:'#fff'}}>
           {marginLabel}
         </span>
       </div>
 
-      {/* ─ Limit row ─────────────────────────────────────────────── */}
+      {/* ─ Limit row ─────────────────────────────────────────── */}
       {(minLocal > 0 || maxLocal > 0) && (
-        <div className="px-3 pb-2">
-          <p className="text-[10px]" style={{color:C.g400}}>
+        <div className="px-4 pb-2">
+          <p className="text-xs" style={{color:C.g400}}>
             Limit: {sym}{fmt(minLocal)} – {sym}{fmt(maxLocal)} {cur}
           </p>
         </div>
       )}
 
-      {/* ─ Actions ───────────────────────────────────────────────── */}
-      <div className="px-3 pb-3 flex items-center gap-2">
+      {/* ─ Actions ───────────────────────────────────────────── */}
+      <div className="px-4 pb-4 flex items-center gap-2">
         <button onClick={onViewSeller}
-          className="w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 hover:bg-gray-50 transition"
+          className="w-10 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 hover:bg-gray-50 transition"
           style={{borderColor:C.g200}}>
-          <Info size={14} style={{color:C.g400}}/>
+          <Info size={15} style={{color:C.g400}}/>
         </button>
         <button onClick={onBuy}
-          className="flex-1 py-2.5 rounded-xl text-white font-black text-sm flex items-center justify-center gap-1.5 hover:opacity-90 transition"
+          className="flex-1 h-11 rounded-xl text-white font-black text-base flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition"
           style={{backgroundColor:C.forest}}>
-          TRADE <ArrowRight size={14}/>
+          BUY BTC <ArrowRight size={15}/>
         </button>
       </div>
     </div>
   );
 }
 
-// ── Profile Modal (seller detail popup) ───────────────────────────────────────
+// ── Profile Modal ─────────────────────────────────────────────────────────────
 function ProfileModal({seller, listing, onClose, onTrade}) {
   const [tab, setTab] = useState('rules');
   const { rates: USD_RATES } = useRates();
   if (!seller) return null;
-  const u      = getUser(seller);
-  const badge  = deriveBadge(u);
-  const seen   = getLastSeen(u);
-  const trades = getTrades(u);
-  const rating = parseFloat(u.average_rating||0);
-  const fb     = parseInt(u.total_feedback_count ?? u.feedback_count ?? 0);
-  const margin = parseFloat(listing?.margin||0);
-  const cur    = listing?.currency||'GHS';
-  const sym    = listing?.currency_symbol || CUR_SYM[cur] || '₵';
-  const usdRate= USD_RATES[cur]||1;
+  const u         = getUser(seller);
+  const badge     = deriveBadge(u);
+  const seen      = getLastSeen(u);
+  const trades    = getTrades(u);
+  const rating    = parseFloat(u.average_rating||0);
+  const fb        = parseInt(u.total_feedback_count ?? u.feedback_count ?? 0);
+  const margin    = parseFloat(listing?.margin||0);
+  const cur       = listing?.currency||'GHS';
+  const sym       = listing?.currency_symbol || CUR_SYM[cur] || '₵';
+  const usdRate   = USD_RATES[cur]||1;
   const rateLocal = getRateUSD(listing||{}, 68000) * usdRate;
-  const ccCode = (u?.country_code||u?.country||'gh').toLowerCase();
+  const ccCode    = (u?.country_code||u?.country||'gh').toLowerCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
@@ -349,8 +338,8 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
               {label:'Complete', value:`${u.completion_rate||98}%`},
             ].map(s=>(
               <div key={s.label}>
-                <p className="text-white font-black text-xs sm:text-sm">{s.value}</p>
-                <p className="text-white/50 text-[10px] sm:text-xs">{s.label}</p>
+                <p className="text-white font-black text-sm">{s.value}</p>
+                <p className="text-white/50 text-xs">{s.label}</p>
               </div>
             ))}
           </div>
@@ -371,7 +360,7 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
           ))}
         </div>
 
-        {/* Body - scrollable */}
+        {/* Body */}
         <div className="p-4 overflow-y-auto flex-1" style={{WebkitOverflowScrolling:'touch'}}>
           {tab==='rules' ? (
             <div className="space-y-3">
@@ -435,36 +424,36 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
 function BottomNav() {
   const navigate = useNavigate();
   const items = [
-    {id:'home',      icon:Home,    label:'Home',      path:'/dashboard'},
-    {id:'p2p',       icon:Bitcoin, label:'P2P',       path:'/buy-bitcoin'},
+    {id:'home',      icon:Home,    label:'Home',       path:'/dashboard'},
+    {id:'p2p',       icon:Bitcoin, label:'P2P',        path:'/buy-bitcoin'},
     {id:'giftcards', icon:Gift,    label:'Gift Cards', path:'/gift-cards'},
-    {id:'wallet',    icon:Wallet,  label:'Wallet',    path:'/wallet'},
-    {id:'profile',   icon:User,    label:'Profile',   path:'/profile'},
+    {id:'wallet',    icon:Wallet,  label:'Wallet',     path:'/wallet'},
+    {id:'profile',   icon:User,    label:'Profile',    path:'/profile'},
   ];
 
-  // Determine active from current path
-  const path = window.location.pathname;
+  const path     = window.location.pathname;
   const activeId = path.includes('buy-bitcoin')||path.includes('sell-bitcoin') ? 'p2p'
-                 : path.includes('gift') ? 'giftcards'
-                 : path.includes('wallet') ? 'wallet'
+                 : path.includes('gift')    ? 'giftcards'
+                 : path.includes('wallet')  ? 'wallet'
                  : path.includes('profile') ? 'profile'
                  : 'home';
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 md:hidden"
       style={{borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom, 0px)'}}>
-      <div className="flex items-center justify-around px-2 py-1.5">
-        {items.map(({id,icon:Icon,label,path:to})=>{
-          const active = id===activeId;
+      <div className="flex items-center justify-around px-1 py-2">
+        {items.map(({id, icon:Icon, label, path:to}) => {
+          const active = id === activeId;
           return (
             <button key={id} onClick={()=>navigate(to)}
-              className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all"
-              style={{color:active ? C.forest : C.g400, minWidth:'48px'}}>
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8}/>
-              <span className="text-[10px] font-bold leading-tight">{label}</span>
-              {active && (
-                <span className="w-1 h-1 rounded-full" style={{backgroundColor:C.forest}}/>
-              )}
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all"
+              style={{
+                color: active ? C.forest : C.g400,
+                backgroundColor: active ? `${C.forest}12` : 'transparent',
+                minWidth: '52px',
+              }}>
+              <Icon size={22} strokeWidth={active ? 2.5 : 1.8}/>
+              <span className="text-xs font-bold leading-tight">{label}</span>
             </button>
           );
         })}
@@ -481,7 +470,7 @@ export default function BuyBitcoin({user}) {
   const [loading,      setLoading]      = useState(true);
   const [btcPrice,     setBtcPrice]     = useState(68000);
   const [loadingRates, setLoadingRates] = useState(false);
-  const [selCountry,   setSelCountry]   = useState(COUNTRIES[1]);  // Ghana default
+  const [selCountry,   setSelCountry]   = useState(COUNTRIES[1]);
   const [selPayment,   setSelPayment]   = useState('all');
   const [showFilters,  setShowFilters]  = useState(false);
   const [showCountry,  setShowCountry]  = useState(false);
@@ -494,9 +483,9 @@ export default function BuyBitcoin({user}) {
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{ fetchRates(); loadListings(); },[]);
   useEffect(()=>{
-    const h=e=>{ if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false); };
+    const h = e => { if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false); };
     document.addEventListener('mousedown',h);
-    return()=>document.removeEventListener('mousedown',h);
+    return () => document.removeEventListener('mousedown',h);
   },[]);
 
   const fetchRates = async () => {
@@ -526,11 +515,11 @@ export default function BuyBitcoin({user}) {
     if (selCountry.code!=='ALL') list=list.filter(l=>l.country===selCountry.code);
     if (selPayment!=='all')      list=list.filter(l=>String(l.payment_method||'').toLowerCase().includes(selPayment));
     if (buyAmt && parseFloat(buyAmt)>0) {
-      const a=parseFloat(buyAmt);
+      const a = parseFloat(buyAmt);
       list=list.filter(l=>a>=(l.min_limit_usd||0)&&a<=(l.max_limit_usd||999999));
     }
-    const rate=l=>getRateUSD(l,btcPrice);
-    if (sortBy==='rate_low')  list.sort((a,b)=>rate(a)-rate(b));
+    const rate = l => getRateUSD(l,btcPrice);
+    if (sortBy==='rate_low')    list.sort((a,b)=>rate(a)-rate(b));
     else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
     else if (sortBy==='trades') list.sort((a,b)=>getTrades(b.users)-getTrades(a.users));
     return list;
@@ -541,13 +530,13 @@ export default function BuyBitcoin({user}) {
     navigate(`/listing/${id}`);
   };
 
-  const filtered   = getFiltered();
-  const cur        = selCountry.currency || 'GHS';
-  const sym        = CUR_SYM[cur] || '₵';
-  const usdRate    = USD_RATES[cur] || 1;
-  const btcLocal   = btcPrice * usdRate;
-  const selPmInfo  = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
-  const onlineCnt  = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const filtered  = getFiltered();
+  const cur       = selCountry.currency || 'GHS';
+  const sym       = CUR_SYM[cur] || '₵';
+  const usdRate   = USD_RATES[cur] || 1;
+  const btcLocal  = btcPrice * usdRate;
+  const selPmInfo = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
+  const onlineCnt = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
   const hasFilters = selPayment!=='all' || buyAmt || selCountry.code!=='ALL';
 
   if (loading) return (
@@ -570,14 +559,11 @@ export default function BuyBitcoin({user}) {
         html, body { overscroll-behavior: none; }
       `}</style>
 
-      {/* ══════════════════════════════════════════════════
-          1. RATE BAR
-      ══════════════════════════════════════════════════ */}
+      {/* ══ 1. RATE BAR ════════════════════════════════════════ */}
       <div style={{backgroundColor:C.forest}} className="w-full flex-shrink-0">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-3.5">
           <div className="flex items-center justify-between gap-3">
 
-            {/* Left: heading + rates */}
             <div className="flex-1 min-w-0">
               <p className="text-base sm:text-xl md:text-3xl font-black text-white leading-tight mb-1.5">
                 Buy Bitcoin with{' '}
@@ -586,11 +572,11 @@ export default function BuyBitcoin({user}) {
                 </span>
               </p>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] sm:text-xs font-semibold" style={{color:'rgba(255,255,255,0.5)'}}>
+                <span className="text-xs font-semibold" style={{color:'rgba(255,255,255,0.5)'}}>
                   1 USD = <span className="font-black" style={{color:'rgba(255,255,255,0.75)'}}>{sym}{fmt(usdRate,2)} {cur}</span>
                 </span>
                 <span style={{color:'rgba(255,255,255,0.2)', fontSize:10}}>|</span>
-                <span className="text-[11px] sm:text-xs font-semibold" style={{color:'rgba(255,255,255,0.5)'}}>
+                <span className="text-xs font-semibold" style={{color:'rgba(255,255,255,0.5)'}}>
                   1 BTC = <span className="font-black" style={{color:'rgba(255,255,255,0.75)'}}>{sym}{fmt(btcLocal)} {cur}</span>
                 </span>
               </div>
@@ -605,22 +591,20 @@ export default function BuyBitcoin({user}) {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          2. TAB NAVIGATION
-      ══════════════════════════════════════════════════ */}
+      {/* ══ 2. TAB NAVIGATION ══════════════════════════════════ */}
       <div className="bg-white border-b sticky top-0 z-30 flex-shrink-0" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 overflow-x-auto" style={{WebkitOverflowScrolling:'touch'}}>
           <div className="flex items-center min-w-max">
             {[
-              {label:'Buy BTC',     path:'/buy-bitcoin',  active:true},
-              {label:'Sell BTC',    path:'/sell-bitcoin', active:false},
-              {label:'Gift Cards',  path:'/gift-cards',   active:false},
+              {label:'Buy BTC',    path:'/buy-bitcoin',  active:true},
+              {label:'Sell BTC',   path:'/sell-bitcoin', active:false},
+              {label:'Gift Cards', path:'/gift-cards',   active:false},
             ].map(tab=>(
               <Link key={tab.path} to={tab.path}
                 className="px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
                 style={{
-                  borderColor:tab.active ? C.forest : 'transparent',
-                  color:tab.active ? C.forest : C.g500,
+                  borderColor: tab.active ? C.forest : 'transparent',
+                  color:       tab.active ? C.forest : C.g500,
                 }}>
                 {tab.label}
               </Link>
@@ -628,37 +612,35 @@ export default function BuyBitcoin({user}) {
 
             <div className="ml-auto flex items-center gap-1.5 py-2 flex-shrink-0 pl-3">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
-              <span className="text-[11px] sm:text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>{onlineCnt} online</span>
+              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>{onlineCnt} online</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Active trade alerts */}
+      {/* Active trade banner */}
       <div className="flex-shrink-0">
         <ActiveTradeBanner user={user} currentPage="buy"/>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          3. FILTER BAR
-      ══════════════════════════════════════════════════ */}
+      {/* ══ 3. FILTER BAR ══════════════════════════════════════ */}
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 py-2.5">
 
-          {/* Row 1 — Amount */}
+          {/* Amount input */}
           <div className="flex items-center border-2 rounded-xl overflow-hidden mb-2"
-            style={{borderColor:buyAmt ? C.forest : C.g200}}>
+            style={{borderColor:buyAmt ? C.forest : C.g200, height:'52px'}}>
             <input
               type="number"
               value={buyAmt}
               onChange={e=>setBuyAmt(e.target.value)}
               placeholder="Enter amount"
-              className="flex-1 pl-3 pr-2 py-2.5 sm:py-3 text-base font-bold focus:outline-none bg-transparent w-full min-w-0"
+              className="flex-1 pl-4 pr-2 text-base font-bold focus:outline-none bg-transparent w-full min-w-0"
               style={{color:C.g800, fontSize:'16px'}}/>
-            <span className="pr-3 text-xs font-black flex-shrink-0" style={{color:C.g400}}>{cur}</span>
+            <span className="pr-4 text-xs font-black flex-shrink-0" style={{color:C.g400}}>{cur}</span>
           </div>
 
-          {/* Row 2 — Currency | Payment | Filter */}
+          {/* Currency | Payment | Filter */}
           <div className="flex items-center gap-1.5">
 
             <div className="relative flex-1 min-w-0" ref={countryRef}>
@@ -666,12 +648,12 @@ export default function BuyBitcoin({user}) {
                 onClick={()=>setShowCountry(!showCountry)}
                 className="w-full flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 font-bold transition"
                 style={{
-                  borderColor:selCountry.code!=='ALL' ? C.forest : C.g200,
-                  color:selCountry.code!=='ALL' ? C.forest : C.g600,
-                  backgroundColor:selCountry.code!=='ALL' ? `${C.forest}08` : 'transparent'
+                  borderColor:      selCountry.code!=='ALL' ? C.forest : C.g200,
+                  color:            selCountry.code!=='ALL' ? C.forest : C.g600,
+                  backgroundColor:  selCountry.code!=='ALL' ? `${C.forest}08` : 'transparent',
                 }}>
                 <span className="text-base leading-none flex-shrink-0">{selCountry.flag}</span>
-                <span className="text-[11px] font-black truncate">{selCountry.currency}</span>
+                <span className="text-xs font-black truncate">{selCountry.currency}</span>
                 <ChevronDown size={12} className={`transition-transform flex-shrink-0 ${showCountry?'rotate-180':''}`}
                   style={{color:selCountry.code!=='ALL' ? C.forest : C.g400}}/>
               </button>
@@ -685,7 +667,7 @@ export default function BuyBitcoin({user}) {
                       <span className="text-base">{c.flag}</span>
                       <div className="flex-1 text-left">
                         <p className="font-bold text-xs" style={{color:C.g800}}>{c.name}</p>
-                        <p style={{color:C.g400, fontSize:10}}>{c.currency}</p>
+                        <p className="text-xs" style={{color:C.g400}}>{c.currency}</p>
                       </div>
                       {selCountry.code===c.code && <CheckCircle size={12} style={{color:C.green}}/>}
                     </button>
@@ -696,11 +678,11 @@ export default function BuyBitcoin({user}) {
 
             <button
               onClick={()=>setShowFilters(!showFilters)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-[11px] font-bold transition min-w-0"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-xs font-bold transition min-w-0"
               style={{
-                borderColor:selPayment!=='all' ? C.forest : C.g200,
-                color:selPayment!=='all' ? C.forest : C.g600,
-                backgroundColor:selPayment!=='all' ? `${C.forest}08` : 'transparent'
+                borderColor:     selPayment!=='all' ? C.forest : C.g200,
+                color:           selPayment!=='all' ? C.forest : C.g600,
+                backgroundColor: selPayment!=='all' ? `${C.forest}08` : 'transparent',
               }}>
               {selPmInfo?.icon||'💳'}
               <span className="ml-0.5 truncate">
@@ -710,11 +692,11 @@ export default function BuyBitcoin({user}) {
 
             <button
               onClick={()=>setShowFilters(!showFilters)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-[11px] font-black transition min-w-0"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-xs font-black transition min-w-0"
               style={{
-                borderColor:showFilters||hasFilters ? C.forest : C.g200,
-                color:showFilters||hasFilters ? C.forest : C.g600,
-                backgroundColor:showFilters||hasFilters ? `${C.forest}08` : 'transparent'
+                borderColor:     showFilters||hasFilters ? C.forest : C.g200,
+                color:           showFilters||hasFilters ? C.forest : C.g600,
+                backgroundColor: showFilters||hasFilters ? `${C.forest}08` : 'transparent',
               }}>
               <Filter size={12} className="flex-shrink-0"/>
               <span className="truncate">Filter</span>
@@ -729,7 +711,7 @@ export default function BuyBitcoin({user}) {
             <div className="mt-2.5 pt-2.5 border-t grid grid-cols-1 sm:grid-cols-3 gap-2"
               style={{borderColor:C.g100}}>
               <div>
-                <p className="text-[11px] font-bold mb-1" style={{color:C.g500}}>Payment Method</p>
+                <p className="text-xs font-bold mb-1" style={{color:C.g500}}>Payment Method</p>
                 <select value={selPayment} onChange={e=>setSelPayment(e.target.value)}
                   className="w-full px-2.5 py-2 text-sm border-2 rounded-xl focus:outline-none"
                   style={{borderColor:selPayment!=='all'?C.forest:C.g200, color:C.g800, fontSize:'16px'}}>
@@ -739,7 +721,7 @@ export default function BuyBitcoin({user}) {
                 </select>
               </div>
               <div>
-                <p className="text-[11px] font-bold mb-1" style={{color:C.g500}}>Sort By</p>
+                <p className="text-xs font-bold mb-1" style={{color:C.g500}}>Sort By</p>
                 <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
                   className="w-full px-2.5 py-2 text-sm border-2 rounded-xl focus:outline-none"
                   style={{borderColor:C.g200, color:C.g800, fontSize:'16px'}}>
@@ -760,24 +742,21 @@ export default function BuyBitcoin({user}) {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          4. OFFER GRID
-      ══════════════════════════════════════════════════ */}
+      {/* ══ 4. OFFER GRID ══════════════════════════════════════ */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3 space-y-3" style={{WebkitOverflowScrolling:'touch'}}>
 
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-[11px] sm:text-xs font-semibold" style={{color:C.g500}}>
+          <p className="text-xs font-semibold" style={{color:C.g500}}>
             <span className="font-black text-sm" style={{color:C.g800}}>{filtered.length}</span>{' '}
             offers{selCountry.code!=='ALL' ? ` · ${selCountry.flag} ${selCountry.name}` : ''}
           </p>
           <button onClick={()=>navigate('/create-offer')}
-            className="flex items-center gap-1 text-[11px] font-black px-3 py-1.5 rounded-lg transition hover:opacity-80"
+            className="flex items-center gap-1 text-xs font-black px-3 py-1.5 rounded-lg transition hover:opacity-80"
             style={{backgroundColor:`${C.forest}12`, color:C.forest}}>
             <PlusCircle size={12}/> Sell BTC
           </button>
         </div>
 
-        {/* Cards */}
         {filtered.length===0 ? (
           <div className="bg-white rounded-2xl border p-6 sm:p-10 text-center" style={{borderColor:C.g200}}>
             <p className="text-5xl mb-4">🔍</p>
@@ -816,19 +795,16 @@ export default function BuyBitcoin({user}) {
         <div className="flex items-start gap-2.5 p-3 rounded-xl border"
           style={{backgroundColor:'#FFFBEB', borderColor:'#FDE68A'}}>
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{color:C.warn}}/>
-          <p className="text-[11px] sm:text-xs leading-relaxed" style={{color:'#92400E'}}>
+          <p className="text-xs leading-relaxed" style={{color:'#92400E'}}>
             <strong>Trade Safely:</strong> Never send payment outside an active trade.
             All trades are escrow-protected.
           </p>
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          5. BOTTOM NAVIGATION (mobile only)
-      ══════════════════════════════════════════════════ */}
+      {/* ══ 5. BOTTOM NAV ══════════════════════════════════════ */}
       <BottomNav/>
 
-      {/* Seller profile modal */}
       {modal && (
         <ProfileModal
           seller={modal.seller}

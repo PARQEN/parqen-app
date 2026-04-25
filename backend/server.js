@@ -1201,13 +1201,18 @@ app.post('/api/trades', verifyToken, async (req, res) => {
     } else {
       // ── FALLBACK PATH: live rate re-fetch (no quoteId or gift-card trade) ─
       const FX_API_KEY = 'd51dba3e8a731b12d73e8d72';
-      const [fxApiRes, btcApiRes] = await Promise.all([
-        fetch(`https://v6.exchangerate-api.com/v6/${FX_API_KEY}/latest/USD`),
-        fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'),
-      ]);
-      const fxApiData = await fxApiRes.json();
-      if (fxApiData.result !== 'success') throw new Error('ExchangeRate-API failed to fetch rates');
-      const fxRates       = fxApiData.conversion_rates;
+      let fxApiData;
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        fxApiData = await res.json();
+      } catch (e) {
+        // Fallback to ExchangeRate-API if open.er-api.com is down
+        const res = await fetch(`https://v6.exchangerate-api.com/v6/${FX_API_KEY}/latest/USD`);
+        fxApiData = await res.json();
+      }
+      const btcApiRes = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+      if (fxApiData.result !== 'success') throw new Error('FX rate fetch failed');
+      const fxRates       = fxApiData.rates;
       const btcApiData    = await btcApiRes.json();
       const marketRateUSD = parseFloat(btcApiData.data.amount) || await getCurrentBTCPrice();
       const tradeCurRate  = (tradeCur && fxRates[tradeCur]) ? fxRates[tradeCur] : 1;

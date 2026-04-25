@@ -15,7 +15,7 @@ async function createQuote(listing) {
   const FX_API_KEY = 'd51dba3e8a731b12d73e8d72';
 
   const [fxRes, btcRes] = await Promise.all([
-    fetch(`https://v6.exchangerate-api.com/v6/${FX_API_KEY}/latest/USD`),
+    fetch('https://open.er-api.com/v6/latest/USD'),
     fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'),
   ]);
 
@@ -25,7 +25,7 @@ async function createQuote(listing) {
   if (fxData.result !== 'success') throw new Error('FX rate fetch failed');
 
   const currency   = listing.currency || 'USD';
-  const usdToLocal = fxData.conversion_rates[currency] || 1;
+  const usdToLocal = fxData.rates[currency] || 1;
   const btcUsd     = parseFloat(btcData.data.amount);
   const margin     = parseFloat(listing.margin || 0);
 

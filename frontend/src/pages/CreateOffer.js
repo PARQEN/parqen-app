@@ -44,7 +44,29 @@ const COUNTRIES = [
   { code:'CA', name:'Canada',         currency:'CAD', symbol:'C$',  flag:'🇨🇦' },
   { code:'SG', name:'Singapore',      currency:'SGD', symbol:'S$',  flag:'🇸🇬' },
   { code:'IN', name:'India',          currency:'INR', symbol:'₹',   flag:'🇮🇳' },
+  // Europe
+  { code:'DE', name:'Germany',        currency:'EUR', symbol:'€',   flag:'🇩🇪' },
+  { code:'ES', name:'Spain',          currency:'EUR', symbol:'€',   flag:'🇪🇸' },
+  { code:'RU', name:'Russia',         currency:'RUB', symbol:'₽',   flag:'🇷🇺' },
+  // Americas
+  { code:'VE', name:'Venezuela',      currency:'VES', symbol:'Bs.', flag:'🇻🇪' },
+  // Asia
+  { code:'CN', name:'China',          currency:'CNY', symbol:'¥',   flag:'🇨🇳' },
+  { code:'JP', name:'Japan',          currency:'JPY', symbol:'¥',   flag:'🇯🇵' },
+  { code:'KR', name:'South Korea',    currency:'KRW', symbol:'₩',   flag:'🇰🇷' },
+  { code:'PH', name:'Philippines',    currency:'PHP', symbol:'₱',   flag:'🇵🇭' },
+  { code:'TH', name:'Thailand',       currency:'THB', symbol:'฿',   flag:'🇹🇭' },
+  { code:'MY', name:'Malaysia',       currency:'MYR', symbol:'RM',  flag:'🇲🇾' },
+  { code:'ID', name:'Indonesia',      currency:'IDR', symbol:'Rp',  flag:'🇮🇩' },
+  { code:'VN', name:'Vietnam',        currency:'VND', symbol:'₫',   flag:'🇻🇳' },
+  { code:'PK', name:'Pakistan',       currency:'PKR', symbol:'₨',   flag:'🇵🇰' },
+  { code:'BD', name:'Bangladesh',     currency:'BDT', symbol:'৳',   flag:'🇧🇩' },
 ];
+
+// Deduplicated currency list derived from COUNTRIES
+const CURRENCIES_LIST = [...new Map(
+  COUNTRIES.map(c => [c.currency, { code: c.currency, symbol: c.symbol }])
+).values()];
 
 // USD_RATES is now provided by RatesContext — do NOT define a static object here
 
@@ -156,16 +178,20 @@ export default function CreateOffer() {
   const [offerType, setOfferType] = useState('sell'); // sell | buy | gc_buy
 
   // Step 2 – GC
-  const [gcBrand,     setGcBrand]     = useState('Amazon');
-  const [gcFaceValue, setGcFaceValue] = useState(50);
-  const [gcSearch,    setGcSearch]    = useState('');
+  const [gcBrand,      setGcBrand]      = useState('Amazon');
+  const [gcCardType,   setGcCardType]   = useState('both');   // 'physical' | 'ecode' | 'both'
+  const [gcCardValues, setGcCardValues] = useState([50]);     // array of selected denominations
+  const [gcSearch,     setGcSearch]     = useState('');
 
   // Step 2/3 – Country + Payment
-  const [country,       setCountry]       = useState('GH');
-  const [countrySearch, setCountrySearch] = useState('');
-  const [payMethod,     setPayMethod]     = useState('');
-  const [paySearch,     setPaySearch]     = useState('');
-  const [showPayMenu,   setShowPayMenu]   = useState(false);
+  const [country,        setCountry]        = useState('GH');
+  const [countrySearch,  setCountrySearch]  = useState('');
+  const [currencyCode,   setCurrencyCode]   = useState('GHS');
+  const [currencySymbol, setCurrencySymbol] = useState('₵');
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [payMethod,      setPayMethod]      = useState('');
+  const [paySearch,      setPaySearch]      = useState('');
+  const [showPayMenu,    setShowPayMenu]    = useState(false);
 
   // Step 3/4 – Pricing
   const [pricingType, setPricingType] = useState('market');
@@ -186,13 +212,13 @@ export default function CreateOffer() {
 
   // Derived values
   const curr       = COUNTRIES.find(c => c.code === country);
-  const localRate  = USD_RATES[curr?.currency] || 1;
+  const localRate  = USD_RATES[currencyCode] || 1;
   const btcLocal   = btcPrice * localRate;
   const effectiveRate = pricingType === 'fixed' && fixedPrice
     ? parseFloat(fixedPrice)
     : btcLocal * (1 + margin / 100);
-  const sym = curr?.symbol || '$';
-  const cur = curr?.currency || 'USD';
+  const sym = currencySymbol || '$';
+  const cur = currencyCode   || 'USD';
 
   // Grouped payment methods for dropdown
   const matchesPay = (m) => {
@@ -214,10 +240,12 @@ export default function CreateOffer() {
   );
 
   // BTC amounts
-  const minLocalVal = isGC ? gcFaceValue : (parseFloat(minLimit) || 0);
-  const maxLocalVal = isGC ? gcFaceValue : (parseFloat(maxLimit) || 0);
-  const minUSDVal   = isGC ? gcFaceValue : (minLocalVal / localRate);
-  const maxUSDVal   = isGC ? gcFaceValue : (maxLocalVal / localRate);
+  const gcMinVal    = gcCardValues.length ? Math.min(...gcCardValues) : 0;
+  const gcMaxVal    = gcCardValues.length ? Math.max(...gcCardValues) : 0;
+  const minLocalVal = isGC ? gcMinVal : (parseFloat(minLimit) || 0);
+  const maxLocalVal = isGC ? gcMaxVal : (parseFloat(maxLimit) || 0);
+  const minUSDVal   = isGC ? gcMinVal : (minLocalVal / localRate);
+  const maxUSDVal   = isGC ? gcMaxVal : (maxLocalVal / localRate);
 
   // Wallet capacity in local currency
   // SELL/gc_buy: user locks BTC → capacity = BTC balance × local BTC price
@@ -258,17 +286,21 @@ export default function CreateOffer() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Reset payment when country changes
-  useEffect(() => { setPayMethod(''); }, [country]);
+  // Reset payment + auto-update currency when country changes
+  useEffect(() => {
+    setPayMethod('');
+    const c = COUNTRIES.find(ct => ct.code === country);
+    if (c) { setCurrencyCode(c.currency); setCurrencySymbol(c.symbol); }
+  }, [country]);
 
   const canNext = () => {
     if (step === 1) return !!offerType;
     if (step === 2) {
-      if (isGC) return !!gcBrand;
+      if (isGC) return !!gcBrand && gcCardValues.length > 0;
       return !!country && !!payMethod;
     }
     if (step === 3) {
-      if (isGC) return !!country && !!payMethod;
+      if (isGC) return !!country;
       if (pricingType === 'fixed') return !!fixedPrice && parseFloat(fixedPrice) > 0;
       return true;
     }
@@ -302,11 +334,13 @@ export default function CreateOffer() {
         seller_id:         user.id,
         listing_type:      listingTypeMap[offerType],
         gift_card_brand:   isGC ? gcBrand : null,
-        face_value:        isGC ? gcFaceValue : null,
-        amount_usd:        isGC ? gcFaceValue : minUSDVal,
+        face_value:        isGC ? gcMinVal : null,
+        card_values:       isGC ? gcCardValues : null,
+        card_type:         isGC ? gcCardType : null,
+        amount_usd:        isGC ? gcMinVal : minUSDVal,
         bitcoin_price:     rateUSD,
         margin:            pricingType === 'market' ? margin : 0,
-        payment_method:    selectedPay?.name || payMethod,
+        payment_method:    isGC ? gcBrand : (selectedPay?.name || payMethod),
         country:           country,
         country_name:      curr?.name,
         currency:          cur,
@@ -439,20 +473,19 @@ export default function CreateOffer() {
         {isGC ? (
           <>
             <div>
-              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
-                {offerType === 'gc_buy' ? 'Pay BTC' : 'Receive BTC'}
-              </p>
-              <p className="text-xs font-black" style={{ color: C.g800 }}>
-                {gcFaceValue > 0 && effectiveRate > 0
-                  ? `₿${(gcFaceValue / effectiveRate * localRate).toFixed(6)}`
-                  : '₿ —'}
-              </p>
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>Card Range</p>
+              <div className="flex flex-wrap gap-1">
+                {gcCardValues.length > 0 ? gcCardValues.map(v => (
+                  <span key={v} className="text-xs font-black px-1.5 py-0.5 rounded-full text-white"
+                    style={{ backgroundColor: C.purple }}>${v}</span>
+                )) : <span className="text-xs" style={{ color: C.g400 }}>—</span>}
+              </div>
             </div>
             <div className="border-l pl-2" style={{ borderColor: C.g100 }}>
-              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>
-                {gcBrand}
+              <p className="text-xs font-black uppercase tracking-wide mb-0.5" style={{ color: C.g500 }}>{gcBrand}</p>
+              <p className="text-xs font-black" style={{ color: C.g800 }}>
+                {gcCardType === 'physical' ? 'Physical Card' : gcCardType === 'ecode' ? 'E-Code' : 'Physical & E-Code'}
               </p>
-              <p className="text-xs font-black" style={{ color: C.g800 }}>${gcFaceValue} USD</p>
             </div>
           </>
         ) : (
@@ -488,7 +521,9 @@ export default function CreateOffer() {
         </div>
         <div className="flex items-center justify-between text-xs" style={{ color: C.g400 }}>
           {isGC ? (
-            <span>Gift Card: ${gcFaceValue}</span>
+            <span>
+              {gcBrand} · {gcCardValues.length ? gcCardValues.map(v => `$${v}`).join(', ') : '—'}
+            </span>
           ) : (
             <span>{minLimit && maxLimit
               ? `${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}`
@@ -748,43 +783,82 @@ export default function CreateOffer() {
                 </div>
               </div>
 
-              {/* Face Value */}
+              {/* Card Type */}
               <div>
                 <label className="block text-sm font-bold mb-1.5" style={{ color: C.g700 }}>
-                  Face Value (USD) <span style={{ color: C.danger }}>*</span>
+                  Card Type <span style={{ color: C.danger }}>*</span>
                 </label>
-                <p className="text-xs mb-2" style={{ color: C.g500 }}>
-                  Select the denomination of the gift card.
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {GC_FACE_VALUES.map(v => (
-                    <button key={v} onClick={() => setGcFaceValue(v)}
-                      className="py-3 rounded-xl font-black text-sm transition-all border-2"
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { val:'physical', label:'Physical Card' },
+                    { val:'ecode',    label:'E-Code' },
+                    { val:'both',     label:'Both' },
+                  ].map(({ val, label }) => (
+                    <button key={val} onClick={() => setGcCardType(val)}
+                      className="py-2.5 rounded-xl font-bold text-sm transition-all border-2"
                       style={{
-                        borderColor: gcFaceValue === v ? C.purple : C.g200,
-                        backgroundColor: gcFaceValue === v ? C.purple : C.white,
-                        color: gcFaceValue === v ? C.white : C.g700,
+                        borderColor: gcCardType === val ? C.purple : C.g200,
+                        backgroundColor: gcCardType === val ? C.purple : C.white,
+                        color: gcCardType === val ? C.white : C.g700,
                       }}>
-                      ${v}
+                      {label}
                     </button>
                   ))}
                 </div>
+              </div>
 
-                {/* BTC equivalent */}
-                {gcFaceValue > 0 && (
-                  <div className="mt-3 p-3 rounded-xl flex items-center justify-between"
+              {/* Card Range (multi-select denominations) */}
+              <div>
+                <label className="block text-sm font-bold mb-1.5" style={{ color: C.g700 }}>
+                  Card Range (USD) <span style={{ color: C.danger }}>*</span>
+                </label>
+                <p className="text-xs mb-2" style={{ color: C.g500 }}>
+                  Tap denominations you accept — select one or many.
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {GC_FACE_VALUES.map(v => {
+                    const selected = gcCardValues.includes(v);
+                    return (
+                      <button key={v}
+                        onClick={() => setGcCardValues(prev =>
+                          selected ? prev.filter(x => x !== v) : [...prev, v].sort((a, b) => a - b)
+                        )}
+                        className="relative py-3 rounded-xl font-black text-sm transition-all border-2"
+                        style={{
+                          borderColor: selected ? C.purple : C.g200,
+                          backgroundColor: selected ? C.purple : C.white,
+                          color: selected ? C.white : C.g700,
+                        }}>
+                        ${v}
+                        {selected && (
+                          <span className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}>
+                            <Check size={9} style={{ color: C.white }} />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {gcCardValues.length > 0 && (
+                  <div className="mt-3 p-3 rounded-xl flex items-start gap-3"
                     style={{ backgroundColor: `${C.purple}08`, border: `1px solid ${C.purple}20` }}>
-                    <div>
-                      <p className="text-xs font-semibold mb-0.5" style={{ color: C.g500 }}>
-                        BTC equivalent at market price
-                      </p>
-                      <p className="text-base font-black" style={{ color: C.forest }}>
-                        ₿{(gcFaceValue / btcPrice).toFixed(6)}
-                      </p>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold mb-1.5" style={{ color: C.g500 }}>Selected card range</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {gcCardValues.map(v => (
+                          <span key={v} className="text-xs font-black px-2.5 py-1 rounded-full text-white"
+                            style={{ backgroundColor: C.purple }}>${v}</span>
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs" style={{ color: C.g400 }}>Face value</p>
-                      <p className="text-sm font-black" style={{ color: C.purple }}>${gcFaceValue} USD</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs" style={{ color: C.g400 }}>BTC equiv.</p>
+                      <p className="text-xs font-black" style={{ color: C.forest }}>
+                        ₿{(gcMinVal / btcPrice).toFixed(6)}
+                      </p>
+                      <p className="text-xs" style={{ color: C.g400 }}>at min ${gcMinVal}</p>
                     </div>
                   </div>
                 )}
@@ -796,10 +870,13 @@ export default function CreateOffer() {
           {((step === 2 && !isGC) || (step === 3 && isGC)) && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-black mb-0.5" style={{ color: C.forest }}>Location & Payment</h2>
+                <h2 className="text-xl font-black mb-0.5" style={{ color: C.forest }}>
+                  {isGC ? 'Location & Gift Card' : 'Location & Payment'}
+                </h2>
                 <p className="text-xs" style={{ color: C.g500 }}>
                   {offerType === 'sell' ? 'Where should buyers pay you?' :
                    offerType === 'buy'  ? 'Where will you pay sellers?' :
+                   isGC ? 'Where are you located? Gift card details from previous step.' :
                    'Where are you located?'}
                 </p>
               </div>
@@ -811,15 +888,14 @@ export default function CreateOffer() {
                 </label>
                 <div className="relative mb-2">
                   <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: C.g400 }} />
-                  <input type="text" placeholder="Search country or currency…"
+                  <input type="text" placeholder="Search country…"
                     value={countrySearch} onChange={e => setCountrySearch(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none"
                     style={{ borderColor: C.g200 }} />
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
                   {COUNTRIES.filter(c =>
-                    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
-                    c.currency.toLowerCase().includes(countrySearch.toLowerCase())
+                    c.name.toLowerCase().includes(countrySearch.toLowerCase())
                   ).map(c => (
                     <button key={c.code}
                       onClick={() => { setCountry(c.code); setCountrySearch(''); }}
@@ -828,72 +904,140 @@ export default function CreateOffer() {
                         borderColor: country === c.code ? C.green : C.g200,
                         backgroundColor: country === c.code ? `${C.green}10` : C.white,
                       }}>
-                      <span className="text-lg flex-shrink-0">{c.flag}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate" style={{ color: C.g800 }}>{c.name}</p>
-                        <p className="text-xs font-black" style={{ color: C.g400 }}>
-                          {c.symbol} {c.currency}
-                        </p>
-                      </div>
+                      <span className="text-xl flex-shrink-0">{c.flag}</span>
+                      <span className="text-xs font-bold truncate flex-1" style={{ color: C.g800 }}>{c.name}</span>
                       {country === c.code && <Check size={12} style={{ color: C.green, flexShrink: 0 }} />}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Payment method dropdown */}
-              {curr && (
-                <div ref={payRef} className="relative">
-                  <label className="block text-sm font-bold mb-1.5" style={{ color: C.g700 }}>
-                    Payment Method <span style={{ color: C.danger }}>*</span>
-                  </label>
-                  <p className="text-xs mb-2" style={{ color: C.g500 }}>
-                    How {offerType === 'sell' ? 'buyers pay you' : offerType === 'buy' ? 'you pay sellers' : 'you want to transact'}
-                  </p>
-
-                  <button onClick={() => setShowPayMenu(!showPayMenu)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition"
-                    style={{
-                      borderColor: payMethod ? C.green : C.g200,
-                      backgroundColor: payMethod ? `${C.green}05` : C.white,
-                    }}>
-                    {selectedPay ? (
-                      <>
-                        <span className="text-xl">{selectedPay.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold" style={{ color: C.g800 }}>{selectedPay.name}</p>
-                          <p className="text-xs" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
-                            {selectedPay.cat}
-                          </p>
-                        </div>
-                        <button onClick={e => { e.stopPropagation(); setPayMethod(''); }}
-                          className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-gray-100 flex-shrink-0">
-                          <X size={11} style={{ color: C.g400 }} />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: C.g100 }}>
-                          <DollarSign size={15} style={{ color: C.g400 }} />
-                        </div>
-                        <span className="flex-1 text-sm" style={{ color: C.g400 }}>Select payment method…</span>
-                        <ChevronDown size={15} style={{ color: C.g400 }} />
-                      </>
-                    )}
-                  </button>
-                  {showPayMenu && <PayDropdown />}
-
-                  {/* Category legend */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {Object.entries(CAT_COLORS).map(([cat, color]) => (
-                      <span key={cat} className="text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: `${color}15`, color }}>
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
+              {/* Currency selector — separate from country */}
+              <div>
+                <label className="block text-sm font-bold mb-0.5" style={{ color: C.g700 }}>
+                  Currency
+                </label>
+                <p className="text-xs mb-2" style={{ color: C.g500 }}>
+                  Auto-set from country — change independently if needed.
+                </p>
+                <div className="relative mb-2">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: C.g400 }} />
+                  <input type="text" placeholder="Search currency…"
+                    value={currencySearch} onChange={e => setCurrencySearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none"
+                    style={{ borderColor: C.g200 }} />
                 </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {CURRENCIES_LIST.filter(c =>
+                    c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+                    c.symbol.toLowerCase().includes(currencySearch.toLowerCase())
+                  ).map(c => (
+                    <button key={c.code}
+                      onClick={() => { setCurrencyCode(c.code); setCurrencySymbol(c.symbol); setCurrencySearch(''); }}
+                      className="flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all hover:shadow-sm"
+                      style={{
+                        borderColor: currencyCode === c.code ? C.green : C.g200,
+                        backgroundColor: currencyCode === c.code ? `${C.green}10` : C.white,
+                      }}>
+                      <span className="text-sm font-black flex-shrink-0" style={{ color: C.forest }}>{c.symbol}</span>
+                      <span className="text-xs font-bold truncate flex-1" style={{ color: C.g800 }}>{c.code}</span>
+                      {currencyCode === c.code && <Check size={11} style={{ color: C.green, flexShrink: 0 }} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment section — GC shows brand card, BTC shows payment dropdown */}
+              {curr && (
+                isGC ? (
+                  <div>
+                    <label className="block text-sm font-bold mb-1.5" style={{ color: C.g700 }}>
+                      Gift Card as Payment
+                    </label>
+                    <p className="text-xs mb-3" style={{ color: C.g500 }}>
+                      Sellers will bring you this gift card in exchange for your Bitcoin.
+                    </p>
+                    <div className="p-4 rounded-2xl border-2 flex items-center gap-4"
+                      style={{ borderColor: C.purple, backgroundColor: `${C.purple}06` }}>
+                      <span className="text-4xl flex-shrink-0">
+                        {GC_BRANDS.find(b => b.name === gcBrand)?.icon || '🎁'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-base" style={{ color: C.forest }}>{gcBrand}</p>
+                        <p className="text-xs mt-0.5" style={{ color: C.g500 }}>
+                          {gcCardType === 'physical' ? 'Physical Card' : gcCardType === 'ecode' ? 'E-Code' : 'Physical Card & E-Code'}
+                        </p>
+                        {gcCardValues.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {gcCardValues.map(v => (
+                              <span key={v} className="text-xs font-black px-2 py-0.5 rounded-full text-white"
+                                style={{ backgroundColor: C.purple }}>${v}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: `${C.purple}15`, color: C.purple }}>
+                        Payment
+                      </span>
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: C.g400 }}>
+                      To change brand or denominations, go back to the previous step.
+                    </p>
+                  </div>
+                ) : (
+                  <div ref={payRef} className="relative">
+                    <label className="block text-sm font-bold mb-1.5" style={{ color: C.g700 }}>
+                      Payment Method <span style={{ color: C.danger }}>*</span>
+                    </label>
+                    <p className="text-xs mb-2" style={{ color: C.g500 }}>
+                      How {offerType === 'sell' ? 'buyers pay you' : 'you pay sellers'}
+                    </p>
+
+                    <button onClick={() => setShowPayMenu(!showPayMenu)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition"
+                      style={{
+                        borderColor: payMethod ? C.green : C.g200,
+                        backgroundColor: payMethod ? `${C.green}05` : C.white,
+                      }}>
+                      {selectedPay ? (
+                        <>
+                          <span className="text-xl">{selectedPay.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold" style={{ color: C.g800 }}>{selectedPay.name}</p>
+                            <p className="text-xs" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
+                              {selectedPay.cat}
+                            </p>
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); setPayMethod(''); }}
+                            className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-gray-100 flex-shrink-0">
+                            <X size={11} style={{ color: C.g400 }} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: C.g100 }}>
+                            <DollarSign size={15} style={{ color: C.g400 }} />
+                          </div>
+                          <span className="flex-1 text-sm" style={{ color: C.g400 }}>Select payment method…</span>
+                          <ChevronDown size={15} style={{ color: C.g400 }} />
+                        </>
+                      )}
+                    </button>
+                    {showPayMenu && <PayDropdown />}
+
+                    {/* Category legend */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {Object.entries(CAT_COLORS).map(([cat, color]) => (
+                        <span key={cat} className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: `${color}15`, color }}>
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
             </div>
           )}
@@ -1338,8 +1482,9 @@ export default function CreateOffer() {
                       {[
                         { label:'Type',       val: OFFER_TYPES.find(o => o.id === offerType)?.title },
                         ...(isGC ? [
-                          { label:'Brand',    val: gcBrand },
-                          { label:'Value',    val: `$${gcFaceValue} USD` },
+                          { label:'Brand',      val: gcBrand },
+                          { label:'Card Type',  val: gcCardType === 'physical' ? 'Physical Card' : gcCardType === 'ecode' ? 'E-Code' : 'Physical Card & E-Code' },
+                          { label:'Card Range', val: gcCardValues.length ? gcCardValues.map(v => `$${v}`).join(', ') : '—' },
                         ] : []),
                         { label:'Country',    val: curr ? `${curr.flag} ${curr.name}` : '—' },
                         { label:'Currency',   val: curr ? `${curr.symbol} ${curr.currency}` : '—' },

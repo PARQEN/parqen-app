@@ -190,149 +190,141 @@ function ToggleSwitch({ active, onToggle, loading }) {
 // ─── Compact Offer Card ───────────────────────────────────────────────────────
 function OfferCard({ listing, onEdit, onDelete, onToggle }) {
   const { rates: USD_RATES } = useRates();
-  const [toggling, setToggling] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [toggling,       setToggling]       = useState(false);
+  const [confirmDelete,  setConfirmDelete]  = useState(false);
+  const [copied,         setCopied]         = useState(false);
 
-  const isActive  = listing.status === 'ACTIVE';
-  const tab       = tabOf(listing);
-  const cur       = listing.currency || 'USD';
-  const sym       = listing.currency_symbol || CUR_SYM[cur] || '$';
-  const usdRate   = USD_RATES[cur] || 1;
-  const margin    = parseFloat(listing.margin || 0);
-  const minLocal  = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd * usdRate : 0);
-  const maxLocal  = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 0);
-  const views     = parseInt(listing.view_count || 0);
+  const isActive = listing.status === 'ACTIVE';
+  const tab      = tabOf(listing);
+  const cur      = listing.currency || 'USD';
+  const sym      = listing.currency_symbol || CUR_SYM[cur] || '$';
+  const usdRate  = USD_RATES[cur] || 1;
+  const margin   = parseFloat(listing.margin || 0);
+  const minLocal = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd * usdRate : 0);
+  const maxLocal = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 0);
+  const views    = parseInt(listing.view_count || 0);
 
   const TYPE_CFG = {
-    sell: { label:'Sell Bitcoin',  badge:'Buy BTC page',   color:C.green,  icon:Bitcoin      },
-    buy:  { label:'Buy Bitcoin',   badge:'Sell BTC page',  color:C.paid,   icon:ShoppingCart },
-    gift: { label:'Buy Gift Card', badge:'Gift Cards page', color:C.purple, icon:Gift         },
+    sell: { label:'Sell BTC',   badge:'Buy BTC page',    color:C.green,  icon:Bitcoin      },
+    buy:  { label:'Buy BTC',    badge:'Sell BTC page',   color:C.paid,   icon:ShoppingCart },
+    gift: { label:'Gift Card',  badge:'Gift Cards page', color:C.purple, icon:Gift         },
   };
   const tc   = TYPE_CFG[tab] || TYPE_CFG.sell;
   const Icon = tc.icon;
 
-  const handleToggle = async () => { setToggling(true); await onToggle(listing.id, listing.status); setToggling(false); };
+  const handleToggle = async () => {
+    setToggling(true);
+    await onToggle(listing.id, listing.status);
+    setToggling(false);
+  };
 
-  const copyShareLink = () => {
-    const url = shareUrl(listing.id);
-    navigator.clipboard.writeText(url)
-      .then(() => toast.success('Offer link copied! Share it with buyers.'))
+  const copyLink = () => {
+    navigator.clipboard.writeText(shareUrl(listing.id))
+      .then(() => { setCopied(true); toast.success('Link copied!'); setTimeout(()=>setCopied(false),2000); })
       .catch(() => toast.error('Could not copy link'));
   };
 
   const marginDisplay = margin === 0 ? 'Market' : margin > 0 ? `+${margin}%` : `${margin}%`;
   const marginColor   = margin > 0 ? C.success : margin < 0 ? C.danger : C.g500;
   const rangeDisplay  = minLocal > 0 && maxLocal > 0
-    ? `${sym}${fmt(minLocal)}–${sym}${fmt(maxLocal)} ${cur}`
+    ? `${sym}${fmt(minLocal)}–${sym}${fmt(maxLocal)}`
     : '—';
 
   return (
-    <div className="bg-white rounded-xl border transition-all"
-      style={{borderColor: isActive ? `${tc.color}35` : C.g200, opacity: isActive ? 1 : 0.75}}>
+    <div className="bg-white rounded-xl border transition-all w-full overflow-hidden"
+      style={{borderColor: isActive ? `${tc.color}40` : C.g200, opacity: isActive ? 1 : 0.75}}>
 
-      {/* Left accent bar */}
-      <div className="flex">
-        <div className="w-1 rounded-l-xl flex-shrink-0" style={{backgroundColor: isActive ? tc.color : C.g200}}/>
+      {/* ── Top: type + status + toggle + delete ── */}
+      <div className="flex items-center gap-2 px-3 pt-2.5 pb-2 border-b" style={{borderColor:C.g100}}>
+        {/* Icon */}
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{backgroundColor:`${tc.color}15`}}>
+          <Icon size={13} style={{color:tc.color}}/>
+        </div>
 
-        <div className="flex-1 p-3 space-y-2.5">
-
-          {/* ── Row 1: icon + label + toggle + delete ── */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{backgroundColor:`${tc.color}12`}}>
-              <Icon size={15} style={{color:tc.color}}/>
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-black text-xs" style={{color:C.forest}}>{tc.label}</span>
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                  style={{backgroundColor:`${tc.color}12`,color:tc.color}}>
-                  {tc.badge}
-                </span>
-                {listing.gift_card_brand && (
-                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                    style={{backgroundColor:`${C.purple}12`,color:C.purple}}>
-                    {listing.gift_card_brand}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs mt-0.5 font-mono" style={{color:C.g400}}>
-                #{String(listing.id||'').slice(0,8).toUpperCase()} · {isActive?'🟢 Live':'⏸ Paused'}
-              </p>
-            </div>
-
-            {/* Toggle ON/OFF */}
-            <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-              <ToggleSwitch active={isActive} onToggle={handleToggle} loading={toggling}/>
-              <span className="text-xs font-black" style={{color:isActive?C.success:C.g400}}>
-                {isActive?'ON':'OFF'}
+        {/* Label + ID */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="font-black text-xs" style={{color:C.forest}}>{tc.label}</span>
+            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+              style={{backgroundColor:`${tc.color}12`,color:tc.color,fontSize:10}}>
+              {tc.badge}
+            </span>
+            {listing.gift_card_brand && (
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                style={{backgroundColor:`${C.purple}12`,color:C.purple,fontSize:10}}>
+                {listing.gift_card_brand}
               </span>
-            </div>
-
-            {/* Delete */}
-            {confirmDelete ? (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button onClick={()=>setConfirmDelete(false)}
-                  className="text-xs font-bold px-1.5 py-1 rounded-lg border"
-                  style={{borderColor:C.g200,color:C.g500}}>
-                  No
-                </button>
-                <button onClick={()=>{setConfirmDelete(false);onDelete(listing.id);}}
-                  className="text-xs font-black px-2 py-1 rounded-lg text-white"
-                  style={{backgroundColor:C.danger}}>
-                  Delete
-                </button>
-              </div>
-            ) : (
-              <button onClick={()=>setConfirmDelete(true)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center border hover:bg-red-50 transition flex-shrink-0"
-                style={{borderColor:C.g200}} title="Delete offer">
-                <Trash2 size={12} style={{color:C.danger}}/>
-              </button>
             )}
           </div>
-
-          {/* ── Row 2: compact metrics ── */}
-          <div className="flex items-center gap-0 text-xs divide-x rounded-lg overflow-hidden border"
-            style={{borderColor:C.g100}}>
-            <div className="flex-1 px-2.5 py-1.5 text-center">
-              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Margin</p>
-              <p className="font-black text-xs" style={{color:marginColor}}>{marginDisplay}</p>
-            </div>
-            <div className="flex-1 px-2.5 py-1.5 text-center min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Range</p>
-              <p className="font-black text-xs truncate" style={{color:C.forest}}>{rangeDisplay}</p>
-            </div>
-            <div className="flex-1 px-2.5 py-1.5 text-center min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Payment</p>
-              <p className="font-black text-xs truncate" style={{color:C.paid}}>{listing.payment_method||'—'}</p>
-            </div>
-            <div className="flex-none px-2.5 py-1.5 text-center">
-              <p className="text-xs font-bold uppercase tracking-wide" style={{color:C.g400}}>Views</p>
-              <p className="font-black text-xs flex items-center gap-0.5 justify-center" style={{color:C.amber}}>
-                <Eye size={9}/>{fmt(views)}
-              </p>
-            </div>
-          </div>
-
-          {/* ── Row 3: action buttons ── */}
-          <div className="flex items-center gap-1.5">
-            <button onClick={()=>onEdit(listing)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-gray-50 transition flex-1 justify-center"
-              style={{borderColor:C.green,color:C.green}}>
-              <Edit size={10}/> Edit
-            </button>
-            <button onClick={copyShareLink}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 transition flex-1 justify-center"
-              style={{borderColor:C.paid,color:C.paid}}>
-              <Share2 size={10}/> Share Link
-            </button>
-            <span className="text-xs" style={{color:C.g400}}>
-              <Clock size={9} className="inline mr-0.5"/>{listing.time_limit||30}m
-            </span>
-          </div>
+          <p className="text-xs mt-0.5" style={{color:isActive?C.success:C.g400,fontSize:10}}>
+            {isActive?'🟢 Live':'⏸ Paused'} · #{String(listing.id||'').slice(0,6).toUpperCase()}
+          </p>
         </div>
+
+        {/* Toggle */}
+        <div className="flex flex-col items-center flex-shrink-0">
+          <ToggleSwitch active={isActive} onToggle={handleToggle} loading={toggling}/>
+          <span style={{fontSize:9,fontWeight:900,color:isActive?C.success:C.g400}}>
+            {isActive?'ON':'OFF'}
+          </span>
+        </div>
+
+        {/* Delete */}
+        {confirmDelete ? (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={()=>setConfirmDelete(false)}
+              className="text-xs font-bold px-1.5 py-1 rounded-lg border"
+              style={{borderColor:C.g200,color:C.g500,fontSize:10}}>No</button>
+            <button onClick={()=>{setConfirmDelete(false);onDelete(listing.id);}}
+              className="text-xs font-black px-2 py-1 rounded-lg text-white"
+              style={{backgroundColor:C.danger,fontSize:10}}>Del</button>
+          </div>
+        ) : (
+          <button onClick={()=>setConfirmDelete(true)}
+            className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{backgroundColor:`${C.danger}10`}}>
+            <Trash2 size={11} style={{color:C.danger}}/>
+          </button>
+        )}
+      </div>
+
+      {/* ── Metrics: 2×2 grid ── */}
+      <div className="grid grid-cols-2 gap-px" style={{backgroundColor:C.g100}}>
+        <div className="bg-white px-3 py-2">
+          <p style={{fontSize:10,fontWeight:700,color:C.g400,textTransform:'uppercase',letterSpacing:'0.04em'}}>Margin</p>
+          <p className="font-black text-xs mt-0.5" style={{color:marginColor}}>{marginDisplay}</p>
+        </div>
+        <div className="bg-white px-3 py-2 min-w-0 overflow-hidden">
+          <p style={{fontSize:10,fontWeight:700,color:C.g400,textTransform:'uppercase',letterSpacing:'0.04em'}}>Range</p>
+          <p className="font-black text-xs mt-0.5 truncate" style={{color:C.forest}}>{rangeDisplay} {cur}</p>
+        </div>
+        <div className="bg-white px-3 py-2 min-w-0 overflow-hidden">
+          <p style={{fontSize:10,fontWeight:700,color:C.g400,textTransform:'uppercase',letterSpacing:'0.04em'}}>Payment</p>
+          <p className="font-black text-xs mt-0.5 truncate" style={{color:C.paid}}>{listing.payment_method||'—'}</p>
+        </div>
+        <div className="bg-white px-3 py-2">
+          <p style={{fontSize:10,fontWeight:700,color:C.g400,textTransform:'uppercase',letterSpacing:'0.04em'}}>Views · Time</p>
+          <p className="font-black text-xs mt-0.5" style={{color:C.g600}}>
+            <Eye size={9} className="inline mr-0.5" style={{color:C.amber}}/>{fmt(views)}
+            <span className="mx-1" style={{color:C.g300}}>·</span>
+            <Clock size={9} className="inline mr-0.5"/>{listing.time_limit||30}m
+          </p>
+        </div>
+      </div>
+
+      {/* ── Actions ── */}
+      <div className="flex gap-2 p-2.5">
+        <button onClick={()=>onEdit(listing)}
+          className="flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-black border transition flex-1"
+          style={{borderColor:C.green,color:C.green}}>
+          <Edit size={11}/> Edit
+        </button>
+        <button onClick={copyLink}
+          className="flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-black border transition flex-1"
+          style={{borderColor:copied?C.success:C.paid,color:copied?C.success:C.paid,backgroundColor:copied?`${C.success}08`:`${C.paid}06`}}>
+          {copied ? <><CheckCircle size={11}/> Copied!</> : <><Share2 size={11}/> Share</>}
+        </button>
       </div>
     </div>
   );
@@ -524,37 +516,37 @@ export default function MyListings({ user }) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50,fontFamily:"'DM Sans',sans-serif"}}>
+    <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50,fontFamily:"'DM Sans',sans-serif",overflowX:'hidden'}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
 
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-5 space-y-4">
+      <div className="flex-1 max-w-3xl mx-auto w-full px-3 sm:px-4 py-5 space-y-4">
 
         {/* ── HEADER ── */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="font-black text-2xl" style={{color:C.forest,fontFamily:"'Syne',sans-serif"}}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="font-black text-xl sm:text-2xl" style={{color:C.forest,fontFamily:"'Syne',sans-serif"}}>
               My Offers
             </h1>
             <p className="text-xs mt-0.5" style={{color:C.g500}}>
               {listings.length} total · {totalActive} active · {totalViews} views
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 flex-shrink-0">
             <button onClick={load}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold hover:bg-white transition"
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-bold hover:bg-white transition"
               style={{borderColor:C.g200,color:C.g600}}>
-              <RefreshCw size={12}/> Refresh
+              <RefreshCw size={12}/><span className="hidden sm:inline">Refresh</span>
             </button>
             <button onClick={()=>navigate('/create-offer')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-black hover:opacity-90 transition shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black hover:opacity-90 transition shadow-sm"
               style={{backgroundColor:C.gold,color:C.forest}}>
-              <Plus size={14}/> Create Offer
+              <Plus size={13}/> <span className="hidden sm:inline">Create </span>Offer
             </button>
           </div>
         </div>
 
         {/* ── STATS ── */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <StatCard icon={Activity}    label="Total Offers" value={listings.length}    color={C.green}/>
           <StatCard icon={CheckCircle} label="Active"       value={totalActive}        color={C.success} sub="Live on market"/>
           <StatCard icon={Eye}         label="Total Views"  value={fmt(totalViews)}    color={C.amber}/>
@@ -563,15 +555,15 @@ export default function MyListings({ user }) {
 
         {/* ── GLOBAL ON / OFF ALL ── */}
         {listings.length > 0 && (
-          <div className="flex items-center justify-between p-3 rounded-xl border"
+          <div className="flex items-center justify-between p-3 rounded-xl border flex-wrap gap-2"
             style={{backgroundColor:allAreActive?`${C.warn}08`:`${C.success}08`,borderColor:allAreActive?`${C.warn}30`:`${C.success}30`}}>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-black" style={{color:C.forest}}>
                 {allAreActive ? '⚡ All offers are live' : totalActive===0 ? '⏸ All offers are paused' : `${totalActive} of ${listings.length} offers active`}
               </p>
-              <p className="text-xs mt-0.5" style={{color:C.g500}}>Toggle all your offers at once across every tab</p>
+              <p className="text-xs mt-0.5" style={{color:C.g500}}>Toggle all offers at once</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={()=>toggleAll(allIds, 'ACTIVE')}
                 disabled={allAreActive}
@@ -607,7 +599,7 @@ export default function MyListings({ user }) {
         {listings.length > 0 && (
           <>
             {/* ── TABS ── */}
-            <div className="bg-white rounded-2xl border overflow-hidden" style={{borderColor:C.g200}}>
+            <div className="bg-white rounded-2xl border overflow-hidden w-full" style={{borderColor:C.g200}}>
               {/* Tab bar */}
               <div className="flex border-b" style={{borderColor:C.g100}}>
                 {TABS.map(tab=>{
@@ -615,18 +607,20 @@ export default function MyListings({ user }) {
                   const isCur = activeTab===tab.id;
                   return (
                     <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 text-xs font-black transition relative"
-                      style={{color:isCur?tab.color:C.g400,backgroundColor:isCur?`${tab.color}06`:'transparent'}}>
+                      className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-2.5 font-black transition relative overflow-hidden"
+                      style={{color:isCur?tab.color:C.g400,backgroundColor:isCur?`${tab.color}06`:'transparent',fontSize:11}}>
                       {isCur&&(
                         <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
                           style={{backgroundColor:tab.color}}/>
                       )}
-                      <TabIcon size={12}/>
-                      <span className="hidden sm:inline">{tab.label}</span>
-                      <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                      <TabIcon size={13}/>
+                      <span className="truncate max-w-full" style={{fontSize:10}}>
+                        <span className="hidden sm:inline">{tab.label}</span>
+                        <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                      </span>
                       {tab.count>0&&(
-                        <span className="text-xs font-black px-1.5 py-0.5 rounded-full"
-                          style={{backgroundColor:isCur?tab.color:C.g100,color:isCur?'#fff':C.g500}}>
+                        <span className="font-black px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{backgroundColor:isCur?tab.color:C.g100,color:isCur?'#fff':C.g500,fontSize:10}}>
                           {tab.count}
                         </span>
                       )}
@@ -636,24 +630,24 @@ export default function MyListings({ user }) {
               </div>
 
               {/* Search + description */}
-              <div className="px-4 py-2 border-b flex items-center justify-between gap-3"
+              <div className="px-3 sm:px-4 py-2 border-b flex items-center gap-2"
                 style={{borderColor:C.g100,backgroundColor:C.g50}}>
-                <p className="text-xs font-semibold" style={{color:C.g500}}>
+                <p className="text-xs font-semibold flex-1 hidden sm:block" style={{color:C.g500}}>
                   {activeTab==='sell'&&'Listed on the Buy Bitcoin marketplace page'}
                   {activeTab==='buy' &&'Listed on the Sell Bitcoin marketplace page'}
                   {activeTab==='gift'&&'Listed on the Gift Cards marketplace page'}
                 </p>
-                <div className="relative flex-shrink-0" style={{width:160}}>
+                <div className="relative w-full sm:w-40 flex-shrink-0">
                   <Search size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{color:C.g400}}/>
                   <input value={search} onChange={e=>setSearch(e.target.value)}
-                    placeholder="Search…"
+                    placeholder="Search offers…"
                     className="w-full pl-7 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none"
                     style={{borderColor:search?C.green:C.g200}}/>
                 </div>
               </div>
 
               {/* Tab content */}
-              <div className="p-3">
+              <div className="p-2.5 sm:p-3">
                 <TabPanel
                   listings={tabListings}
                   onEdit={setEditListing}
@@ -666,9 +660,9 @@ export default function MyListings({ user }) {
             </div>
 
             {/* ── CREATE MORE CTA ── */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl border"
+            <div className="flex items-center justify-between p-3.5 rounded-xl border flex-wrap gap-2"
               style={{backgroundColor:`${C.green}06`,borderColor:`${C.green}20`}}>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-black" style={{color:C.forest}}>Want more trades?</p>
                 <p className="text-xs" style={{color:C.g500}}>Create another offer to reach more buyers and sellers.</p>
               </div>
@@ -680,7 +674,7 @@ export default function MyListings({ user }) {
             </div>
 
             {/* ── TIPS ── */}
-            <div className="grid md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {[
                 {icon:'💡',title:'Competitive margin gets more trades',desc:'Offers within ±5% of market rate receive 3× more trade requests.'},
                 {icon:'⚡',title:'Keep offers active',               desc:'Paused offers disappear from the marketplace. Activate to stay visible.'},
@@ -702,8 +696,8 @@ export default function MyListings({ user }) {
 
       {/* ── FOOTER ── */}
       <footer className="mt-8" style={{backgroundColor:C.forest}}>
-        <div className="max-w-3xl mx-auto px-4 pt-8 pb-5">
-          <div className="grid md:grid-cols-3 gap-8 mb-6">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-8 pb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
             <div>
               <span className="text-xl font-black" style={{fontFamily:"'Syne',sans-serif"}}>
                 <span className="text-white">PRA</span><span style={{color:C.gold}}>QEN</span>

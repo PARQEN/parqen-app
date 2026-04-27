@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS listings (
   country VARCHAR(100),
   country_name VARCHAR(100),
 
+  -- Gift Card specifics
+  card_values   DECIMAL[]   DEFAULT NULL,   -- accepted denominations e.g. {10,20,50}
+  card_type     VARCHAR(20) DEFAULT 'both', -- 'physical' | 'ecode' | 'both'
+  face_value    DECIMAL     DEFAULT NULL,   -- single face value fallback
+  pricing_type  VARCHAR(20) DEFAULT 'market',
+
   -- Terms & Instructions
   trade_instructions TEXT,
   listing_terms TEXT,

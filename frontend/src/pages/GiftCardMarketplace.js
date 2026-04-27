@@ -7,11 +7,12 @@ import {
   BadgeCheck, Timer, X, Info, Shield,
   ArrowRight, PlusCircle, Filter,
   Home, Wallet, User, Gift, Bitcoin,
-  ChevronDown, CreditCard
+  ChevronDown, CreditCard, ThumbsUp, ThumbsDown, Repeat2
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 import ActiveTradeBanner from '../components/ActiveTradeBanner';
+import { TRUST_MAP, deriveBadge } from '../lib/badge';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -27,24 +28,6 @@ const C = {
 };
 
 // ── Trust badge map ───────────────────────────────────────────────────────────
-const TRUST_MAP = {
-  LEGEND:     { label:'LEGEND',     icon:'♛', iconColor:'#92400E', textColor:'#78350F', borderColor:'#F59E0B', bg:'linear-gradient(135deg,#FEF3C7,#FDE68A)',       glow:'rgba(245,158,11,0.65)', animate:true },
-  AMBASSADOR: { label:'AMBASSADOR', icon:'◈', iconColor:'#99F6E4', textColor:'#FFFFFF', borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#2D6A4F)',       glow:'rgba(13,148,136,0.45)' },
-  EXPERT:     { label:'EXPERT',     icon:'▲', iconColor:'#7DD3FC', textColor:'#FFFFFF', borderColor:'#3B82F6', bg:'linear-gradient(135deg,#1E3A5F,#1E40AF)',       glow:'rgba(59,130,246,0.45)' },
-  PRO:        { label:'PRO',        icon:'●', iconColor:'#059669', textColor:'#065F46', borderColor:'#34D399', bg:'linear-gradient(135deg,#D1FAE5,#A7F3D0)',       glow:'rgba(52,211,153,0.4)'  },
-  ACTIVE:     { label:'Active',     icon:'●', iconColor:'#22C55E', textColor:'#166534', borderColor:'#86EFAC', bg:'linear-gradient(135deg,#F0FDF4,#DCFCE7)',       glow:'rgba(134,239,172,0.35)'},
-  BEGINNER:   { label:'NEW ✦',      icon:'🌱',iconColor:null,      textColor:'#7C3AED', borderColor:'#C4B5FD', bg:'linear-gradient(135deg,#EDE9FE,#F5F3FF)',       glow:'rgba(167,139,250,0.5)', animate:true },
-};
-
-function deriveBadge(u) {
-  if (u?.badge) { const b=String(u.badge).toUpperCase(); if(TRUST_MAP[b]) return TRUST_MAP[b]; }
-  const t=parseInt(u?.total_trades??u?.trade_count??0), r=parseFloat(u?.average_rating??0);
-  if(t>=500&&r>=4.8) return TRUST_MAP.LEGEND;
-  if(t>=200&&r>=4.5) return TRUST_MAP.EXPERT;
-  if(t>=50 &&r>=4.0) return TRUST_MAP.PRO;
-  if(t>=5)           return TRUST_MAP.ACTIVE;
-  return TRUST_MAP.BEGINNER;
-}
 
 const CUR_SYM = {
   GHS:'₵',  NGN:'₦',  KES:'KSh', ZAR:'R',  UGX:'USh', TZS:'TSh',
@@ -133,10 +116,10 @@ const getBrand = (l) => l.gift_card_brand||l.giftCardBrand||l.card_brand||'Gift 
 const getFaceVal = (l) => { const v=l.face_value||l.card_value||l.amount_usd; return v?parseFloat(v):null; };
 const getCardRange = (l) => {
   let arr = l.card_values||l.face_values||l.accepted_denominations||l.denominations||l.card_denominations;
-  // Backend may return array as JSON string — parse it
   if (typeof arr === 'string') {
-    try { arr = JSON.parse(arr); }
-    catch { arr = arr.split(',').map(Number).filter(Boolean); }
+    // Handle PostgreSQL array format: {10,20,50}
+    if (arr.startsWith('{')) arr = arr.replace(/[{}]/g, '').split(',').map(Number).filter(Boolean);
+    else { try { arr = JSON.parse(arr); } catch { arr = arr.split(',').map(Number).filter(Boolean); } }
   }
   if(Array.isArray(arr)&&arr.length) return arr.map(v=>parseFloat(v)).filter(Boolean).sort((a,b)=>a-b);
   const fv = getFaceVal(l);
@@ -203,7 +186,7 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
   const pmLabel  = listing.payment_method||'Payment';
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border hover:shadow-lg transition-all"
+    <div className="bg-white rounded-2xl overflow-hidden border hover:shadow-lg transition-all w-full min-w-0"
       style={{borderColor:C.g200}}>
 
       {/* ─ Seller row ────────────────────────────────────────────── */}
@@ -228,15 +211,15 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
           {/* Name + badge + stats */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 overflow-hidden">
-              <button onClick={onViewSeller}
-                className="font-black text-sm hover:underline leading-tight truncate flex-shrink min-w-0"
-                style={{color:C.g800, maxWidth:'160px'}}>
-                {u.username||'Seller'}
-              </button>
-              {isVerified(u) && <BadgeCheck size={13} style={{color:'#3B82F6',flexShrink:0}}/>}
               <CountryFlag
                 countryCode={(u?.country_code||u?.country||'gh').toLowerCase()}
                 className="w-4 h-3 rounded-sm flex-shrink-0"/>
+              <button onClick={onViewSeller}
+                className="font-black text-sm hover:underline leading-tight truncate flex-shrink min-w-0"
+                style={{color:C.g800, maxWidth:'130px'}}>
+                {u.username||'Seller'}
+              </button>
+              {isVerified(u) && <BadgeCheck size={13} style={{color:'#3B82F6',flexShrink:0}}/>}
               <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
                 style={{background:badge.bg, borderColor:badge.borderColor, boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
@@ -244,47 +227,57 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
               </span>
             </div>
 
-            {/* Stats row */}
-            <div className="flex items-center gap-1.5 mt-1 text-xs">
-              <span className="font-semibold" style={{color:C.success}}>👍 {fmt(pos)}</span>
-              <span style={{color:C.g300}}>·</span>
-              <span className="font-semibold" style={{color:C.danger}}>👎 {fmt(neg)}</span>
-              <span style={{color:C.g300}}>·</span>
-              <span className="font-medium" style={{color:C.g500}}>{fmt(trades)} trades</span>
-            </div>
-            {/* Status — own line */}
-            <div className="mt-1">
-              {seen.online ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium" style={{color:C.online}}>
-                  <span className="relative flex w-1.5 h-1.5 flex-shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{backgroundColor:C.online}}/>
-                    <span className="relative inline-flex rounded-full w-1.5 h-1.5" style={{backgroundColor:C.online}}/>
+            {/* Stats row — feedback left, trades+status right */}
+            <div className="flex items-start justify-between mt-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:'#DCFCE7', color:'#16A34A'}}>
+                  <ThumbsUp size={9} strokeWidth={2.5}/>{fmt(pos)}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:'#FEE2E2', color:'#DC2626'}}>
+                  <ThumbsDown size={9} strokeWidth={2.5}/>{fmt(neg)}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:C.g100, color:C.g600}}>
+                  <Repeat2 size={9} strokeWidth={2.5}/>{fmt(trades)} trades
+                </span>
+                {seen.online ? (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                    style={{backgroundColor:'#F0FDF4', color:C.online}}>
+                    <span className="relative flex w-1.5 h-1.5 flex-shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{backgroundColor:C.online}}/>
+                      <span className="relative inline-flex rounded-full w-1.5 h-1.5" style={{backgroundColor:C.online}}/>
+                    </span>
+                    Active
                   </span>
-                  Active now
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-medium" style={{color:C.g400}}>
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:C.g300}}/>
-                  {seen.label}
-                </span>
-              )}
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
+                    style={{backgroundColor:C.g100, color:C.g400}}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{backgroundColor:C.g300}}/>
+                    {seen.label}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Card brand + type */}
-            <div className="mt-1.5 flex items-center gap-3">
-              <span className="inline-flex flex-col px-2 py-1 rounded-lg flex-shrink-0"
-                style={{backgroundColor:C.g100}}>
-                <span className="text-xs font-normal leading-tight" style={{color:C.g400}}>I'm buying</span>
-                <span className="text-xs font-black leading-tight tracking-wide" style={{color:C.g700}}>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="inline-flex flex-col px-3 py-1.5 rounded-xl flex-shrink-0"
+                style={{backgroundColor:C.g100, minWidth:0}}>
+                <span className="text-xs font-normal leading-snug" style={{color:C.g400}}>I'm buying</span>
+                <span className="text-xs font-black leading-snug tracking-wide truncate" style={{color:C.g700, maxWidth:'110px'}}>
                   {/card/i.test(brand) ? brand.toUpperCase() : `${brand.toUpperCase()} CARD`}
                 </span>
               </span>
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-1.5">
                 {(cardType==='physical'||cardType==='both') && (
-                  <span className="text-xs font-semibold leading-tight" style={{color:C.g600}}>Physical Card</span>
+                  <span className="text-xs font-bold" style={{color:C.g600}}>Physical Card</span>
                 )}
                 {(cardType==='ecode'||cardType==='both') && (
-                  <span className="text-xs font-semibold leading-tight" style={{color:C.g600}}>E-Code</span>
+                  <span className="text-xs font-bold" style={{color:C.g600}}>E-Code</span>
                 )}
               </div>
             </div>
@@ -379,7 +372,7 @@ function SellerModal({seller, listing, onClose, onTrade}) {
   const ccCode = (u?.country_code||u?.country||'gh').toLowerCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 overflow-hidden"
       style={{backgroundColor:'rgba(0,0,0,0.55)',backdropFilter:'blur(4px)'}}>
       <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         style={{border:`1px solid ${C.g200}`,animation:'slideUp .25s ease'}}>
@@ -419,12 +412,19 @@ function SellerModal({seller, listing, onClose, onTrade}) {
                 </span>
                 <span className="text-xs text-white/60">{seen.label}</span>
               </div>
-              <div className="flex items-center gap-2 mt-1.5 text-xs font-black">
-                <span style={{color:'#86EFAC'}}>👍 {fmt(u.positive_feedback||0)}</span>
-                <span className="text-white/30">·</span>
-                <span style={{color:'#FCA5A5'}}>👎 {fmt(u.negative_feedback||0)}</span>
-                <span className="text-white/30">·</span>
-                <span className="text-white/80">{fmt(trades)} Trades</span>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:'rgba(134,239,172,0.2)', color:'#86EFAC'}}>
+                  <ThumbsUp size={9} strokeWidth={2.5}/>{fmt(u.positive_feedback||0)}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:'rgba(252,165,165,0.2)', color:'#FCA5A5'}}>
+                  <ThumbsDown size={9} strokeWidth={2.5}/>{fmt(u.negative_feedback||0)}
+                </span>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
+                  style={{backgroundColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.85)'}}>
+                  <Repeat2 size={9} strokeWidth={2.5}/>{fmt(trades)} Trades
+                </span>
               </div>
             </div>
           </div>
@@ -568,10 +568,12 @@ export default function GiftCards({user}) {
   const [showCountry,  setShowCountry]  = useState(false);
   const [showCurrency, setShowCurrency] = useState(false);
   const [showPayment,  setShowPayment]  = useState(false);
+  const [showBrand,    setShowBrand]    = useState(false);
   const [modal,        setModal]        = useState(null);
   const countryRef  = useRef(null);
   const currencyRef = useRef(null);
   const paymentRef  = useRef(null);
+  const brandRef    = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{ fetchRates(); loadListings(); },[]);
@@ -580,6 +582,7 @@ export default function GiftCards({user}) {
       if(countryRef.current&&!countryRef.current.contains(e.target))   setShowCountry(false);
       if(currencyRef.current&&!currencyRef.current.contains(e.target)) setShowCurrency(false);
       if(paymentRef.current&&!paymentRef.current.contains(e.target))   setShowPayment(false);
+      if(brandRef.current&&!brandRef.current.contains(e.target))       setShowBrand(false);
     };
     document.addEventListener('mousedown',h);
     return()=>document.removeEventListener('mousedown',h);
@@ -629,7 +632,7 @@ export default function GiftCards({user}) {
   const usdRate    = USD_RATES[cur]||1;
   const btcLocal   = btcPrice*usdRate;
   const onlineCnt  = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
-  const hasFilters = selBrand!=='All Brands'||selFaceValue>0||sortBy!=='rate_low'||selPayment!=='All Payments'||selCountry.code!=='ALL';
+  const hasFilters = selPayment!=='All Payments'||selFaceValue>0||sortBy!=='rate_low';
 
   if(loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.g100}}>
@@ -646,7 +649,9 @@ export default function GiftCards({user}) {
         @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-        *{-webkit-tap-highlight-color:transparent}
+        *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+        body{overflow-x:hidden}
+        .dropdown-panel{max-width:calc(100vw - 24px)}
       `}</style>
 
       {/* ══════════════════════════════════════════════════
@@ -691,7 +696,7 @@ export default function GiftCards({user}) {
                 {label:'Gift Cards', path:'/gift-cards',   active:true},
               ].map(tab=>(
                 <Link key={tab.path} to={tab.path}
-                  className="px-4 py-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
+                  className="px-3 sm:px-4 py-3.5 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
                   style={{
                     borderColor:tab.active?C.forest:'transparent',
                     color:tab.active?C.forest:C.g500,
@@ -711,26 +716,6 @@ export default function GiftCards({user}) {
       {/* Active trade alerts */}
       <ActiveTradeBanner user={user} currentPage="gift-cards"/>
 
-      {/* ══════════════════════════════════════════════════
-          3. BRAND PILLS
-      ══════════════════════════════════════════════════ */}
-      <div className="bg-white border-b" style={{borderColor:C.g200}}>
-        <div className="px-3 py-2.5">
-          <div className="flex flex-wrap gap-1.5">
-            {GC_BRANDS.map(b=>(
-              <button key={b} onClick={()=>setSelBrand(b)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition whitespace-nowrap"
-                style={{
-                  borderColor:selBrand===b?C.forest:C.g200,
-                  backgroundColor:selBrand===b?C.forest:'transparent',
-                  color:selBrand===b?'#fff':C.g600,
-                }}>
-                {b}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* ══════════════════════════════════════════════════
           4. FILTER BAR
@@ -738,11 +723,11 @@ export default function GiftCards({user}) {
       <div className="bg-white border-b" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 py-2.5">
 
-          {/* Row — Country | Currency | Filter */}
-          <div className="flex items-center gap-2">
+          {/* Row — 2×2 on mobile, 4-col on sm+ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 
             {/* Country selector */}
-            <div className="relative flex-1" ref={countryRef}>
+            <div className="relative" ref={countryRef}>
               <button onClick={()=>{setShowCountry(!showCountry);setShowCurrency(false);}}
                 className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
                 style={{
@@ -756,8 +741,8 @@ export default function GiftCards({user}) {
                   style={{color:selCountry.code!=='ALL'?C.forest:C.g400}}/>
               </button>
               {showCountry&&(
-                <div className="absolute top-full left-0 mt-1.5 w-52 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                  style={{borderColor:C.g100,maxHeight:300,overflowY:'auto'}}>
+                <div className="dropdown-panel absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,maxHeight:300,overflowY:'auto',minWidth:'200px',width:'max-content'}}>
                   {COUNTRIES.map(c=>(
                     <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);}}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
@@ -772,7 +757,7 @@ export default function GiftCards({user}) {
             </div>
 
             {/* Currency selector */}
-            <div className="relative flex-1" ref={currencyRef}>
+            <div className="relative" ref={currencyRef}>
               <button onClick={()=>{setShowCurrency(!showCurrency);setShowCountry(false);}}
                 className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
                 style={{
@@ -786,8 +771,8 @@ export default function GiftCards({user}) {
                   style={{color:C.g400}}/>
               </button>
               {showCurrency&&(
-                <div className="absolute top-full left-0 mt-1.5 w-52 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                  style={{borderColor:C.g100,maxHeight:300,overflowY:'auto'}}>
+                <div className="dropdown-panel absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,maxHeight:300,overflowY:'auto',minWidth:'200px',width:'max-content'}}>
                   {CURRENCIES.map(c=>(
                     <button key={c.code} onClick={()=>{setSelCurrency(c);setShowCurrency(false);}}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
@@ -804,9 +789,37 @@ export default function GiftCards({user}) {
               )}
             </div>
 
+            {/* Gift Card Brand selector */}
+            <div className="relative" ref={brandRef}>
+              <button onClick={()=>{setShowBrand(!showBrand);setShowCountry(false);setShowCurrency(false);setShowPayment(false);}}
+                className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
+                style={{
+                  borderColor:selBrand!=='All Brands'?C.forest:C.g200,
+                  color:selBrand!=='All Brands'?C.forest:C.g600,
+                  backgroundColor:selBrand!=='All Brands'?`${C.forest}08`:'transparent'
+                }}>
+                <span className="text-xs font-black truncate">{selBrand==='All Brands'?'Gift Cards':selBrand.split(' ')[0]}</span>
+                <ChevronDown size={12} className={`transition-transform flex-shrink-0 ${showBrand?'rotate-180':''}`}
+                  style={{color:selBrand!=='All Brands'?C.forest:C.g400}}/>
+              </button>
+              {showBrand&&(
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,maxHeight:260,overflowY:'auto'}}>
+                  {GC_BRANDS.map(b=>(
+                    <button key={b} onClick={()=>{setSelBrand(b);setShowBrand(false);}}
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-xs hover:bg-gray-50 border-b last:border-0 transition"
+                      style={{borderColor:C.g50}}>
+                      <span className="font-semibold" style={{color:C.g800}}>{b}</span>
+                      {selBrand===b&&<CheckCircle size={11} style={{color:C.green}}/>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Filter toggle */}
             <button onClick={()=>setShowFilters(!showFilters)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition"
               style={{
                 borderColor:showFilters||hasFilters?C.forest:C.g200,
                 color:showFilters||hasFilters?C.forest:C.g600,
@@ -898,7 +911,7 @@ export default function GiftCards({user}) {
       {/* ══════════════════════════════════════════════════
           5. OFFER GRID
       ══════════════════════════════════════════════════ */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3 space-y-3">
+      <div className="flex-1 max-w-7xl mx-auto w-full px-2 sm:px-3 py-3 space-y-3">
 
         {/* Count row */}
         <div className="flex items-center justify-between">
@@ -928,7 +941,7 @@ export default function GiftCards({user}) {
             </button>
           </div>
         ):(
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
             {filtered.map(l=>(
               <GCCard
                 key={l.id}

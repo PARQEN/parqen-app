@@ -7,7 +7,7 @@ import {
   Bitcoin, TrendingUp, Check, Info, AlertTriangle, Clock,
   DollarSign, Shield, ArrowRight, RefreshCw, Plus, Minus,
   Eye, ChevronRight, ChevronLeft, ShoppingCart, Tag,
-  BarChart2, Settings2, FileText, ArrowUpRight,
+  BarChart2, Settings2, FileText, ArrowUpRight, ArrowDownRight,
   Gift, Search, ChevronDown, X,
   Smartphone, Banknote, Zap, Star, Wallet
 } from 'lucide-react';
@@ -515,8 +515,8 @@ export default function CreateOffer() {
             ₿ {sym}{fmt(effectiveRate)} {cur}
           </span>
           <span className="text-xs font-black px-1.5 py-0.5 rounded-sm"
-            style={{ color: C.success, backgroundColor: `${C.success}15` }}>
-            +{margin}%
+            style={{ color: margin < 0 ? C.danger : C.success, backgroundColor: margin < 0 ? `${C.danger}15` : `${C.success}15` }}>
+            {margin > 0 ? '+' : ''}{margin}%
           </span>
         </div>
         <div className="flex items-center justify-between text-xs" style={{ color: C.g400 }}>
@@ -577,7 +577,7 @@ export default function CreateOffer() {
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-6 px-3 sm:px-4" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif" }}>
+    <div className="min-h-screen py-6 px-3 sm:px-4" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif", overflowX:'hidden' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 
       <div className="max-w-2xl mx-auto">
@@ -1102,38 +1102,44 @@ export default function CreateOffer() {
                 </div>
               </div>
 
-              {/* Market margin — 1 to 100% */}
+              {/* Market margin — -10 to 100% */}
               {pricingType === 'market' && (
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-bold" style={{ color: C.g700 }}>Your Margin</label>
-                    <span className="text-xs" style={{ color: C.g500 }}>
-                      Quick: {[1,3,5,8,10,15,20].map(v => (
+                  <div className="mb-2">
+                    <label className="text-sm font-bold block mb-1.5" style={{ color: C.g700 }}>Your Margin</label>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-xs flex-shrink-0" style={{ color: C.g500 }}>Quick:</span>
+                      {[-5,-1,0,1,3,5,10,20].map(v => (
                         <button key={v} onClick={() => setMargin(v)}
-                          className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold transition"
+                          className="px-1.5 py-0.5 rounded-full text-xs font-bold transition"
                           style={{
-                            backgroundColor: margin === v ? C.green : C.g100,
+                            backgroundColor: margin === v ? (v < 0 ? C.danger : v === 0 ? C.g500 : C.green) : C.g100,
                             color: margin === v ? C.white : C.g600,
-                          }}>+{v}%</button>
+                          }}>{v > 0 ? '+' : ''}{v}%</button>
                       ))}
-                    </span>
+                    </div>
                   </div>
 
                   <div className="p-4 rounded-2xl border-2" style={{ borderColor: C.g200 }}>
                     {/* Big margin display + stepper */}
                     <div className="flex items-center gap-3 mb-4">
-                      <button onClick={() => setMargin(m => Math.max(1, parseFloat((m - 0.5).toFixed(1))))}
+                      <button onClick={() => setMargin(m => Math.max(-10, parseFloat((m - 0.5).toFixed(1))))}
                         className="w-11 h-11 rounded-xl flex items-center justify-center border-2 active:scale-95 flex-shrink-0"
                         style={{ borderColor: C.danger, backgroundColor: `${C.danger}10` }}>
                         <Minus size={16} style={{ color: C.danger }} />
                       </button>
                       <div className="flex-1 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-4xl font-black" style={{ color: C.success }}>+{margin}%</span>
-                          <ArrowUpRight size={22} style={{ color: C.success }} />
+                          <span className="text-4xl font-black"
+                            style={{ color: margin < 0 ? C.danger : margin === 0 ? C.g500 : C.success }}>
+                            {margin > 0 ? '+' : ''}{margin}%
+                          </span>
+                          {margin < 0
+                            ? <ArrowDownRight size={22} style={{ color: C.danger }} />
+                            : <ArrowUpRight size={22} style={{ color: margin === 0 ? C.g500 : C.success }} />}
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: C.g400 }}>
-                          Your markup rate above market
+                          {margin < 0 ? 'Discount below market — buyers get more BTC' : margin === 0 ? 'Exactly at market rate' : 'Your markup rate above market'}
                         </p>
                       </div>
                       <button onClick={() => setMargin(m => Math.min(100, parseFloat((m + 0.5).toFixed(1))))}
@@ -1143,22 +1149,22 @@ export default function CreateOffer() {
                       </button>
                     </div>
 
-                    {/* Slider 1–100 */}
-                    <input type="range" min="1" max="100" step="0.5"
+                    {/* Slider -10 to 100 */}
+                    <input type="range" min="-10" max="100" step="0.5"
                       value={margin} onChange={e => setMargin(parseFloat(e.target.value))}
-                      className="w-full" style={{ accentColor: C.success }} />
+                      className="w-full" style={{ accentColor: margin < 0 ? C.danger : C.success }} />
                     <div className="flex justify-between text-xs mt-0.5" style={{ color: C.g400 }}>
-                      <span>1% (competitive)</span>
-                      <span>50%</span>
-                      <span>100% (max profit)</span>
+                      <span>-10%</span>
+                      <span>0% (market)</span>
+                      <span>+100%</span>
                     </div>
 
                     {/* Type exact margin */}
                     <div className="mt-3 flex items-center gap-2">
                       <label className="text-xs font-bold flex-shrink-0" style={{ color: C.g500 }}>Custom:</label>
                       <div className="relative flex-1">
-                        <input type="number" min="1" max="100" step="0.5"
-                          value={margin} onChange={e => setMargin(Math.min(100, Math.max(1, parseFloat(e.target.value) || 1)))}
+                        <input type="number" min="-10" max="100" step="0.5"
+                          value={margin} onChange={e => setMargin(Math.min(100, Math.max(-10, parseFloat(e.target.value) || 0)))}
                           className="w-full pl-3 pr-7 py-2 text-xs border-2 rounded-xl focus:outline-none font-black"
                           style={{ borderColor: C.g200, color: C.forest }} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black" style={{ color: C.g400 }}>%</span>
@@ -1219,23 +1225,28 @@ export default function CreateOffer() {
                               </span>
                             </div>
                             <div className="flex items-center justify-between pt-1.5 border-t"
-                              style={{ borderColor: `${C.success}25` }}>
+                              style={{ borderColor: yourProfitUSD < 0 ? `${C.danger}25` : `${C.success}25` }}>
                               <div className="flex items-center gap-1.5">
                                 <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                                  style={{ backgroundColor: C.success, color: C.white }}>✓</span>
-                                <span className="text-xs font-bold" style={{ color: C.g700 }}>Your profit</span>
+                                  style={{ backgroundColor: yourProfitUSD < 0 ? C.danger : C.success, color: C.white }}>
+                                  {yourProfitUSD < 0 ? '↓' : '✓'}
+                                </span>
+                                <span className="text-xs font-bold" style={{ color: C.g700 }}>
+                                  {yourProfitUSD < 0 ? 'Your loss (below market)' : 'Your profit'}
+                                </span>
                               </div>
                               <div className="text-right">
-                                <span className="text-sm font-black" style={{ color: C.success }}>
-                                  +${fmt(yourProfitUSD, 2)} USD
+                                <span className="text-sm font-black"
+                                  style={{ color: yourProfitUSD < 0 ? C.danger : C.success }}>
+                                  {yourProfitUSD < 0 ? '-' : '+'}${fmt(Math.abs(yourProfitUSD), 2)} USD
                                 </span>
                                 {cur !== 'USD' && (
-                                  <p className="text-xs" style={{ color: C.success }}>
-                                    {sym}{fmt(profitLocal, 0)} {cur}
+                                  <p className="text-xs" style={{ color: yourProfitUSD < 0 ? C.danger : C.success }}>
+                                    {yourProfitUSD < 0 ? '-' : ''}{sym}{fmt(Math.abs(profitLocal), 0)} {cur}
                                   </p>
                                 )}
                                 <p className="text-xs" style={{ color: C.g400 }}>
-                                  ({fmt(yourProfitPct, 1)}% of cash received)
+                                  ({fmt(Math.abs(yourProfitPct), 1)}% of cash {yourProfitUSD < 0 ? 'lost' : 'received'})
                                 </p>
                               </div>
                             </div>
@@ -1303,27 +1314,48 @@ export default function CreateOffer() {
               </div>
 
               {/* Wallet balance banner */}
-              <div className="p-3 rounded-xl flex items-center justify-between border"
+              <div className="rounded-xl border overflow-hidden"
                 style={{ backgroundColor: walletCapacityLocal > 0 ? '#F0FDF4' : '#FFFBEB',
                          borderColor: walletCapacityLocal > 0 ? '#A7F3D0' : '#FDE68A' }}>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">💼</span>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide"
-                      style={{ color: walletCapacityLocal > 0 ? C.forest : '#92400E' }}>
-                      {offerType === 'sell' || offerType === 'gc_buy' ? 'BTC Wallet' : 'USD Wallet'}
-                    </p>
-                    <p className="text-xs font-black"
-                      style={{ color: walletCapacityLocal > 0 ? C.forest : '#B45309' }}>
-                      {offerType === 'sell' || offerType === 'gc_buy'
-                        ? `₿${walletBal.btc.toFixed(6)} ≈ ${sym}${fmt(walletCapacityLocal, 0)} ${cur}`
-                        : `$${fmt(walletBal.usd, 2)} ≈ ${sym}${fmt(walletCapacityLocal, 0)} ${cur}`}
+                <div className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">💼</span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide"
+                        style={{ color: walletCapacityLocal > 0 ? C.forest : '#92400E' }}>
+                        {offerType === 'sell' || offerType === 'gc_buy' ? 'BTC Wallet' : 'USD Wallet'}
+                      </p>
+                      {offerType === 'sell' || offerType === 'gc_buy' ? (
+                        <>
+                          <p className="text-xs font-black"
+                            style={{ color: walletCapacityLocal > 0 ? C.forest : '#B45309' }}>
+                            ₿{walletBal.btc.toFixed(6)} ≈ ${fmt(walletBal.btc * btcPrice, 0)} USD
+                          </p>
+                          {cur !== 'USD' && (
+                            <p className="text-xs font-semibold" style={{ color: C.g500 }}>
+                              Max offer: {sym}{fmt(walletCapacityLocal, 0)} {cur}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs font-black"
+                          style={{ color: walletCapacityLocal > 0 ? C.forest : '#B45309' }}>
+                          ${fmt(walletBal.usd, 2)} USD ≈ {sym}{fmt(walletCapacityLocal, 0)} {cur}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs font-black text-right flex-shrink-0 ml-2" style={{ color: C.g500 }}>
+                    Max you<br/>can offer
+                  </p>
+                </div>
+                {walletCapacityLocal === 0 && (
+                  <div className="px-3 pb-2">
+                    <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
+                      ⚠️ Wallet empty — <button onClick={() => navigate('/wallet')} className="underline">top up your wallet</button> before creating an offer.
                     </p>
                   </div>
-                </div>
-                <p className="text-xs font-black text-right" style={{ color: C.g500 }}>
-                  Max you<br/>can offer
-                </p>
+                )}
               </div>
 
               {/* Min / Max in local currency */}
@@ -1490,7 +1522,7 @@ export default function CreateOffer() {
                         { label:'Currency',   val: curr ? `${curr.symbol} ${curr.currency}` : '—' },
                         { label:'Payment',    val: selectedPay?.name || '—' },
                         { label:'Rate',       val: curr ? `${sym}${fmt(effectiveRate, 0)} ${cur}/BTC` : '—' },
-                        { label:'Margin',     val: pricingType === 'market' ? `+${margin}%` : 'Fixed' },
+                        { label:'Margin',     val: pricingType === 'market' ? `${margin > 0 ? '+' : ''}${margin}%` : 'Fixed' },
                         ...(!isGC ? [
                           { label:'Limits',   val: minLimit && maxLimit && curr
                             ? `${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}`

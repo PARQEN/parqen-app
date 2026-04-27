@@ -2,7 +2,8 @@
 import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight, BadgeCheck, RefreshCw, Lock, ChevronRight } from 'lucide-react';
+import { ArrowRight, BadgeCheck, RefreshCw, Lock, ChevronRight, ThumbsUp, ThumbsDown, Repeat2 } from 'lucide-react';
+import { deriveBadge, BadgeChip } from '../lib/badge';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 
@@ -19,26 +20,6 @@ const C = {
 };
 
 
-const TRUST_MAP = {
-  LEGEND:     { label:'LEGEND',     icon:'♛', iconColor:'#F4A422', textColor:'#1B4332', borderColor:'#A7F3D0', bg:'#ECFDF5' },
-  AMBASSADOR: { label:'AMBASSADOR', icon:'◈', iconColor:null,      textColor:'#FFFFFF',  borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#2D6A4F)' },
-  EXPERT:     { label:'EXPERT',     icon:'▲', iconColor:null,      textColor:'#FFFFFF',  borderColor:'#0D9488', bg:'linear-gradient(135deg,#0D9488,#134E4A)' },
-  PRO:        { label:'PRO',        icon:'●', iconColor:null,      textColor:'#1B4332',  borderColor:'#2D6A4F', bg:'linear-gradient(135deg,#D1FAE5,#A7F3D0)' },
-  ACTIVE:     { label:'Active',     icon:'○', iconColor:null,      textColor:'#1B4332',  borderColor:'#6EE7B7', bg:'#F0FDF4' },
-  BEGINNER:   { label:'New',        icon:'·', iconColor:null,      textColor:'#64748B',  borderColor:'#CBD5E1', bg:'#F8FAFC' },
-};
-function deriveBadge(u) {
-  if (u?.badge) {
-    const b = String(u.badge).toUpperCase();
-    if (TRUST_MAP[b]) return TRUST_MAP[b];
-  }
-  const t = parseInt(u?.total_trades ?? 0), r = parseFloat(u?.average_rating ?? 0);
-  if (t >= 500 && r >= 4.8) return TRUST_MAP.LEGEND;
-  if (t >= 200 && r >= 4.5) return TRUST_MAP.EXPERT;
-  if (t >= 50  && r >= 4.0) return TRUST_MAP.PRO;
-  if (t >= 5)               return TRUST_MAP.ACTIVE;
-  return TRUST_MAP.BEGINNER;
-}
 
 // USD_RATES is now provided by RatesContext — do NOT define a static object here
 const CUR_SYM   = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',TZS:'TSh',USD:'$',GBP:'£',EUR:'€',XAF:'CFA',XOF:'CFA'};
@@ -143,12 +124,19 @@ export default function ListingDetail({ user }) {
       const r = await axios.get(`${API_URL}/listings/${id}`);
       const l = r.data.listing;
       setListing(l);
+      // Use embedded user data first (includes badge, feedback, etc.)
+      const embeddedUser = Array.isArray(l?.users) ? l.users[0] : l?.users;
+      if (embeddedUser) setSeller(embeddedUser);
+      // Fetch full profile to enrich (bio, country_code, etc.) — merge with embedded
       if (l?.seller_id) {
-        try { const sr = await axios.get(`${API_URL}/users/${l.seller_id}`); setSeller(sr.data.user); } catch {}
+        try {
+          const sr = await axios.get(`${API_URL}/users/${l.seller_id}`);
+          const full = sr.data.user;
+          // Prefer the database badge field — merge full profile over embedded
+          setSeller(prev => ({ ...(prev || {}), ...full }));
+        } catch {}
       }
-      // Track marketplace view (fire-and-forget — never blocks page load)
       axios.post(`${API_URL}/listings/${id}/view`).catch(() => {});
-      // BTC price is now managed by RatesContext (Coinbase, auto-refreshed)
     } catch { toast.error('Failed to load listing'); }
     finally { setLoading(false); }
   };
@@ -169,8 +157,8 @@ export default function ListingDetail({ user }) {
   );
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const cfg    = getListingConfig(listing);
-  const badge  = deriveBadge(seller);
+  const cfg      = getListingConfig(listing);
+  const isGiftCard = listing.listing_type?.toUpperCase().includes('GIFT');
   const countryCode = (seller?.country_code || seller?.country || 'gh').toLowerCase();
 
   const cur      = listing.currency || 'USD';
@@ -382,9 +370,7 @@ export default function ListingDetail({ user }) {
                   {seller?.username || 'Seller'}
                 </button>
                 {seller?.kyc_verified && <BadgeCheck size={13} color={C.paid} />}
-                <span style={{ fontSize: 10, fontWeight: 800, color: badge.textColor, background: badge.bg, border: `1px solid ${badge.borderColor}`, borderRadius: 4, padding: '2px 7px' }}>
-                  {badge.icon} {badge.label}
-                </span>
+                <BadgeChip user={seller} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.g400, fontWeight: 600 }}>
                 <CountryFlag countryCode={countryCode} className="w-4 h-3" />
@@ -401,20 +387,24 @@ export default function ListingDetail({ user }) {
 
           {/* Stats strip */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: `1px solid ${C.g100}` }}>
-            {[
-              { icon: '🔄', value: fmt(trades),                       label: 'Trades'   },
-              { icon: '',   value: `👍${posFeedback} · 👎${negFeedback}`, label: 'Feedback' },
-              { icon: '⚡', value: responseTime,                       label: 'Response' },
-            ].map((s, i) => (
-              <div key={s.label} style={{
-                padding: '10px 8px', textAlign: 'center',
-                borderRight: i < 2 ? `1px solid ${C.g100}` : 'none',
-                background: i === 1 ? C.g50 : '#fff',
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 900, color: C.forest, marginBottom: 2 }}>{s.icon} {s.value}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
+            <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}`, background: '#fff' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:13, fontWeight:900, color:C.forest, marginBottom:2 }}>
+                <Repeat2 size={12} strokeWidth={2.5}/>{fmt(trades)}
               </div>
-            ))}
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, textTransform: 'uppercase', letterSpacing: 0.5 }}>Trades</div>
+            </div>
+            <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}`, background: C.g50 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:12, fontWeight:900, marginBottom:2 }}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:2, color:'#16A34A' }}><ThumbsUp size={10} strokeWidth={2.5}/>{posFeedback}</span>
+                <span style={{ color:C.g300 }}>·</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:2, color:'#DC2626' }}><ThumbsDown size={10} strokeWidth={2.5}/>{negFeedback}</span>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, textTransform: 'uppercase', letterSpacing: 0.5 }}>Feedback</div>
+            </div>
+            <div style={{ padding: '10px 8px', textAlign: 'center', background: '#fff' }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: C.forest, marginBottom: 2 }}>⚡ {responseTime}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, textTransform: 'uppercase', letterSpacing: 0.5 }}>Response</div>
+            </div>
           </div>
         </div>
 
@@ -437,9 +427,7 @@ export default function ListingDetail({ user }) {
                   {seller?.kyc_verified && <BadgeCheck size={14} color="#6EE7B7" />}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: badge.textColor, background: badge.bg, borderRadius: 4, padding: '2px 8px' }}>
-                    {badge.icon} {badge.label}
-                  </span>
+                  <BadgeChip user={seller} />
                   <span style={{ fontSize: 11, color: isOnline ? '#6EE7B7' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
                     {isOnline ? '● Online' : `Seen ${lastSeen}`}
                   </span>
@@ -448,16 +436,24 @@ export default function ListingDetail({ user }) {
 
               {/* Stats grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderBottom: `1px solid ${C.g100}` }}>
-                {[
-                  { label: 'Trades',   value: fmt(trades) },
-                  { label: '👍 Pos',   value: posFeedback },
-                  { label: '👎 Neg',   value: negFeedback },
-                ].map((s, i) => (
-                  <div key={s.label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: i < 2 ? `1px solid ${C.g100}` : 'none' }}>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: C.forest }}>{s.value}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>{s.label}</div>
+                <div style={{ padding: '12px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}` }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:15, fontWeight:900, color:C.forest }}>
+                    <Repeat2 size={13} strokeWidth={2.5}/>{fmt(trades)}
                   </div>
-                ))}
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Trades</div>
+                </div>
+                <div style={{ padding: '12px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}` }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:3, fontSize:14, fontWeight:900, color:'#16A34A' }}>
+                    <ThumbsUp size={12} strokeWidth={2.5}/>{posFeedback}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Positive</div>
+                </div>
+                <div style={{ padding: '12px 8px', textAlign: 'center' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:3, fontSize:14, fontWeight:900, color:'#DC2626' }}>
+                    <ThumbsDown size={12} strokeWidth={2.5}/>{negFeedback}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Negative</div>
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
                 {[
@@ -621,8 +617,38 @@ export default function ListingDetail({ user }) {
           </div>
         )}
 
+        {/* ── Gift Card Warning (only for gift card listings) ── */}
+        {isGiftCard && (
+          <div style={{ marginTop:16, borderRadius:16, overflow:'hidden', border:'1.5px solid #F59E0B', boxShadow:'0 4px 24px rgba(245,158,11,0.13)' }}>
+            {/* Warning header */}
+            <div style={{ background:'linear-gradient(135deg,#F59E0B,#D97706)', padding:'10px 14px', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:18 }}>⚠️</span>
+              <span style={{ fontWeight:900, fontSize:13, color:'#fff', letterSpacing:0.3 }}>Gift Card Warning!</span>
+            </div>
+            {/* Warning body */}
+            <div style={{ background:'#FFFBEB', padding:'12px 14px' }}>
+              <p style={{ margin:'0 0 10px', fontSize:12, fontWeight:700, color:'#92400E', lineHeight:1.6 }}>
+                Trading gift cards is very risky. Please follow these rules to stay safe:
+              </p>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {[
+                  { icon:'🎥', text:'Do a video recording of your card when you start this trade.' },
+                  { icon:'✅', text:'Make sure your card is correct and valid before sending.' },
+                  { icon:'📹', text:'Stay on the video recording till the end of this trade — it may be needed for moderator review.' },
+                  { icon:'⚖️', text:'Praqen is NOT responsible for any loss if you do not follow these simple rules.' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 10px', borderRadius:10, background: i === 3 ? '#FEE2E2' : '#FEF3C7', border: i === 3 ? '1px solid #FCA5A5' : '1px solid #FDE68A' }}>
+                    <span style={{ fontSize:14, flexShrink:0, marginTop:1 }}>{item.icon}</span>
+                    <p style={{ margin:0, fontSize:11.5, fontWeight: i === 3 ? 900 : 700, color: i === 3 ? '#B91C1C' : '#78350F', lineHeight:1.55 }}>{item.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Safety notice ── */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:20, padding:'10px 14px', borderRadius:12, background:`${C.green}10`, border:`1px solid ${C.green}20` }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:16, padding:'10px 14px', borderRadius:12, background:`${C.green}10`, border:`1px solid ${C.green}20` }}>
           <Lock size={11} color={C.green} style={{ flexShrink:0 }}/>
           <p style={{ margin:0, fontSize:11, fontWeight:700, color:C.green, textAlign:'center', lineHeight:1.5 }}>
             Your funds are protected by escrow — trade safely on <strong>PRAQEN.com</strong>

@@ -27,11 +27,11 @@ const C = {
 
 // ─── Badge config ──────────────────────────────────────────────────────────────
 const BADGES = {
-  BEGINNER:   { label:'Beginner',   icon:'🔵', bg:'#94A3B8', text:'#fff', next:'PRO',        nextLabel:'Pro Trader' },
-  PRO:        { label:'Pro Trader', icon:'⭐', bg:'#3B82F6', text:'#fff', next:'EXPERT',     nextLabel:'Expert' },
-  EXPERT:     { label:'Expert',     icon:'💎', bg:'#10B981', text:'#fff', next:'AMBASSADOR', nextLabel:'Ambassador' },
-  AMBASSADOR: { label:'Ambassador', icon:'🌟', bg:'#8B5CF6', text:'#fff', next:'LEGEND',     nextLabel:'Legend' },
-  LEGEND:     { label:'Legend',     icon:'👑', bg:'#F4A422', text:'#1B4332', next:null,      nextLabel:null },
+  BEGINNER:   { label:'NEW ✦',     icon:'🌱', bg:'linear-gradient(135deg,#EDE9FE,#F5F3FF)', text:'#7C3AED', borderColor:'#C4B5FD', next:'PRO',        nextLabel:'Pro Trader' },
+  PRO:        { label:'PRO',       icon:'●',  bg:'linear-gradient(135deg,#D1FAE5,#A7F3D0)', text:'#065F46', borderColor:'#34D399', next:'EXPERT',     nextLabel:'Expert' },
+  EXPERT:     { label:'EXPERT',    icon:'▲',  bg:'linear-gradient(135deg,#1E3A5F,#1E40AF)', text:'#FFFFFF', borderColor:'#3B82F6', next:'AMBASSADOR', nextLabel:'Ambassador' },
+  AMBASSADOR: { label:'AMBASSADOR',icon:'◈',  bg:'linear-gradient(135deg,#0D9488,#2D6A4F)', text:'#FFFFFF', borderColor:'#0D9488', next:'LEGEND',     nextLabel:'Legend' },
+  LEGEND:     { label:'LEGEND',    icon:'♛',  bg:'linear-gradient(135deg,#FEF3C7,#FDE68A)', text:'#78350F', borderColor:'#F59E0B', next:null,         nextLabel:null },
 };
 
 // Badge thresholds — trades needed + referrals needed
@@ -158,9 +158,10 @@ function ProfileSummary({ user, profile, stats }) {
         {/* Name + badge */}
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <h2 className="font-black text-lg" style={{color:C.forest}}>{profile?.username || user?.username}</h2>
-          <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-full"
-            style={{backgroundColor:badge.bg, color:badge.text}}>
-            {badge.icon} {badge.label}
+          <span className="inline-flex items-center gap-0.5 text-xs font-black px-2 py-0.5 rounded-full border"
+            style={{background:badge.bg, borderColor:badge.borderColor}}>
+            <span style={{color:badge.icon==='♛'?'#92400E':badge.text}}>{badge.icon}</span>
+            <span style={{color:badge.text}}>{badge.label}</span>
           </span>
           {profile?.kyc_verified && <BadgeCheck size={16} style={{color:C.paid}} title="KYC Verified"/>}
         </div>

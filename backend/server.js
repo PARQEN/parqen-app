@@ -917,6 +917,9 @@ app.post('/api/listings', verifyToken, async (req, res) => {
       time_limit: timeLimit, processing_time_minutes: timeLimit,
       trade_instructions: b.trade_instructions || '', listing_terms: b.listing_terms || '',
       description: b.description || `${brand} via ${payMethod}`,
+      card_values: b.card_values || null,
+      card_type:   b.card_type   || 'both',
+      face_value:  b.face_value  || (b.card_values && b.card_values[0]) || null,
     }]).select();
     if (error) { console.error('[POST /listings]', error.message); return res.status(400).json({ error: error.message }); }
     res.json({ success: true, listing: data[0] });
@@ -933,9 +936,10 @@ app.get('/api/listings', async (req, res) => {
       currency, currency_symbol, country, country_name, payment_method, payment_methods,
       amount_usd, min_limit_usd, max_limit_usd, min_limit_local, max_limit_local,
       time_limit, trade_instructions, listing_terms, description, created_at,
+      card_values, card_type, face_value,
       users:seller_id(id, username, average_rating, total_trades, completion_rate,
         avatar_url, is_id_verified, is_email_verified, last_login, created_at,
-        total_feedback_count, positive_feedback, negative_feedback, country, bio)
+        total_feedback_count, positive_feedback, negative_feedback, country, bio, badge)
     `).eq('status', 'ACTIVE').order('created_at', { ascending: false });
     if (brand) query = query.ilike('gift_card_brand', `%${brand}%`);
     if (minPrice) query = query.gte('bitcoin_price', parseFloat(minPrice));
@@ -951,7 +955,7 @@ app.get('/api/listings', async (req, res) => {
 app.get('/api/listings/:id', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('listings')
-      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login)`)
+      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, badge, country, is_id_verified, is_email_verified, bio)`)
       .eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Listing not found' });
     res.json({ listing: data });
@@ -1068,7 +1072,7 @@ app.post('/api/debug/update-feedback/:username', async (req, res) => {
 app.get('/api/my-trades', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('trades')
-      .select(`*, listing:listing_id(*), buyer:buyer_id(id, username, avatar_url, average_rating, total_trades, completion_rate), seller:seller_id(id, username, avatar_url, average_rating, total_trades, completion_rate)`)
+      .select(`*, listing:listing_id(*), buyer:buyer_id(id, username, avatar_url, average_rating, total_trades, completion_rate, badge, positive_feedback, negative_feedback, last_login, country), seller:seller_id(id, username, avatar_url, average_rating, total_trades, completion_rate, badge, positive_feedback, negative_feedback, last_login, country)`)
       .or(`buyer_id.eq.${req.userId},seller_id.eq.${req.userId}`)
       .order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
@@ -1081,7 +1085,7 @@ app.get('/api/my-trades', verifyToken, async (req, res) => {
 app.get('/api/trades/:id', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('trades')
-      .select(`*, listing:listing_id(*), buyer:buyer_id(id, username, avatar_url, average_rating, total_trades, completion_rate, last_login), seller:seller_id(id, username, avatar_url, average_rating, total_trades, completion_rate, last_login)`)
+      .select(`*, listing:listing_id(*), buyer:buyer_id(id, username, avatar_url, average_rating, total_trades, completion_rate, last_login, badge, positive_feedback, negative_feedback, country), seller:seller_id(id, username, avatar_url, average_rating, total_trades, completion_rate, last_login, badge, positive_feedback, negative_feedback, country)`)
       .eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Trade not found' });
     if (data.buyer_id !== req.userId && data.seller_id !== req.userId) return res.status(403).json({ error: 'Unauthorized' });

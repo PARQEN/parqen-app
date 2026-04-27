@@ -11,6 +11,7 @@ import {
   Smartphone, Building2, ThumbsUp, ThumbsDown, Gift,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { deriveBadge } from '../lib/badge';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -37,25 +38,6 @@ function isoToFlag(code) {
   return code.toUpperCase().replace(/./g,c=>String.fromCodePoint(0x1F1E0+c.charCodeAt(0)-65));
 }
 
-const TRUST_MAP = {
-  LEGEND:    {label:'LEGEND',    icon:'👑', color:'#2D6A4F'},
-  AMBASSADOR:{label:'AMBASSADOR',icon:'🌟', color:'#8B5CF6'},
-  EXPERT:    {label:'EXPERT',    icon:'💎', color:'#0EA5E9'},
-  PRO:       {label:'PRO',       icon:'⭐', color:'#10B981'},
-  ACTIVE:    {label:'ACTIVE',    icon:'🔥', color:'#F59E0B'},
-  BEGINNER:  {label:'NEW',       icon:'🆕', color:'#94A3B8'},
-};
-function deriveBadge(u) {
-  // Compute from real stats first — always reflects true rank
-  const t=parseInt(u?.total_trades??0),r=parseFloat(u?.average_rating??0);
-  if(t>=500&&r>=4.8)return TRUST_MAP.LEGEND;
-  if(t>=200&&r>=4.5)return TRUST_MAP.EXPERT;
-  if(t>=50 &&r>=4.0)return TRUST_MAP.PRO;
-  if(t>=5)           return TRUST_MAP.ACTIVE;
-  // Fall back to stored badge only when not enough trade data
-  if(u?.badge){const b=String(u.badge).toUpperCase();if(TRUST_MAP[b])return TRUST_MAP[b];}
-  return TRUST_MAP.BEGINNER;
-}
 
 const STATUS_CFG = {
   CREATED:     {label:'Escrow Active',  color:C.green,   bg:`${C.green}15`,  icon:Lock},
@@ -364,9 +346,10 @@ function ProfilePopup({user,label,onClose}) {
                 <h3 className="font-black text-lg">{user.username}</h3>
                 {user.kyc_verified&&<BadgeCheck size={14} style={{color:'#93C5FD'}}/>}
               </div>
-              <span className="text-xs font-black px-2 py-0.5 rounded-full"
-                style={{backgroundColor:badge.color,color:'#fff'}}>
-                {badge.icon} {badge.label}
+              <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border ${badge.animate?'shadow-md':''}`}
+                style={{background:badge.bg,borderColor:badge.borderColor,boxShadow:badge.glow?`0 0 8px ${badge.glow}`:undefined}}>
+                <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
+                <span style={{color:badge.textColor}}>{badge.label}</span>
               </span>
             </div>
           </div>
@@ -1045,8 +1028,11 @@ export default function TradeDetail({user}) {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-black text-white text-xs">{cp?.username||'—'}</span>
                         {cp?.kyc_verified&&<BadgeCheck size={11} style={{color:'#93C5FD'}}/>}
-                        <span className="text-xs font-black px-1 py-0.5 rounded-sm text-white"
-                          style={{backgroundColor:cpBadge.color,fontSize:'10px'}}>{cpBadge.label}</span>
+                        <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border ${cpBadge.animate?'shadow-md':''}`}
+                          style={{background:cpBadge.bg,borderColor:cpBadge.borderColor,boxShadow:cpBadge.glow?`0 0 8px ${cpBadge.glow}`:undefined}}>
+                          <span style={{color:cpBadge.iconColor||cpBadge.textColor}}>{cpBadge.icon}</span>
+                          <span style={{color:cpBadge.textColor}}>{cpBadge.label}</span>
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5" style={{fontSize:'10px',color:'rgba(255,255,255,0.55)'}}>
                         <span style={{color:'#86EFAC'}}>👍{cpPos}</span>

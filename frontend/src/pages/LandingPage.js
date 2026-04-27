@@ -1,230 +1,498 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Shield, Zap, Globe, ArrowRight, ChevronDown,
-  Bitcoin, Gift, Home, Wallet, LogIn, Lock,
+  ArrowRight, Shield, Zap, Globe, Bitcoin, Gift,
+  ChevronDown, Lock, TrendingUp, TrendingDown, Users,
+  HeadphonesIcon, Check, ChevronRight, Star,
+  MessageCircle, Award, Flame, Play, CheckCircle,
+  Smartphone, Building2, CreditCard, Mail,
 } from 'lucide-react';
 
+/* ─── palette ─────────────────────────────────────────────────────────── */
 const C = {
-  forest:'#1B4332', green:'#2D6A4F', mint:'#40916C',
-  gold:'#F4A422', mist:'#F0FAF5', white:'#FFFFFF',
+  forest:'#1B4332', green:'#2D6A4F', mint:'#40916C', sage:'#52B788',
+  gold:'#F4A422', amber:'#F59E0B', mist:'#F0FAF5',
   g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
-  g400:'#94A3B8', g500:'#64748B', g700:'#334155', g800:'#1E293B',
-  success:'#10B981', online:'#22C55E',
+  g400:'#94A3B8', g500:'#64748B', g600:'#475569', g700:'#334155', g800:'#1E293B',
+  success:'#10B981', danger:'#EF4444', paid:'#3B82F6', online:'#22C55E',
+  purple:'#8B5CF6',
 };
 
-// ── Live trade ticker ─────────────────────────────────────────────────────────
-const TRADES = [
-  { user:'Samuel K.',  flag:'🇬🇭', method:'MTN MoMo',      amount:'₵12,500', ago:'2s ago' },
-  { user:'Amina T.',   flag:'🇳🇬', method:'OPay',           amount:'₦850,000', ago:'18s ago' },
-  { user:'Kofi B.',    flag:'🇬🇭', method:'Vodafone Cash',  amount:'₵4,200',   ago:'34s ago' },
-  { user:'Fatima S.',  flag:'🇸🇳', method:'Wave',           amount:'CFA 45k',  ago:'1m ago' },
-  { user:'James O.',   flag:'🇰🇪', method:'M-Pesa',         amount:'KSh 8,200', ago:'1m ago' },
-  { user:'Ama D.',     flag:'🇬🇭', method:'Bank Transfer',  amount:'₵22,000',  ago:'2m ago' },
+/* ─── live trades ─────────────────────────────────────────────────────── */
+const LIVE = [
+  { user:'Samuel K.',  flag:'🇬🇭', method:'MTN MoMo',     amount:'₵12,500',   type:'buy'  },
+  { user:'Amina T.',   flag:'🇳🇬', method:'OPay',          amount:'₦850,000',  type:'buy'  },
+  { user:'Kofi B.',    flag:'🇬🇭', method:'Vodafone Cash', amount:'₵4,200',    type:'sell' },
+  { user:'Fatima S.',  flag:'🇸🇳', method:'Wave',          amount:'CFA 45k',   type:'buy'  },
+  { user:'James O.',   flag:'🇰🇪', method:'M-Pesa',        amount:'KSh 8,200', type:'buy'  },
+  { user:'Ama D.',     flag:'🇬🇭', method:'Bank Transfer', amount:'₵22,000',   type:'sell' },
+  { user:'Emeka N.',   flag:'🇳🇬', method:'PalmPay',       amount:'₦340,000',  type:'buy'  },
+  { user:'Lena M.',    flag:'🇰🇪', method:'M-Pesa',        amount:'KSh 15k',   type:'buy'  },
 ];
+
+/* ─── scroll-reveal hook ──────────────────────────────────────────────── */
+function useReveal(threshold = 0.12) {
+  const ref  = useRef(null);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setOn(true); },
+      { threshold }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, on];
+}
+
+/* ─── live ticker strip ───────────────────────────────────────────────── */
 function Ticker() {
   const [i, setI] = useState(0);
-  useEffect(()=>{ const iv=setInterval(()=>setI(x=>(x+1)%TRADES.length),2600); return()=>clearInterval(iv); },[]);
-  const t = TRADES[i];
+  useEffect(() => {
+    const t = setInterval(() => setI(x => (x+1) % LIVE.length), 2600);
+    return () => clearInterval(t);
+  }, []);
+  const t = LIVE[i];
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl text-xs"
-      style={{backgroundColor:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',animation:'fadeIn .35s ease'}}>
-      <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{backgroundColor:C.online}}/>
-      <span style={{color:'rgba(255,255,255,0.45)'}}>Live</span>
-      <div className="w-6 h-6 rounded-full flex items-center justify-center font-black text-xs flex-shrink-0 text-white"
-        style={{backgroundColor:C.green}}>{t.user[0]}</div>
-      <span className="font-bold text-white flex-shrink-0">{t.user}</span>
-      <span style={{color:'rgba(255,255,255,0.45)'}} className="hidden sm:inline">
-        {t.flag} bought BTC via {t.method}
+    <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs max-w-full overflow-hidden"
+      style={{background:'rgba(255,255,255,0.09)',border:'1px solid rgba(255,255,255,0.15)'}}>
+      <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{background:C.online}}/>
+      <span className="font-bold flex-shrink-0" style={{color:'rgba(255,255,255,0.45)'}}>Live</span>
+      <div className="w-6 h-6 rounded-full flex items-center justify-center font-black text-xs text-white flex-shrink-0"
+        style={{background:C.green}}>{t.user[0]}</div>
+      <span className="font-black text-white flex-shrink-0">{t.user}</span>
+      <span className="hidden sm:inline truncate" style={{color:'rgba(255,255,255,0.45)'}}>
+        {t.flag} {t.type==='buy'?'bought':'sold'} via {t.method}
       </span>
-      <span className="font-black flex-shrink-0 ml-auto" style={{color:C.gold}}>{t.amount}</span>
-      <span className="flex-shrink-0 hidden sm:block" style={{color:'rgba(255,255,255,0.3)'}}>{t.ago}</span>
+      <span className="font-black ml-auto flex-shrink-0"
+        style={{color:t.type==='buy'?C.gold:C.sage}}>{t.amount}</span>
     </div>
   );
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-function Stat({value, label}) {
+/* ─── section label ───────────────────────────────────────────────────── */
+function Label({children}) {
   return (
-    <div className="text-center px-4">
-      <p className="text-2xl md:text-3xl font-black text-white mb-0.5">{value}</p>
-      <p className="text-xs" style={{color:'rgba(255,255,255,0.5)'}}>{label}</p>
-    </div>
+    <p className="text-xs font-black uppercase tracking-widest mb-2"
+      style={{color:C.mint}}>{children}</p>
   );
 }
 
-// ── Bottom nav (mobile, guest) ────────────────────────────────────────────────
-function BottomNav() {
-  const navigate = useNavigate();
-  const items = [
-    {icon:Home,    label:'Home',       path:'/'},
-    {icon:Bitcoin, label:'P2P',        path:'/buy-bitcoin'},
-    {icon:Gift,    label:'Gift Cards', path:'/gift-cards'},
-    {icon:Wallet,  label:'Wallet',     path:'/login?message=Please log in to access your wallet'},
-    {icon:LogIn,   label:'Login',      path:'/login'},
-  ];
-  return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 md:hidden"
-      style={{borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom)'}}>
-      <div className="flex items-center justify-around px-2 py-1.5">
-        {items.map(({icon:Icon,label,path})=>(
-          <button key={label} onClick={()=>navigate(path)}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl"
-            style={{color: label==='Home' ? C.forest : C.g400}}>
-            <Icon size={20} strokeWidth={label==='Home'?2.5:1.8}/>
-            <span className="text-xs font-bold">{label}</span>
-            {label==='Home' && <span className="w-1 h-1 rounded-full" style={{backgroundColor:C.forest}}/>}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const PAYMENTS = [
-  'MTN Mobile Money','Vodafone Cash','M-Pesa','OPay','PalmPay',
-  'Bank Transfer','PayPal','Wave','Orange Money','Zelle','Wise','Revolut',
-];
-
-const HOW = [
-  {n:'01', icon:'🔐', title:'Create Free Account', desc:'Sign up in 30 seconds. Email or phone. No bank needed.'},
-  {n:'02', icon:'🔍', title:'Browse Live Offers',  desc:'Filter by payment method, country, and rate.'},
-  {n:'03', icon:'🔒', title:'Escrow Locks BTC',    desc:"Seller's Bitcoin is secured automatically before you pay."},
-  {n:'04', icon:'💰', title:'Pay & Receive BTC',   desc:'Send payment, confirm — BTC lands in your wallet instantly.'},
-];
-
-export default function LandingPage() {
-  const navigate = useNavigate();
+/* ════════════════════════════════════════════════════════════════════════
+   MAIN EXPORT
+════════════════════════════════════════════════════════════════════════ */
+export default function LandingPage({ user }) {
+  const navigate   = useNavigate();
   const [faq, setFaq] = useState(null);
+  const [btc, setBtc] = useState(808425);
+  const [up,  setUp]  = useState(true);
+
+  /* simulated live price */
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setBtc(p => { const d=(Math.random()-.47)*900; setUp(d>=0); return Math.round(p+d); });
+    }, 3000);
+    return () => clearInterval(iv);
+  }, []);
+
+  /* section refs */
+  const [heroRef,         heroOn]         = useReveal(0.05);
+  const [statsRef,        statsOn]        = useReveal(0.1);
+  const [productsRef,     productsOn]     = useReveal(0.1);
+  const [howRef,          howOn]          = useReveal(0.1);
+  const [featRef,         featOn]         = useReveal(0.1);
+  const [escrowRef,       escrowOn]       = useReveal(0.1);
+  const [paymentsRef,     paymentsOn]     = useReveal(0.1);
+  const [testimonialsRef, testimonialsOn] = useReveal(0.1);
+  const [countriesRef,    countriesOn]    = useReveal(0.1);
+
+  const goTo = path => navigate(path);
 
   return (
-    <div className="min-h-screen overflow-x-hidden pb-16 md:pb-0"
-      style={{fontFamily:"'DM Sans',sans-serif", backgroundColor:C.white}}>
+    <div className="overflow-x-hidden" style={{fontFamily:"'DM Sans',sans-serif",background:'#fff'}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
       <style>{`
-        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes slideUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
-        .reveal{animation:slideUp .55s ease both}
-        .delay1{animation-delay:.1s}.delay2{animation-delay:.2s}.delay3{animation-delay:.3s}
+        @keyframes slideUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.6}}
+        .anim-up{animation:slideUp .6s ease both}
+        .anim-fade{animation:fadeIn .7s ease both}
+        .float{animation:float 5s ease-in-out infinite}
+        .float2{animation:float 7s ease-in-out infinite;animation-delay:1.5s}
+        .card-up{transition:transform .22s,box-shadow .22s}
+        .card-up:hover{transform:translateY(-5px);box-shadow:0 18px 45px rgba(0,0,0,.11)}
+        .grad-text{background:linear-gradient(90deg,${C.gold},${C.amber});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .green-text{background:linear-gradient(90deg,${C.sage},${C.mint});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .step-line{position:absolute;top:32px;left:calc(50% + 38px);width:calc(100% - 76px);height:2px;background:linear-gradient(90deg,${C.gold}60,transparent);z-index:0}
       `}</style>
 
-      {/* ══════════════════════════════════════════════════════════════
-          HERO
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden"
-        style={{background:`linear-gradient(140deg,${C.forest} 0%,#122b1e 55%,${C.green} 100%)`}}>
+      {/* ══════════════════════════════════════════════════
+          1. HERO
+      ══════════════════════════════════════════════════ */}
+      <section ref={heroRef} className="relative overflow-hidden"
+        style={{background:`linear-gradient(145deg,${C.forest} 0%,#0c2418 50%,${C.green} 100%)`,minHeight:'100dvh',display:'flex',flexDirection:'column',justifyContent:'center'}}>
 
-        {/* Subtle grid */}
+        {/* grid bg */}
         <div className="absolute inset-0 pointer-events-none"
-          style={{backgroundImage:'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)',backgroundSize:'56px 56px'}}/>
-        {/* Glow blobs */}
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-15"
-          style={{backgroundColor:C.gold}}/>
-        <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-10"
-          style={{backgroundColor:C.mint}}/>
+          style={{backgroundImage:'linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px)',backgroundSize:'52px 52px'}}/>
+        {/* glow orbs */}
+        <div className="absolute top-0 right-0 rounded-full blur-3xl pointer-events-none"
+          style={{width:480,height:480,background:C.gold,opacity:.07}}/>
+        <div className="absolute bottom-0 left-0 rounded-full blur-3xl pointer-events-none"
+          style={{width:340,height:340,background:C.mint,opacity:.09}}/>
 
-        <div className="relative max-w-4xl mx-auto px-4 pt-14 pb-16 text-center">
+        <div className="relative max-w-7xl mx-auto px-4 pt-6 pb-10 md:py-24 w-full">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-20 items-center">
 
-          {/* Trust pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-8 reveal"
-            style={{backgroundColor:'rgba(244,164,34,0.14)',border:'1px solid rgba(244,164,34,0.3)',color:C.gold}}>
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
-            2.4M+ traders · Africa's #1 P2P Bitcoin platform
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white leading-tight mb-5 reveal delay1"
-            style={{fontFamily:"'Syne',sans-serif"}}>
-            Buy & Sell Bitcoin<br/>
-            <span style={{color:C.gold}}>Safely. Instantly.</span>
-          </h1>
-
-          {/* Tagline */}
-          <p className="text-base md:text-lg text-white/60 max-w-xl mx-auto mb-8 reveal delay2">
-            Trade directly with verified sellers using MTN MoMo, M-Pesa, bank transfer and 40+ payment methods.
-            Every trade is escrow-protected.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 reveal delay3">
-            <button onClick={()=>navigate('/register')}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-black text-base transition hover:opacity-90 hover:shadow-2xl"
-              style={{backgroundColor:C.gold, color:C.forest}}>
-              Get Started Free <ArrowRight size={16}/>
-            </button>
-            <button onClick={()=>navigate('/buy-bitcoin')}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-black text-base transition"
-              style={{backgroundColor:'rgba(255,255,255,0.1)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.2)'}}>
-              Browse Marketplace
-            </button>
-          </div>
-
-          {/* Live trade feed */}
-          <div className="max-w-lg mx-auto reveal delay3">
-            <Ticker/>
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        <div className="border-t border-white/10">
-          <div className="max-w-4xl mx-auto px-4 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
-            <Stat value="2.4M+"  label="Active Traders"/>
-            <Stat value="180+"   label="Countries"/>
-            <Stat value="0.5%"   label="Flat Fee Only"/>
-            <Stat value="< 15m"  label="Avg Trade Time"/>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════════════════
-          HOW IT WORKS
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-16 px-4" style={{backgroundColor:C.g50}}>
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-xs font-black uppercase tracking-widest mb-2" style={{color:C.mint}}>Simple Process</p>
-            <h2 className="text-2xl md:text-3xl font-black" style={{color:C.g800,fontFamily:"'Syne',sans-serif"}}>
-              Trade in 4 easy steps
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {HOW.map(({n,icon,title,desc})=>(
-              <div key={n} className="bg-white rounded-2xl p-5 border" style={{borderColor:C.g200}}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-2xl">{icon}</span>
-                  <span className="text-xs font-black" style={{color:C.g300}}>{n}</span>
-                </div>
-                <p className="font-black text-sm mb-1.5" style={{color:C.g800}}>{title}</p>
-                <p className="text-xs leading-relaxed" style={{color:C.g500}}>{desc}</p>
+            {/* left */}
+            <div>
+              {/* badge */}
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6 ${heroOn?'anim-up':''}`}
+                style={{opacity:heroOn?1:0,background:'rgba(244,164,34,.15)',border:'1px solid rgba(244,164,34,.35)',color:C.gold}}>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{background:C.online}}/>
+                Trusted by 2.4M+ traders across 180+ countries
               </div>
-            ))}
+
+              {/* headline */}
+              <h1 className={`text-[1.75rem] sm:text-5xl lg:text-6xl font-black leading-[1.08] mb-4 text-white ${heroOn?'anim-up':''}`}
+                style={{opacity:heroOn?1:0,fontFamily:"'Syne',sans-serif",animationDelay:'.1s'}}>
+                The Safest Way to<br/>
+                <span className="grad-text">Buy &amp; Sell Bitcoin</span><br/>
+                <span style={{fontSize:'60%',fontWeight:700,color:'rgba(255,255,255,.65)'}}>
+                  Peer-to-Peer · Africa &amp; Beyond
+                </span>
+              </h1>
+
+              {/* sub */}
+              <p className={`text-base md:text-lg mb-8 leading-relaxed max-w-lg ${heroOn?'anim-up':''}`}
+                style={{opacity:heroOn?1:0,color:'rgba(255,255,255,.62)',animationDelay:'.18s'}}>
+                Trade Bitcoin directly with verified sellers using MTN MoMo, M-Pesa, Bank Transfer
+                and 50+ local payment methods. Every trade is escrow-protected — your money is never at risk.
+              </p>
+
+              {/* CTAs */}
+              <div className={`flex flex-col sm:flex-row gap-3 mb-7 ${heroOn?'anim-up':''}`}
+                style={{opacity:heroOn?1:0,animationDelay:'.26s'}}>
+                {user ? (
+                  <>
+                    <button onClick={()=>goTo('/buy-bitcoin')}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:opacity-90 active:scale-95 transition"
+                      style={{background:C.gold,color:C.forest,boxShadow:`0 4px 22px ${C.gold}50`}}>
+                      <Bitcoin size={18}/> Buy Bitcoin <ArrowRight size={16}/>
+                    </button>
+                    <button onClick={()=>goTo('/sell-bitcoin')}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:bg-white/20 active:scale-95 transition"
+                      style={{background:'rgba(255,255,255,.12)',color:'#fff',border:'2px solid rgba(255,255,255,.3)'}}>
+                      <TrendingDown size={18}/> Sell Bitcoin
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={()=>goTo('/register')}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:opacity-90 active:scale-95 transition"
+                      style={{background:C.gold,color:C.forest,boxShadow:`0 4px 22px ${C.gold}50`}}>
+                      Get Started Free <ArrowRight size={18}/>
+                    </button>
+                    <button onClick={()=>goTo('/buy-bitcoin')}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:bg-white/20 active:scale-95 transition"
+                      style={{background:'rgba(255,255,255,.12)',color:'#fff',border:'2px solid rgba(255,255,255,.3)'}}>
+                      <Bitcoin size={16}/> Browse Marketplace
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* trust row */}
+              <div className={`flex flex-wrap gap-3 mb-6 ${heroOn?'anim-up':''}`}
+                style={{opacity:heroOn?1:0,animationDelay:'.34s'}}>
+                {['🔒 Escrow','⚡ Under 15 min','💸 0.5% fee','🌍 180+ countries'].map(t=>(
+                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{color:'rgba(255,255,255,.7)',background:'rgba(255,255,255,.08)'}}>{t}</span>
+                ))}
+              </div>
+
+              {/* ticker */}
+              <div className={heroOn?'anim-fade':''} style={{opacity:heroOn?1:0,animationDelay:'.42s'}}>
+                <Ticker/>
+              </div>
+            </div>
+
+            {/* right — BTC card */}
+            <div className={`hidden md:flex items-center justify-center ${heroOn?'anim-fade':''}`}
+              style={{opacity:heroOn?1:0,animationDelay:'.3s'}}>
+              <div className="relative">
+
+                {/* main card */}
+                <div className="float bg-white rounded-3xl shadow-2xl overflow-hidden"
+                  style={{width:310,border:`1px solid ${C.g200}`}}>
+                  {/* price header */}
+                  <div className="p-5 border-b" style={{borderColor:C.g100}}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                          style={{background:`${C.gold}20`}}>
+                          <Bitcoin size={18} style={{color:C.gold}}/>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black" style={{color:C.g500}}>BTC / GHS</p>
+                          <p className="text-xs" style={{color:C.g400}}>Live Market Rate</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black px-2.5 py-1 rounded-full"
+                        style={{background:up?`${C.success}15`:`${C.danger}15`,color:up?C.success:C.danger}}>
+                        {up?'▲':'▼'} 2.4%
+                      </span>
+                    </div>
+                    <p className="text-3xl font-black" style={{color:C.forest}}>
+                      ₵{btc.toLocaleString()}
+                    </p>
+                  </div>
+
+                  {/* sellers */}
+                  <div className="p-4 space-y-2">
+                    <p className="text-xs font-black mb-2" style={{color:C.g400}}>🔥 Top Active Sellers</p>
+                    {[
+                      {n:'Samuel K.',m:'📱 MTN MoMo',     r:'₵810k',badge:'Legend',bc:'#7C3AED',t:'1.2k'},
+                      {n:'Amina T.', m:'🏦 Bank Transfer', r:'₵808k',badge:'Expert', bc:'#0EA5E9',t:'348'},
+                      {n:'Kofi B.',  m:'📱 Vodafone',      r:'₵805k',badge:'Pro',    bc:C.success,t:'87'},
+                    ].map(({n,m,r,badge,bc,t})=>(
+                      <div key={n} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+                        style={{background:C.g50}}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
+                            style={{background:C.green}}>{n[0]}</div>
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-black" style={{color:C.forest}}>{n}</span>
+                              <span className="font-black text-white rounded-full px-1"
+                                style={{background:bc,fontSize:9}}>{badge}</span>
+                            </div>
+                            <p className="text-xs" style={{color:C.g400}}>{m}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-black" style={{color:C.green}}>{r}</p>
+                          <p className="text-xs" style={{color:C.g400}}>{t} trades</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 pb-4">
+                    <button onClick={()=>goTo(user?'/buy-bitcoin':'/register')}
+                      className="w-full py-3 rounded-xl text-white font-black text-sm hover:opacity-90 transition"
+                      style={{background:`linear-gradient(135deg,${C.green},${C.mint})`}}>
+                      {user?'Buy Bitcoin Now →':'Get Started Free →'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* floating badges */}
+                <div className="absolute -top-5 -right-10 bg-white rounded-2xl px-3 py-2 shadow-xl flex items-center gap-1.5 text-xs font-bold float2"
+                  style={{color:C.success,border:`1px solid ${C.success}25`}}>
+                  <Shield size={12}/> Escrow Safe
+                </div>
+                <div className="absolute -bottom-5 -left-10 bg-white rounded-2xl px-3 py-2 shadow-xl flex items-center gap-1.5 text-xs font-bold float2"
+                  style={{color:C.paid,border:`1px solid ${C.paid}25`,animationDelay:'2s'}}>
+                  <Zap size={12}/> Instant Release
+                </div>
+                <div className="absolute top-1/3 -left-14 bg-white rounded-2xl px-3 py-2 shadow-xl flex items-center gap-1.5 text-xs font-bold float"
+                  style={{color:C.gold,border:`1px solid ${C.gold}25`,animationDelay:'1s'}}>
+                  <Award size={12}/> Verified Traders
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* ══════════════════════════════════════════════════════════════
-          WHY PRAQEN
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-xs font-black uppercase tracking-widest mb-2" style={{color:C.mint}}>Why PRAQEN</p>
-            <h2 className="text-2xl md:text-3xl font-black" style={{color:C.g800,fontFamily:"'Syne',sans-serif"}}>
-              Built for African traders
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-5">
+        {/* stats strip */}
+        <div className="relative border-t" style={{borderColor:'rgba(255,255,255,.1)'}}>
+          <div className="max-w-5xl mx-auto px-4 py-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              {icon:Shield, title:'Escrow on Every Trade',   desc:"Bitcoin locks automatically before any money moves. You're always protected.",  color:C.green},
-              {icon:Zap,    title:'Complete in Minutes',     desc:'No banks, no delays. Trade directly with verified sellers and receive instantly.', color:C.gold},
-              {icon:Globe,  title:'Your Local Currency',     desc:'GHS, NGN, KES, ZAR, EUR, USD and 50+ more. Trade in the money you use daily.', color:'#3B82F6'},
-            ].map(({icon:Icon,title,desc,color})=>(
-              <div key={title} className="p-5 rounded-2xl border" style={{borderColor:C.g200}}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                  style={{backgroundColor:`${color}15`}}>
-                  <Icon size={18} style={{color}}/>
+              {v:'2.4M+', l:'Active Traders'},
+              {v:'$1.2B+',l:'Volume Traded'},
+              {v:'180+',  l:'Countries'},
+              {v:'0.5%',  l:'Flat Fee Only'},
+            ].map(({v,l})=>(
+              <div key={l} className="text-center">
+                <p className="text-xl md:text-3xl font-black grad-text mb-0.5">{v}</p>
+                <p className="text-xs" style={{color:'rgba(255,255,255,.45)'}}>{l}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ MOBILE BUY / SELL STRIP (hidden on desktop) ═══ */}
+      <div className="md:hidden px-4 py-6" style={{background:C.forest}}>
+        <p className="text-center text-xs font-black uppercase tracking-widest mb-4"
+          style={{color:'rgba(255,255,255,.45)'}}>Start Trading Now</p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <button onClick={()=>goTo('/buy-bitcoin')}
+            className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl active:scale-95 transition"
+            style={{background:C.gold,color:C.forest}}>
+            <Bitcoin size={24}/>
+            <span className="text-sm font-black">Buy Bitcoin</span>
+            <span className="text-xs font-medium" style={{opacity:.7}}>Best rates</span>
+          </button>
+          <button onClick={()=>goTo('/sell-bitcoin')}
+            className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl active:scale-95 transition"
+            style={{background:'rgba(255,255,255,.1)',color:'#fff',border:'2px solid rgba(255,255,255,.2)'}}>
+            <TrendingDown size={24}/>
+            <span className="text-sm font-black">Sell Bitcoin</span>
+            <span className="text-xs font-medium" style={{opacity:.6}}>Get paid fast</span>
+          </button>
+        </div>
+        <Link to="/gift-cards"
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm w-full"
+          style={{background:'rgba(139,92,246,.2)',color:'#C4B5FD',border:'1px solid rgba(139,92,246,.35)'}}>
+          <Gift size={16}/> Trade Gift Cards — 100+ brands
+        </Link>
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          2. OUR PRODUCTS
+      ══════════════════════════════════════════════════ */}
+      <section ref={productsRef} className="py-10 md:py-20 px-4" style={{background:C.mist}}>
+        <div className="max-w-6xl mx-auto">
+          <div className={`text-center mb-8 md:mb-12 ${productsOn?'anim-up':''}`} style={{opacity:productsOn?1:0}}>
+            <Label>Our Products</Label>
+            <h2 className="text-2xl md:text-4xl font-black mb-3"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Three Powerful Ways to Trade
+            </h2>
+            <p className="text-base max-w-xl mx-auto" style={{color:C.g500}}>
+              One platform. Everything you need to buy, sell and convert crypto — fast, safe and on your terms.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+            {[
+              {
+                icon:Bitcoin, title:'Buy Bitcoin', color:C.gold,
+                desc:'Access thousands of verified P2P offers. Choose your payment method, rate and trade in minutes.',
+                link:'/buy-bitcoin', label:'Browse Sellers',
+                highlights:['Live escrow protection','Best market rates','50+ payment methods','Verified sellers only'],
+              },
+              {
+                icon:TrendingUp, title:'Sell Bitcoin', color:C.green, featured:true,
+                desc:'Convert your Bitcoin to cash instantly. Get paid directly to your mobile wallet or bank account.',
+                link:'/sell-bitcoin', label:'Start Selling',
+                highlights:['Instant payment release','No withdrawal limits','Set your own rate','Zero chargebacks'],
+              },
+              {
+                icon:Gift, title:'Gift Card Trading', color:C.purple,
+                desc:'Convert Amazon, iTunes, Steam, Google Play and 100+ gift card brands to Bitcoin in minutes.',
+                link:'/gift-cards', label:'Trade Gift Cards',
+                highlights:['100+ brands accepted','Instant conversion','Best market rates','Secure trading'],
+              },
+            ].map(({icon:Icon,title,color,desc,link,label,highlights,featured},i)=>(
+              <Link key={title} to={link}
+                className={`card-up bg-white rounded-3xl p-5 md:p-7 border block group relative overflow-hidden ${productsOn?'anim-up':''}`}
+                style={{opacity:productsOn?1:0,borderColor:featured?color:C.g200,borderWidth:featured?2:1,animationDelay:`${i*.1}s`}}>
+                {featured&&(
+                  <div className="absolute top-5 right-5 px-2.5 py-1 rounded-full text-xs font-black"
+                    style={{background:`${color}15`,color}}>Most Popular</div>
+                )}
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
+                  style={{background:`${color}15`}}>
+                  <Icon size={26} style={{color}}/>
                 </div>
-                <p className="font-black text-sm mb-1.5" style={{color:C.g800}}>{title}</p>
+                <h3 className="font-black text-xl mb-2" style={{color:C.forest}}>{title}</h3>
+                <p className="text-sm leading-relaxed mb-5" style={{color:C.g500}}>{desc}</p>
+                <div className="space-y-2 mb-5">
+                  {highlights.map(h=>(
+                    <div key={h} className="flex items-center gap-2 text-xs" style={{color:C.g600}}>
+                      <Check size={13} style={{color,flexShrink:0}}/>{h}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 font-black text-sm pt-3 border-t"
+                  style={{borderColor:C.g100,color}}>
+                  {label}
+                  <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform"/>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          3. HOW IT WORKS
+      ══════════════════════════════════════════════════ */}
+      <section ref={howRef} className="py-10 md:py-20 px-4" style={{background:'#fff'}}>
+        <div className="max-w-5xl mx-auto">
+          <div className={`text-center mb-8 md:mb-14 ${howOn?'anim-up':''}`} style={{opacity:howOn?1:0}}>
+            <Label>Simple Process</Label>
+            <h2 className="text-2xl md:text-4xl font-black"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Trade Bitcoin in 4 Easy Steps
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative">
+            {[
+              {n:'01',icon:'🔐',title:'Create Account',  desc:'Sign up free in 30 seconds. Email verified. No bank account needed to get started.'},
+              {n:'02',icon:'🔍',title:'Browse Offers',   desc:'Filter by payment method, country, currency and rate. Thousands of verified sellers live.'},
+              {n:'03',icon:'🔒',title:'Escrow Locks BTC',desc:"The seller's Bitcoin is automatically secured in escrow before you make any payment."},
+              {n:'04',icon:'✅',title:'Pay & Receive',   desc:'Send your payment and confirm — Bitcoin lands in your wallet instantly. Trade complete!'},
+            ].map(({n,icon,title,desc},i)=>(
+              <div key={n} className={`relative text-center ${howOn?'anim-up':''}`}
+                style={{opacity:howOn?1:0,animationDelay:`${i*.1}s`}}>
+                {i<3&&<div className="hidden lg:block step-line"/>}
+                <div className="relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-md"
+                  style={{background:`linear-gradient(135deg,#fff,${C.g50})`,border:`2px solid ${C.gold}35`}}>
+                  {icon}
+                </div>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black mx-auto mb-3"
+                  style={{background:C.gold,color:C.forest}}>{n}</div>
+                <h3 className="font-black text-sm mb-2" style={{color:C.forest}}>{title}</h3>
+                <p className="text-xs leading-relaxed" style={{color:C.g500}}>{desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-12">
+            <button onClick={()=>goTo(user?'/buy-bitcoin':'/register')}
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-sm hover:opacity-90 active:scale-95 transition"
+              style={{background:C.green,color:'#fff',boxShadow:`0 4px 20px ${C.green}45`}}>
+              {user?'Start Trading Now':'Get Started Free'} <ArrowRight size={16}/>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          4. WHY PRAQEN — 6 FEATURES
+      ══════════════════════════════════════════════════ */}
+      <section ref={featRef} className="py-10 md:py-20 px-4" style={{background:C.g50}}>
+        <div className="max-w-6xl mx-auto">
+          <div className={`text-center mb-8 md:mb-12 ${featOn?'anim-up':''}`} style={{opacity:featOn?1:0}}>
+            <Label>Why PRAQEN?</Label>
+            <h2 className="text-2xl md:text-4xl font-black mb-3"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Built for Trust. Designed for Speed.<br/>
+              <span className="green-text">Made for African Traders.</span>
+            </h2>
+            <p className="text-base max-w-xl mx-auto" style={{color:C.g500}}>
+              Everything you need to trade safely, quickly and confidently — no compromises.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {[
+              {icon:Shield,        title:'Smart Escrow Protection',  desc:'Bitcoin locks automatically the moment a trade starts. Released only when both parties confirm. Zero fraud possible.',   color:C.green  },
+              {icon:Globe,         title:'50+ Payment Methods',      desc:'MTN MoMo, M-Pesa, OPay, Bank Transfer, PayPal, Wave, Zelle, Wise and more — local and international, all in one place.', color:C.paid   },
+              {icon:Zap,           title:'Trades Under 15 Minutes',  desc:'No intermediaries. No complicated requirements. Match with a trader and complete your transaction in minutes.',           color:C.gold   },
+              {icon:MessageCircle, title:'Fast Dispute Resolution',  desc:'Our neutral team reviews both sides and resolves every dispute within 24 hours. Your funds stay safe throughout.',        color:C.success},
+              {icon:HeadphonesIcon,title:'24/7 Human Support',       desc:'Real people. Real solutions. Our global team is always online via in-app chat, WhatsApp and Discord — any time.',        color:C.purple },
+              {icon:Lock,          title:'Zero Hidden Fees',         desc:'Flat 0.5% fee on completed trades only. No listing fees, no withdrawal fees, no monthly plans. Pay only when you win.',  color:C.danger },
+            ].map(({icon:Icon,title,desc,color},i)=>(
+              <div key={title}
+                className={`card-up bg-white rounded-2xl p-6 border ${featOn?'anim-up':''}`}
+                style={{opacity:featOn?1:0,borderColor:C.g100,animationDelay:`${i*.07}s`}}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
+                  style={{background:`${color}15`}}>
+                  <Icon size={22} style={{color}}/>
+                </div>
+                <h3 className="font-black text-sm mb-2" style={{color:C.forest}}>{title}</h3>
                 <p className="text-xs leading-relaxed" style={{color:C.g500}}>{desc}</p>
               </div>
             ))}
@@ -232,93 +500,414 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════
-          PAYMENT METHODS STRIP
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-10 px-4 border-y" style={{backgroundColor:C.g50,borderColor:C.g200}}>
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs font-black uppercase tracking-widest mb-4" style={{color:C.g400}}>
-            40+ Payment Methods Accepted
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {PAYMENTS.map(p=>(
-              <span key={p} className="px-3 py-1.5 text-xs font-bold rounded-lg border"
-                style={{borderColor:C.g200,color:C.g600,backgroundColor:C.white}}>
-                {p}
-              </span>
+      {/* ══════════════════════════════════════════════════
+          5. ESCROW TRUST SECTION
+      ══════════════════════════════════════════════════ */}
+      <section ref={escrowRef} className="py-10 md:py-20 px-4" style={{background:'#fff'}}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+
+            {/* left */}
+            <div className={escrowOn?'anim-up':''} style={{opacity:escrowOn?1:0}}>
+              <Label>Zero-Risk Trading</Label>
+              <h2 className="text-2xl md:text-3xl font-black mb-4"
+                style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+                How Our Escrow Keeps<br/>Your Money Safe
+              </h2>
+              <p className="text-sm leading-relaxed mb-6" style={{color:C.g500}}>
+                Every PRAQEN trade is protected by our escrow system. Bitcoin is locked the moment a trade starts.
+                No seller can run away with your money. No buyer can claim they paid without proof.
+                You're always 100% protected.
+              </p>
+              <div className="space-y-4">
+                {[
+                  {icon:Lock,        title:'BTC Locks Automatically',   desc:"Seller's BTC is locked in escrow the instant a trade opens. Zero manual steps needed.",         color:C.green  },
+                  {icon:Shield,      title:'Both Parties Protected',    desc:'Buyer pays, seller confirms receipt. Neither side can cheat — every step is verified.',           color:C.paid   },
+                  {icon:CheckCircle, title:'Instant & Guaranteed',      desc:'Once confirmed by both sides, BTC is released instantly to the buyer. Safe every time.',          color:C.success},
+                ].map(({icon:Icon,title,desc,color})=>(
+                  <div key={title} className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{background:`${color}15`}}>
+                      <Icon size={18} style={{color}}/>
+                    </div>
+                    <div>
+                      <p className="font-black text-sm mb-0.5" style={{color:C.forest}}>{title}</p>
+                      <p className="text-xs leading-relaxed" style={{color:C.g500}}>{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* right — flow diagram */}
+            <div className={`${escrowOn?'anim-up':''} float`}
+              style={{opacity:escrowOn?1:0,animationDelay:'.2s'}}>
+              <div className="rounded-3xl p-6 border" style={{background:C.g50,borderColor:C.g200}}>
+                <p className="text-xs font-black uppercase tracking-widest mb-5 text-center" style={{color:C.mint}}>
+                  Escrow Flow — Every Trade
+                </p>
+                <div className="space-y-3">
+                  {[
+                    {from:'Buyer',  action:'Opens trade &amp; locks funds in view', to:'Escrow', icon:'💳', color:C.paid   },
+                    {from:'Seller', action:'BTC locked automatically',              to:'Escrow', icon:'🔒', color:C.forest },
+                    {from:'Buyer',  action:'Sends local payment',                  to:'Seller', icon:'📱', color:C.gold   },
+                    {from:'Seller', action:'Confirms payment received',             to:'Escrow', icon:'✅', color:C.success},
+                    {from:'Escrow', action:'Releases BTC to buyer instantly',       to:'Buyer',  icon:'⚡', color:C.green  },
+                  ].map(({from,action,to,icon,color},i)=>(
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-white border"
+                      style={{borderColor:C.g200}}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm"
+                        style={{background:`${color}12`}}>{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="font-black" style={{color}}>{from}</span>
+                          <span style={{color:C.g400}}>→</span>
+                          <span className="font-bold" style={{color:C.g600}}>{to}</span>
+                        </div>
+                        <p className="text-xs" style={{color:C.g400}}
+                          dangerouslySetInnerHTML={{__html:action}}/>
+                      </div>
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                        style={{background:`${color}20`,color}}>{i+1}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 rounded-2xl text-xs font-bold text-center"
+                  style={{background:`${C.success}10`,color:C.success,border:`1px solid ${C.success}20`}}>
+                  🛡️ Your funds are always protected — 100% guaranteed
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          6. PAYMENT METHODS
+      ══════════════════════════════════════════════════ */}
+      <section ref={paymentsRef} className="py-10 md:py-16 px-4" style={{background:C.g50,borderTop:`1px solid ${C.g200}`,borderBottom:`1px solid ${C.g200}`}}>
+        <div className="max-w-5xl mx-auto">
+          <div className={`text-center mb-7 md:mb-10 ${paymentsOn?'anim-up':''}`} style={{opacity:paymentsOn?1:0}}>
+            <Label>Payment Methods</Label>
+            <h2 className="text-xl md:text-3xl font-black mb-2"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Trade With Your Local Currency &amp; Method
+            </h2>
+            <p className="text-sm" style={{color:C.g500}}>
+              Over 50 payment methods across Africa, Europe, Asia and the Americas.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 md:gap-5">
+            {[
+              {cat:'📱 Mobile Money',  color:C.green,  items:['MTN MoMo','Vodafone Cash','M-Pesa','Wave','Orange Money','Airtel Money','Tigo Cash']},
+              {cat:'🏦 Bank Transfer', color:C.paid,   items:['Bank Transfer','SEPA','SWIFT','ACH','CHAPS','Faster Payments','Wire Transfer']},
+              {cat:'💳 E-Wallets',     color:C.purple, items:['PayPal','Wise','Revolut','Zelle','OPay','PalmPay','Cash App','Venmo']},
+            ].map(({cat,color,items},gi)=>(
+              <div key={cat}
+                className={`bg-white rounded-2xl p-5 border ${paymentsOn?'anim-up':''}`}
+                style={{opacity:paymentsOn?1:0,borderColor:C.g200,animationDelay:`${gi*.1}s`}}>
+                <p className="font-black text-sm mb-3" style={{color}}>{cat}</p>
+                <div className="flex flex-wrap gap-2">
+                  {items.map(p=>(
+                    <span key={p} className="px-2.5 py-1.5 text-xs font-bold rounded-xl"
+                      style={{background:`${color}10`,color,border:`1px solid ${color}30`}}>{p}</span>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════
-          FAQ
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-16 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-black" style={{color:C.g800,fontFamily:"'Syne',sans-serif"}}>
+      {/* ══════════════════════════════════════════════════
+          7. GLOBAL REACH
+      ══════════════════════════════════════════════════ */}
+      <section ref={countriesRef} className="py-10 md:py-20 px-4" style={{background:'#fff'}}>
+        <div className="max-w-5xl mx-auto">
+          <div className={`text-center mb-7 md:mb-10 ${countriesOn?'anim-up':''}`} style={{opacity:countriesOn?1:0}}>
+            <Label>Global Reach</Label>
+            <h2 className="text-2xl md:text-3xl font-black mb-3"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Available Across Africa &amp; Beyond
+            </h2>
+            <p className="text-sm max-w-lg mx-auto" style={{color:C.g500}}>
+              180+ countries supported. PRAQEN specialises in African markets with deep local payment support.
+            </p>
+          </div>
+
+          <div className={`grid grid-cols-4 sm:grid-cols-6 gap-3 md:gap-4 mb-8 md:mb-10 ${countriesOn?'anim-up':''}`}
+            style={{opacity:countriesOn?1:0,animationDelay:'.1s'}}>
+            {[
+              {flag:'🇬🇭',name:'Ghana'},    {flag:'🇳🇬',name:'Nigeria'},
+              {flag:'🇰🇪',name:'Kenya'},    {flag:'🇿🇦',name:'S. Africa'},
+              {flag:'🇸🇳',name:'Senegal'},  {flag:'🇨🇲',name:'Cameroon'},
+              {flag:'🇹🇿',name:'Tanzania'}, {flag:'🇺🇬',name:'Uganda'},
+              {flag:'🇨🇮',name:'Ivory Coast'},{flag:'🇪🇹',name:'Ethiopia'},
+              {flag:'🇬🇧',name:'UK'},       {flag:'🇺🇸',name:'USA'},
+            ].map(({flag,name})=>(
+              <div key={name} className="card-up bg-white rounded-2xl p-3 border text-center"
+                style={{borderColor:C.g200}}>
+                <div className="text-2xl mb-1">{flag}</div>
+                <p className="text-xs font-bold" style={{color:C.forest}}>{name}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* platform stats row */}
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-5 ${countriesOn?'anim-up':''}`}
+            style={{opacity:countriesOn?1:0,animationDelay:'.2s'}}>
+            {[
+              {icon:'🌍',v:'180+',  l:'Countries'},
+              {icon:'💱',v:'$1.2B+',l:'Volume Traded'},
+              {icon:'🛡️',v:'99.8%', l:'Dispute Resolution'},
+              {icon:'⚡',v:'8 min', l:'Average Trade Time'},
+            ].map(({icon,v,l})=>(
+              <div key={l} className="rounded-2xl p-5 text-center border"
+                style={{background:C.mist,borderColor:`${C.mint}30`}}>
+                <div className="text-2xl mb-2">{icon}</div>
+                <p className="text-2xl font-black mb-0.5" style={{color:C.forest}}>{v}</p>
+                <p className="text-xs" style={{color:C.g500}}>{l}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          8. TESTIMONIALS
+      ══════════════════════════════════════════════════ */}
+      <section ref={testimonialsRef} className="py-10 md:py-20 px-4" style={{background:C.g50}}>
+        <div className="max-w-5xl mx-auto">
+          <div className={`text-center mb-8 md:mb-12 ${testimonialsOn?'anim-up':''}`} style={{opacity:testimonialsOn?1:0}}>
+            <Label>Real Traders</Label>
+            <h2 className="text-2xl md:text-4xl font-black mb-2"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
+              Loved Across Africa &amp; the World
+            </h2>
+            <p className="text-sm" style={{color:C.g500}}>
+              Join millions of traders who trust PRAQEN every day.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 md:gap-5">
+            {[
+              {name:'Kwame A.',  loc:'Accra, Ghana',    flag:'🇬🇭',color:C.green,  av:'K',badge:'Power Trader',  trades:'52 trades',
+               text:'"PRAQEN is the best P2P platform I have ever used. Escrow works perfectly every single time. I have done over 50 trades with zero issues. 100% recommended!"'},
+              {name:'Ngozi O.',  loc:'Lagos, Nigeria',  flag:'🇳🇬',color:C.purple, av:'N',badge:'Verified',       trades:'28 trades',
+               text:'"Fast, easy and totally secure. I converted my gift cards to Bitcoin in minutes. The support team responds instantly. PRAQEN has changed how I move money."'},
+              {name:'James M.',  loc:'Nairobi, Kenya',  flag:'🇰🇪',color:C.paid,   av:'J',badge:'Top Seller',     trades:'94 trades',
+               text:'"Best Bitcoin rates in Kenya. M-Pesa integration is flawless — I receive payment within 5 minutes every time. Already referred 20+ people to PRAQEN!"'},
+            ].map(({name,loc,flag,color,av,badge,trades,text},i)=>(
+              <div key={name}
+                className={`card-up bg-white rounded-2xl p-6 border ${testimonialsOn?'anim-up':''}`}
+                style={{opacity:testimonialsOn?1:0,borderColor:C.g200,animationDelay:`${i*.1}s`}}>
+                <div className="flex gap-0.5 mb-4">
+                  {[0,1,2,3,4].map(s=>(
+                    <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill={C.gold}>
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-sm leading-relaxed mb-5" style={{color:C.g700}}>{text}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-white flex-shrink-0 text-base"
+                    style={{background:color}}>{av}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-sm" style={{color:C.forest}}>{name} {flag}</p>
+                    <p className="text-xs" style={{color:C.g400}}>{loc} · {trades}</p>
+                  </div>
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0"
+                    style={{background:`${color}15`,color}}>{badge}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          9. TRADING HUB CTA BANNER
+      ══════════════════════════════════════════════════ */}
+      <section className="py-12 md:py-20 px-4 relative overflow-hidden"
+        style={{background:`linear-gradient(140deg,${C.forest},#0c2418,${C.green})`}}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{backgroundImage:'radial-gradient(circle at 2px 2px,rgba(255,255,255,.05) 1px,transparent 0)',backgroundSize:'26px 26px'}}/>
+        <div className="absolute right-0 top-0 rounded-full blur-3xl pointer-events-none"
+          style={{width:400,height:400,background:C.gold,opacity:.07}}/>
+        <div className="relative max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-6"
+            style={{background:`${C.gold}20`,color:C.gold,border:`1px solid ${C.gold}30`}}>
+            <Flame size={12}/> PRAQEN TRADING HUB
+          </div>
+          <h2 className="text-2xl md:text-4xl font-black text-white mb-4"
+            style={{fontFamily:"'Syne',sans-serif"}}>
+            {user?'Keep Trading. Keep Growing.':'Join 2.4M+ Traders Today.'}<br/>
+            <span className="grad-text">Start in 30 Seconds.</span>
+          </h2>
+          <p className="text-white/60 mb-7 max-w-md mx-auto text-sm md:text-base">
+            {user
+              ?'Explore new offers, create listings and grow your trade volume on Africa\'s most trusted P2P platform.'
+              :'No bank account needed. Create your free account, choose a seller and make your first trade today.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+            {user ? (
+              <>
+                <button onClick={()=>goTo('/buy-bitcoin')}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:opacity-90 active:scale-95 transition"
+                  style={{background:C.gold,color:C.forest,boxShadow:`0 4px 22px ${C.gold}45`}}>
+                  <Bitcoin size={18}/> Buy Bitcoin Now <ArrowRight size={16}/>
+                </button>
+                <button onClick={()=>goTo('/create-offer')}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:bg-white/20 active:scale-95 transition"
+                  style={{background:'rgba(255,255,255,.1)',color:'#fff',border:'2px solid rgba(255,255,255,.25)'}}>
+                  Create an Offer
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={()=>goTo('/register')}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:opacity-90 active:scale-95 transition"
+                  style={{background:C.gold,color:C.forest,boxShadow:`0 4px 22px ${C.gold}45`}}>
+                  Create Free Account <ArrowRight size={16}/>
+                </button>
+                <button onClick={()=>goTo('/buy-bitcoin')}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-base hover:bg-white/20 active:scale-95 transition"
+                  style={{background:'rgba(255,255,255,.1)',color:'#fff',border:'2px solid rgba(255,255,255,.25)'}}>
+                  Browse Marketplace
+                </button>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 pt-6 border-t" style={{borderColor:'rgba(255,255,255,.1)'}}>
+            {[
+              {icon:Users,          label:'2.4M+ Active Traders'},
+              {icon:Globe,          label:'180+ Countries'},
+              {icon:HeadphonesIcon, label:'24/7 Live Support'},
+              {icon:Lock,           label:'SSL Encrypted'},
+            ].map(({icon:Icon,label})=>(
+              <div key={label} className="flex items-center gap-1.5 text-xs"
+                style={{color:'rgba(255,255,255,.5)'}}>
+                <Icon size={13}/> {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          10. FAQ
+      ══════════════════════════════════════════════════ */}
+      <section className="py-10 md:py-20 px-4" style={{background:C.g50}}>
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-7 md:mb-10">
+            <Label>Help Center</Label>
+            <h2 className="text-2xl md:text-3xl font-black"
+              style={{fontFamily:"'Syne',sans-serif",color:C.forest}}>
               Common Questions
             </h2>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {[
-              {q:'Is PRAQEN safe for beginners?',          a:"Absolutely. Every trade is escrow-protected. Bitcoin is locked before money changes hands. Our team resolves any dispute within 24 hours."},
-              {q:'What payment methods can I use?',         a:'MTN Mobile Money, Vodafone Cash, M-Pesa, OPay, PalmPay, Bank Transfer, PayPal, Wave and 40+ more across Africa, Europe and North America.'},
-              {q:'How long does a trade take?',             a:'Mobile money trades complete in 5–10 minutes. Bank transfers take 15–30 minutes depending on the seller.'},
-              {q:'What are the fees?',                      a:'0.5% flat fee on completed trades only. No listing fees, no withdrawal fees, no subscriptions. Pay nothing until a trade succeeds.'},
-              {q:'What if there is a problem with my trade?',a:'Open a dispute inside the trade chat. Our neutral team reviews both sides and resolves it quickly. Your Bitcoin stays locked safe throughout.'},
+              {q:'Is PRAQEN safe to use?',               a:'Absolutely. Every trade uses our escrow system — Bitcoin is locked before any money changes hands. Our dispute team resolves any issue within 24 hours. Your funds are always 100% protected.'},
+              {q:'How does escrow work?',                 a:"When a trade starts, the seller's Bitcoin is automatically locked in our escrow. You send your payment. Once the seller confirms receipt, BTC is instantly released to your wallet. Neither party can touch the funds during the trade."},
+              {q:'What are the fees?',                    a:'We charge a flat 0.5% fee on completed trades only. No listing fees, no withdrawal fees, no monthly subscriptions. You pay absolutely nothing until a trade succeeds.'},
+              {q:'How long does a trade take?',           a:'Mobile money trades (MTN, M-Pesa, OPay) typically complete in 5–15 minutes. Bank transfers take 15–30 minutes. We average under 8 minutes across all payment methods.'},
+              {q:'What happens if there is a dispute?',   a:'Open a dispute inside the trade chat with evidence. Our neutral support team reviews both sides and resolves it quickly — your Bitcoin stays locked safe in escrow throughout the entire process.'},
+              {q:'Which countries are supported?',        a:'180+ countries worldwide. We specialise in Africa with deep support for Ghana, Nigeria, Kenya, South Africa, Senegal, Cameroon, Tanzania, Uganda and more. International traders from Europe, USA and Asia also trade daily.'},
+              {q:'Can I create my own trading offers?',   a:'Yes! As a verified trader you can post your own offers with your preferred rate, payment method, trade limits and terms. Your offer, your rules. Thousands of traders will see it instantly.'},
             ].map(({q,a},i)=>(
-              <div key={i} className="border rounded-2xl overflow-hidden" style={{borderColor:C.g200}}>
+              <div key={i} className="bg-white rounded-2xl border overflow-hidden transition-colors"
+                style={{borderColor:faq===i?C.mint:C.g200}}>
                 <button onClick={()=>setFaq(faq===i?null:i)}
                   className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition">
-                  <span className="font-bold text-sm" style={{color:C.g800}}>{q}</span>
-                  <ChevronDown size={16} className={`transition-transform flex-shrink-0 ml-3 ${faq===i?'rotate-180':''}`} style={{color:C.g400}}/>
+                  <span className="font-bold text-sm pr-4" style={{color:C.forest}}>{q}</span>
+                  <ChevronDown size={16} style={{
+                    color:faq===i?C.mint:C.g400,
+                    transform:faq===i?'rotate(180deg)':'none',
+                    transition:'transform .25s, color .2s',
+                    flexShrink:0,
+                  }}/>
                 </button>
-                {faq===i && (
-                  <div className="px-5 pb-4 text-sm leading-relaxed" style={{color:C.g600,borderTop:`1px solid ${C.g100}`}}>
-                    <p className="pt-3">{a}</p>
+                {faq===i&&(
+                  <div className="px-5 pb-5 text-sm leading-relaxed border-t"
+                    style={{borderColor:C.g100,color:C.g600}}>
+                    <p className="pt-4">{a}</p>
                   </div>
                 )}
               </div>
             ))}
           </div>
+          <div className="text-center mt-8">
+            <p className="text-sm mb-3" style={{color:C.g500}}>Still have questions?</p>
+            <a href="mailto:support@praqen.com"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border hover:bg-gray-50 transition"
+              style={{borderColor:C.g200,color:C.forest}}>
+              <Mail size={14}/> support@praqen.com
+            </a>
+          </div>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════
-          BOTTOM CTA
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="py-16 px-4"
-        style={{background:`linear-gradient(135deg,${C.forest},${C.green})`}}>
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-black text-white mb-3" style={{fontFamily:"'Syne',sans-serif"}}>
-            Ready to start trading?
-          </h2>
-          <p className="text-white/60 text-sm mb-8 max-w-md mx-auto">
-            Join millions of traders across Africa. Create your free account in 30 seconds.
+      {/* ══════════════════════════════════════════════════
+          11. FOOTER
+      ══════════════════════════════════════════════════ */}
+      <footer style={{background:C.forest}}>
+        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
+
+          {/* brand */}
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-2xl font-black" style={{fontFamily:"'Syne',sans-serif"}}>
+              <span className="text-white">PRA</span><span style={{color:C.gold}}>QEN</span>
+            </span>
+            <span className="text-xs font-black px-1.5 py-0.5 rounded-full"
+              style={{background:'#EF4444',color:'#fff'}}>BETA</span>
+          </div>
+          <p className="text-xs mb-5" style={{color:'rgba(255,255,255,.45)'}}>
+            Africa's most trusted P2P Bitcoin platform · Escrow-protected · 0.5% flat fee
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={()=>navigate('/register')}
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-black text-base hover:opacity-90 transition"
-              style={{backgroundColor:C.gold,color:C.forest}}>
-              Create Free Account <ArrowRight size={16}/>
-            </button>
-            <button onClick={()=>navigate('/buy-bitcoin')}
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-black text-base transition"
-              style={{backgroundColor:'rgba(255,255,255,0.1)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.25)'}}>
-              Browse Marketplace
-            </button>
+
+          {/* key links */}
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-6">
+            {[
+              {l:'Buy Bitcoin',  t:'/buy-bitcoin'},
+              {l:'Sell Bitcoin', t:'/sell-bitcoin'},
+              {l:'Gift Cards',   t:'/gift-cards'},
+              {l:'My Wallet',    t:'/wallet'},
+              {l:'Dashboard',    t:'/dashboard'},
+              {l:'Register',     t:'/register'},
+            ].map(({l,t})=>(
+              <Link key={l} to={t}
+                className="text-xs font-bold hover:text-white transition"
+                style={{color:'rgba(255,255,255,.5)'}}>{l}</Link>
+            ))}
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-8 text-xs" style={{color:'rgba(255,255,255,0.35)'}}>
-            <Lock size={11}/> 256-bit SSL encrypted · Escrow-protected · Zero fraud guarantee
+          {/* social icons */}
+          <div className="flex justify-center gap-3 mb-6">
+            {[
+              {href:'https://x.com/praqenapp?s=21',                                                              e:'𝕏',  bg:'rgba(255,255,255,.1)'},
+              {href:'https://www.instagram.com/praqen?igsh=MTRkZWg2amp5YnJlYQ%3D%3D&utm_source=qr',              e:'📸', bg:'rgba(255,255,255,.1)'},
+              {href:'https://chat.whatsapp.com/LHVjrw9SK8qGoXcKvprjWz?mode=gi_t',                                e:'💬', bg:'rgba(37,211,102,.25)'},
+              {href:'https://discord.gg/V6zCZxfdy',                                                              e:'🎮', bg:'rgba(88,101,242,.35)'},
+            ].map(({href,e,bg})=>(
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-base hover:scale-110 transition-transform"
+                style={{background:bg}}>{e}</a>
+            ))}
+          </div>
+
+          {/* support + copyright */}
+          <div className="border-t pt-5" style={{borderColor:'rgba(255,255,255,.08)'}}>
+            <a href="mailto:support@praqen.com"
+              className="inline-flex items-center gap-1.5 text-xs font-bold hover:text-white transition mb-3"
+              style={{color:C.gold}}>
+              <Mail size={12}/> support@praqen.com · 24/7 support
+            </a>
+            <p className="text-xs" style={{color:'rgba(255,255,255,.25)'}}>
+              © {new Date().getFullYear()} PRAQEN · All rights reserved · Not financial advice
+            </p>
           </div>
         </div>
-      </section>
-
-      {/* Mobile bottom nav */}
-      <BottomNav/>
+      </footer>
     </div>
   );
 }

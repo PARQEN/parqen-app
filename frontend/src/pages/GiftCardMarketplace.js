@@ -169,9 +169,9 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
   const cardRange = getCardRange(listing);
   const youGive = (() => {
     if (!cardRange) { const ml=listing.min_limit_local||(fv?fv*usdRate:0); return {val:`${sym}${fmt(ml)}`,sub:cur}; }
-    if (cardRange[0]?.isRange) return {val:`$${cardRange[0].min}–$${cardRange[0].max}`,sub:'USD range'};
+    if (cardRange[0]?.isRange) return {val:`$${cardRange[0].min}`,sub:'USD starting'};
     if (cardRange.length===1) return {val:`$${cardRange[0]}`,sub:'USD card'};
-    return {val:`$${cardRange[0]}–$${cardRange[cardRange.length-1]}`,sub:`${cardRange.length} values`};
+    return {val:`$${cardRange[0]}`,sub:'USD starting'};
   })();
   const refUSD   = cardRange ? (cardRange[0]?.isRange ? cardRange[0].min : cardRange[0]) : (fv||1);
   const btcGross = refUSD / rateUSD;
@@ -274,15 +274,15 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
               </span>
               <div className="flex flex-col gap-1.5">
                 {(cardType==='physical'||cardType==='both') && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
-                    style={{backgroundColor:'#DCFCE7', color:'#166534'}}>
-                    📦 Physical Card
+                  <span className="inline-flex items-center font-bold rounded-full whitespace-nowrap"
+                    style={{backgroundColor:'#DCFCE7', color:'#166534', fontSize:'9px', padding:'2px 7px'}}>
+                    Physical
                   </span>
                 )}
                 {(cardType==='ecode'||cardType==='both') && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
-                    style={{backgroundColor:'#EDE9FE', color:'#5B21B6'}}>
-                    📧 E-Code
+                  <span className="inline-flex items-center font-bold rounded-full whitespace-nowrap"
+                    style={{backgroundColor:'#EDE9FE', color:'#5B21B6', fontSize:'9px', padding:'2px 7px'}}>
+                    E-Code
                   </span>
                 )}
               </div>
@@ -314,17 +314,10 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
         <div className="flex flex-wrap gap-1">
           {!cardRange
             ? <span className="text-xs font-bold" style={{color:C.g500}}>Any Value</span>
-            : cardRange[0]?.isRange
-              ? <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                  style={{backgroundColor:C.g100, color:C.g700}}>
-                  ${cardRange[0].min} – ${cardRange[0].max}
-                </span>
-              : cardRange.map(v=>(
-                  <span key={v} className="text-xs font-black px-2 py-0.5 rounded-lg"
-                    style={{backgroundColor:C.forest+'15', color:C.forest, border:`1px solid ${C.forest}30`}}>
-                    ${v}
-                  </span>
-                ))
+            : <span className="text-xs font-black px-2 py-0.5 rounded-lg"
+                style={{backgroundColor:C.forest+'15', color:C.forest, border:`1px solid ${C.forest}30`}}>
+                ${cardRange[0]?.isRange ? cardRange[0].min : cardRange[0]}
+              </span>
           }
         </div>
       </div>

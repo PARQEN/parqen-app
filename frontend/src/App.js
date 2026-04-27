@@ -148,8 +148,8 @@ function App() {
         <Navbar user={user} onLogout={logout} />
         
         <Routes>
-          {/* HOME ROUTE - FIXED */}
-          <Route path="/" element={!user ? <LandingPage /> : <Home user={user} />} />
+          {/* HOME ROUTE */}
+          <Route path="/" element={<LandingPage user={user} />} />
           
           {/* Public Routes */}
           <Route path="/listing/:id" element={<ListingDetail user={user} />} />

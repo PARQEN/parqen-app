@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, ArrowLeftRight, Gift, Wallet, User } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Gift, Wallet, User } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { label: 'Home',       icon: Home,             to: '/' },
+  { label: 'Dashboard',  icon: LayoutDashboard,  to: '/dashboard' },
   { label: 'P2P',        icon: ArrowLeftRight,   to: '/buy-bitcoin' },
   { label: 'Gift Cards', icon: Gift,             to: '/gift-cards' },
   { label: 'Wallet',     icon: Wallet,           to: '/wallet' },
@@ -32,7 +32,6 @@ export default function BottomNav({ user }) {
   if (!user) return null;
 
   const isActive = (to) => {
-    if (to === '/') return location.pathname === '/';
     return location.pathname.startsWith(to);
   };
 

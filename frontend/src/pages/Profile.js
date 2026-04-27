@@ -15,6 +15,7 @@ import {
   Bitcoin, Flame, Eye, Settings
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { BadgeChip } from '../lib/badge';
 
 const C = {
   forest:'#1B4332', green:'#2D6A4F', mint:'#40916C', sage:'#52B788',
@@ -123,15 +124,19 @@ export default function Profile({userId:propUserId}){
         setUser(r.data.user); setReviews(r.data.reviews||[]);
       }
 
-      // Fetch badges using logged-in user ID
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser && currentUser.id === userId) {
-        const { data: badgesData, error } = await supabase
-          .from('user_badges')
-          .select('badge_name, is_unlocked')
-          .eq('user_id', currentUser.id);
-        if (!error) {
-          setBadges(badgesData || []);
+      // Check + fetch badges for own profile (triggers auto-award on backend)
+      if (own) {
+        const tk = localStorage.getItem('token');
+        try {
+          const badgeRes = await axios.post(`${API_URL}/users/check-badges`, {}, { headers: { Authorization: `Bearer ${tk}` } });
+          setBadges(badgeRes.data.badges || []);
+        } catch {
+          // Fallback: read directly from Supabase if backend call fails
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            const { data: badgesData } = await supabase.from('user_badges').select('badge_name, is_unlocked').eq('user_id', currentUser.id);
+            setBadges(badgesData || []);
+          }
         }
       }
     }catch(e){toast.error('Failed to load profile');}
@@ -171,7 +176,7 @@ export default function Profile({userId:propUserId}){
   const phoneOk=!!(user.is_phone_verified||user.phone_verified);
   const kycOk=!!(user.kyc_verified||user.is_id_verified);
   const verifPct=Math.round([emailOk,phoneOk,kycOk].filter(Boolean).length/3*100);
-  const earned=BADGE_DEFS.filter(b=>badges.some(badge=>badge.badge_name===b.label&&badge.is_unlocked));
+  const earned=BADGE_DEFS.filter(b=>badges.some(badge=>badge.badge_name===b.label&&badge.is_unlocked)||b.check(user));
   const trades=parseInt(user.total_trades||0); const rating=parseFloat(user.average_rating||0);
   const posPct=reviews.length?Math.round(reviews.filter(r=>r.rating>=4).length/reviews.length*100):100;
   const status=trades>=50?'Active Trader':trades>=5?'Growing Trader':trades>=1?'New Trader':'Unverified';
@@ -181,7 +186,7 @@ export default function Profile({userId:propUserId}){
     {id:'overview',      label:'Overview'},
     {id:'verification',  label:`Verification ${verifPct<100?`(${verifPct}%)`:''}`},
     {id:'reputation',    label:`Reputation (${reviews.length})`},
-    {id:'badges',        label:`Badges (${earned.length}/${BADGE_DEFS.length})`},
+    {id:'badges',        label:`🏅 Badges (${earned.length}/${BADGE_DEFS.length})`},
     ...(own?[{id:'settings',label:'Settings'}]:[]),
   ];
 
@@ -243,7 +248,7 @@ export default function Profile({userId:propUserId}){
                       <h1 className="text-2xl md:text-3xl font-black text-white" style={{fontFamily:"'Syne',sans-serif"}}>{user.username}</h1>
                       <CountryFlag className="w-5 h-4" />
                     </div>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:statusColor}}>{status}</span>
+                    <BadgeChip user={user} />
                     {kycOk&&<BadgeCheck size={20} style={{color:'#93C5FD'}} title="KYC Verified"/>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-white/65 mb-2">
@@ -291,12 +296,18 @@ export default function Profile({userId:propUserId}){
               <p className="text-xs text-white/60 mt-0.5">Rating</p>
             </div>
             <div className="text-center">
-              <p className="text-xl sm:text-2xl font-black text-white">{fmt(user.total_feedback_count || ((user.positive_feedback||0) + (user.negative_feedback||0)))}</p>
-              <p className="text-xs text-white/60 mt-0.5">Feedback</p>
+              <div className="flex items-center justify-center gap-1">
+                <ThumbsUp size={14} style={{color:C.success}} />
+                <p className="text-xl sm:text-2xl font-black" style={{color:C.success}}>{fmt(user.positive_feedback || 0)}</p>
+              </div>
+              <p className="text-xs text-white/60 mt-0.5">Positive</p>
             </div>
             <div className="text-center">
-              <p className="text-xl sm:text-2xl font-black text-white">{parseFloat(user.completion_rate || 0).toFixed(0)}%</p>
-              <p className="text-xs text-white/60 mt-0.5">Complete</p>
+              <div className="flex items-center justify-center gap-1">
+                <ThumbsDown size={14} style={{color:C.danger}} />
+                <p className="text-xl sm:text-2xl font-black" style={{color:C.danger}}>{fmt(user.negative_feedback || 0)}</p>
+              </div>
+              <p className="text-xs text-white/60 mt-0.5">Negative</p>
             </div>
           </div>
         </div>
@@ -354,16 +365,38 @@ export default function Profile({userId:propUserId}){
               {/* Badges preview */}
               <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2"><Award size={13} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badges</p></div>
-                  <button onClick={()=>setTab('badges')} className="text-xs font-bold" style={{color:C.green}}>All →</button>
+                  <div className="flex items-center gap-2"><Award size={13} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badge Collection</p></div>
+                  <button onClick={()=>setTab('badges')} className="text-xs font-bold" style={{color:C.green}}>View all →</button>
                 </div>
-                {earned.length===0?<p className="text-xs text-center py-3" style={{color:C.g400}}>No badges earned yet</p>:
-                  <div className="flex flex-wrap gap-2">
-                    {earned.map(b=>(
-                      <span key={b.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold"
-                        style={{backgroundColor:b.bg,color:b.color}}>{b.icon}{b.label}</span>
-                    ))}
-                  </div>}
+                {/* Progress bar */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex-1 h-2 rounded-full" style={{backgroundColor:C.g100}}>
+                    <div className="h-2 rounded-full transition-all" style={{width:`${(earned.length/BADGE_DEFS.length)*100}%`,background:`linear-gradient(90deg,${C.gold},${C.amber})`}}/>
+                  </div>
+                  <span className="text-xs font-black" style={{color:C.gold}}>{earned.length}/{BADGE_DEFS.length}</span>
+                </div>
+                {/* Badge icons grid */}
+                <div className="grid grid-cols-6 gap-1.5">
+                  {BADGE_DEFS.map(b=>{
+                    const unlocked=badges.some(ba=>ba.badge_name===b.label&&ba.is_unlocked)||b.check(user);
+                    return(
+                      <div key={b.id} title={b.label}
+                        className="aspect-square rounded-xl flex items-center justify-center text-base cursor-pointer hover:scale-110 transition-transform"
+                        style={{
+                          backgroundColor:unlocked?`${b.color}15`:'rgba(0,0,0,0.04)',
+                          filter:unlocked?'none':'grayscale(1)',
+                          opacity:unlocked?1:0.35,
+                          border:`1.5px solid ${unlocked?b.color+'40':C.g100}`,
+                        }}>
+                        {b.icon}
+                      </div>
+                    );
+                  })}
+                </div>
+                {earned.length===0&&<p className="text-xs text-center mt-3" style={{color:C.g400}}>Complete tasks to unlock your first badge</p>}
+                {earned.length>0&&earned.length<BADGE_DEFS.length&&(
+                  <p className="text-xs text-center mt-3" style={{color:C.g400}}>{BADGE_DEFS.length-earned.length} more badge{BADGE_DEFS.length-earned.length!==1?'s':''} to unlock</p>
+                )}
               </div>
             </div>
 
@@ -556,32 +589,196 @@ export default function Profile({userId:propUserId}){
 
         {/* ── BADGES ──────────────────────────────────────────────────── */}
         {tab==='badges'&&(
-          <div className="max-w-2xl">
-            <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
-              <div className="flex items-center gap-2 mb-1"><Award size={14} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badge Collection</p></div>
-              <p className="text-xs mb-4" style={{color:C.g400}}>{earned.length}/{BADGE_DEFS.length} badges earned</p>
-              <div className="space-y-3">
-                {BADGE_DEFS.map(b=>{
-                  const has=badges.some(badge=>badge.badge_name===b.label&&badge.is_unlocked);
-                  return(
-                    <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl border transition"
-                      style={{borderColor:has?b.color+'40':C.g100,backgroundColor:has?b.bg:C.g50,opacity:has?1:0.6}}>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{backgroundColor:has?`${b.color}20`:'rgba(0,0,0,0.04)'}}>
-                        {b.icon}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-black" style={{color:has?b.color:C.g500}}>
-                          {b.label}
-                          {has&&<span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-600">EARNED</span>}
-                        </p>
-                        <p className="text-xs" style={{color:C.g400}}>{b.desc}</p>
-                      </div>
-                      {has?<CheckCircle size={16} style={{color:b.color,flexShrink:0}}/>:<Lock size={14} style={{color:C.g300,flexShrink:0}}/>}
-                    </div>
-                  );
-                })}
+          <div className="space-y-5">
+
+            {/* ── Progress Banner ── */}
+            <div className="rounded-2xl p-5 text-white relative overflow-hidden"
+              style={{background:`linear-gradient(135deg,${C.forest} 0%,${C.mint} 100%)`}}>
+              <div className="absolute inset-0 opacity-5" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'20px 20px'}}/>
+              <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10 blur-3xl" style={{backgroundColor:C.gold}}/>
+              <div className="relative flex items-center justify-between gap-4 flex-wrap mb-4">
+                <div>
+                  <p className="font-black text-xl" style={{fontFamily:"'Syne',sans-serif"}}>🏅 Badge Collection</p>
+                  <p className="text-white/70 text-sm mt-0.5">
+                    {earned.length===0?'Complete tasks below to start earning badges':
+                     earned.length===BADGE_DEFS.length?'🎉 All badges earned — legendary status!':
+                     `${earned.length} earned · ${BADGE_DEFS.length-earned.length} more to unlock`}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-4xl font-black leading-none">{earned.length}<span className="text-white/40 text-2xl">/{BADGE_DEFS.length}</span></p>
+                  <p className="text-white/50 text-xs mt-1">badges earned</p>
+                </div>
+              </div>
+              <div className="relative">
+                <div className="h-3 rounded-full" style={{backgroundColor:'rgba(255,255,255,0.15)'}}>
+                  <div className="h-3 rounded-full transition-all duration-700"
+                    style={{width:`${(earned.length/BADGE_DEFS.length)*100}%`,background:`linear-gradient(90deg,${C.gold},${C.amber})`}}/>
+                </div>
+                <div className="flex mt-2 gap-1.5">
+                  {BADGE_DEFS.map(b=>{
+                    const unlocked=badges.some(ba=>ba.badge_name===b.label&&ba.is_unlocked)||b.check(user);
+                    return(
+                      <div key={b.id} title={b.label} className="flex-1 h-1.5 rounded-full transition-all duration-300"
+                        style={{backgroundColor:unlocked?C.gold:'rgba(255,255,255,0.2)'}}/>
+                    );
+                  })}
+                </div>
               </div>
             </div>
+
+            {/* ── Badge Cards Grid ── */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {BADGE_DEFS.map(b=>{
+                const has=badges.some(ba=>ba.badge_name===b.label&&ba.is_unlocked)||b.check(user);
+                const daysOld=user?.created_at?Math.floor((Date.now()-new Date(user.created_at))/(1000*60*60*24)):0;
+                const daysLeft=Math.max(0,365-daysOld);
+                return(
+                  <div key={b.id} className="rounded-2xl border-2 overflow-hidden transition-all duration-300"
+                    style={{
+                      borderColor:has?b.color:C.g200,
+                      backgroundColor:has?b.bg:'#FAFAFA',
+                      boxShadow:has?`0 4px 24px ${b.color}20`:'none',
+                    }}>
+
+                    {/* Card Body */}
+                    <div className="p-5">
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
+                          style={{
+                            backgroundColor:has?`${b.color}20`:'rgba(0,0,0,0.05)',
+                            filter:has?'none':'grayscale(1)',
+                            opacity:has?1:0.45,
+                          }}>
+                          {b.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                            <p className="font-black text-sm" style={{color:has?b.color:C.g500}}>{b.label}</p>
+                            {has
+                              ?<span className="text-xs font-black px-2 py-0.5 rounded-full text-white" style={{backgroundColor:b.color}}>✓ EARNED</span>
+                              :<span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor:C.g100,color:C.g400}}>🔒 LOCKED</span>
+                            }
+                          </div>
+                          <p className="text-xs leading-relaxed" style={{color:has?C.g700:C.g400}}>{b.desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Progress bars — only for quantifiable locked badges */}
+                      {!has&&b.id==='top_trader'&&(
+                        <div className="mt-4 p-3 rounded-xl" style={{backgroundColor:'rgba(244,164,34,0.08)'}}>
+                          <div className="flex justify-between text-xs mb-2">
+                            <span style={{color:C.g500}} className="font-bold">Progress</span>
+                            <span className="font-black" style={{color:b.color}}>{Math.min(100,trades)}/100 trades</span>
+                          </div>
+                          <div className="h-2.5 rounded-full" style={{backgroundColor:C.g200}}>
+                            <div className="h-2.5 rounded-full" style={{width:`${Math.min(100,trades)}%`,backgroundColor:b.color}}/>
+                          </div>
+                          <p className="text-xs mt-1.5" style={{color:C.g400}}>{Math.max(0,100-trades)} more trades needed</p>
+                        </div>
+                      )}
+                      {!has&&b.id==='high_volume'&&(
+                        <div className="mt-4 p-3 rounded-xl" style={{backgroundColor:'rgba(16,185,129,0.08)'}}>
+                          <div className="flex justify-between text-xs mb-2">
+                            <span style={{color:C.g500}} className="font-bold">Volume traded</span>
+                            <span className="font-black" style={{color:b.color}}>${fmt(Math.min(trades*100,10000))}/$10,000</span>
+                          </div>
+                          <div className="h-2.5 rounded-full" style={{backgroundColor:C.g200}}>
+                            <div className="h-2.5 rounded-full" style={{width:`${Math.min(100,(trades*100/10000)*100)}%`,backgroundColor:b.color}}/>
+                          </div>
+                          <p className="text-xs mt-1.5" style={{color:C.g400}}>${fmt(Math.max(0,10000-trades*100))} more volume needed</p>
+                        </div>
+                      )}
+                      {!has&&b.id==='trusted_seller'&&(
+                        <div className="mt-4 p-3 rounded-xl" style={{backgroundColor:'rgba(239,68,68,0.06)'}}>
+                          <div className="flex justify-between text-xs mb-2">
+                            <span style={{color:C.g500}} className="font-bold">Trades toward goal</span>
+                            <span className="font-black" style={{color:b.color}}>{Math.min(20,trades)}/20</span>
+                          </div>
+                          <div className="h-2.5 rounded-full" style={{backgroundColor:C.g200}}>
+                            <div className="h-2.5 rounded-full" style={{width:`${Math.min(100,(trades/20)*100)}%`,backgroundColor:b.color}}/>
+                          </div>
+                          <p className="text-xs mt-1.5" style={{color:C.g400}}>Also requires 98%+ positive feedback</p>
+                        </div>
+                      )}
+                      {!has&&b.id==='veteran'&&(
+                        <div className="mt-4 p-3 rounded-xl" style={{backgroundColor:'rgba(109,40,217,0.06)'}}>
+                          <div className="flex justify-between text-xs mb-2">
+                            <span style={{color:C.g500}} className="font-bold">Account age</span>
+                            <span className="font-black" style={{color:b.color}}>{Math.min(365,daysOld)}/365 days</span>
+                          </div>
+                          <div className="h-2.5 rounded-full" style={{backgroundColor:C.g200}}>
+                            <div className="h-2.5 rounded-full" style={{width:`${Math.min(100,(daysOld/365)*100)}%`,backgroundColor:b.color}}/>
+                          </div>
+                          <p className="text-xs mt-1.5" style={{color:C.g400}}>{daysLeft>0?`${daysLeft} more day${daysLeft!==1?'s':''} to go`:'Unlock is imminent!'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* How to earn / Earned footer */}
+                    <div className="px-5 py-3 border-t flex items-start gap-2.5"
+                      style={{borderColor:has?`${b.color}25`:C.g100,backgroundColor:has?`${b.color}06`:'rgba(0,0,0,0.02)'}}>
+                      {has?(
+                        <><CheckCircle size={13} style={{color:b.color,flexShrink:0,marginTop:1}}/><p className="text-xs font-bold" style={{color:b.color}}>Achievement unlocked · Badge visible on your public profile</p></>
+                      ):(
+                        <>
+                          <ArrowRight size={13} style={{color:C.g400,flexShrink:0,marginTop:1}}/>
+                          <div>
+                            <p className="text-xs font-black mb-0.5" style={{color:C.g500}}>HOW TO EARN</p>
+                            <p className="text-xs leading-relaxed" style={{color:C.g400}}>
+                              {b.id==='verified_identity'&&<span>Go to the <button onClick={()=>setTab('verification')} style={{color:C.green,fontWeight:700,textDecoration:'underline',background:'none',border:'none',cursor:'pointer',padding:0}}>Verification tab</button> and complete KYC identity check.</span>}
+                              {b.id==='top_trader'&&`Complete ${Math.max(0,100-trades)} more successful trades to reach 100 total.`}
+                              {b.id==='high_volume'&&`Trade $${fmt(Math.max(0,10000-trades*100))} more in total volume across all trades.`}
+                              {b.id==='fast_responder'&&'Consistently respond to trade requests within 5 minutes of receiving them.'}
+                              {b.id==='trusted_seller'&&'Reach 20 completed trades while keeping 98%+ positive feedback.'}
+                              {b.id==='veteran'&&(daysLeft>0?`Account must be 1+ year old. Keep trading — ${daysLeft} day${daysLeft!==1?'s':''} remaining.`:'Your veteran badge is nearly ready — keep trading!')}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Tips Section ── */}
+            {earned.length<BADGE_DEFS.length&&own&&(
+              <div className="rounded-2xl p-5 border" style={{borderColor:`${C.gold}50`,background:'linear-gradient(135deg,#FFFBEB,#FFF7ED)'}}>
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl flex-shrink-0">💡</span>
+                  <div>
+                    <p className="font-black text-sm mb-3" style={{color:'#92400E'}}>Tips to earn badges faster</p>
+                    <div className="space-y-2">
+                      {[
+                        ['✅','Start with Verification — completing KYC unlocks the Verified Identity badge immediately.'],
+                        ['📈','Every completed trade counts toward Top Trader (100 trades) and High Volume ($10k).'],
+                        ['⚡','Reply to trade requests in under 5 minutes consistently to earn Fast Responder.'],
+                        ['🔒','Complete 20+ trades with 98%+ positive feedback to unlock Trusted Seller.'],
+                        ['🎖️','Veteran badge is time-based — it unlocks automatically after your account turns 1 year old.'],
+                      ].map(([icon,tip],i)=>(
+                        <div key={i} className="flex items-start gap-2.5">
+                          <span className="text-sm flex-shrink-0 mt-0.5">{icon}</span>
+                          <p className="text-xs leading-relaxed" style={{color:'#B45309'}}>{tip}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── All Earned Celebration ── */}
+            {earned.length===BADGE_DEFS.length&&(
+              <div className="rounded-2xl p-6 text-center relative overflow-hidden"
+                style={{background:`linear-gradient(135deg,${C.forest},${C.gold})`}}>
+                <div className="absolute inset-0 opacity-10" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'16px 16px'}}/>
+                <p className="text-4xl mb-2">🎉</p>
+                <p className="font-black text-xl text-white mb-1" style={{fontFamily:"'Syne',sans-serif"}}>Legendary Status!</p>
+                <p className="text-white/70 text-sm">You've earned all 6 badges. You're among the most trusted traders on PRAQEN.</p>
+              </div>
+            )}
+
           </div>
         )}
 

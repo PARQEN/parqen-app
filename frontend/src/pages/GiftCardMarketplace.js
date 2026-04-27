@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
-import ActiveTradeBanner from '../components/ActiveTradeBanner';
 import { TRUST_MAP, deriveBadge } from '../lib/badge';
+import ActiveTradeCard from '../components/ActiveTradeCard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -274,10 +274,16 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
               </span>
               <div className="flex flex-col gap-1.5">
                 {(cardType==='physical'||cardType==='both') && (
-                  <span className="text-xs font-bold" style={{color:C.g600}}>Physical Card</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                    style={{backgroundColor:'#DCFCE7', color:'#166534'}}>
+                    📦 Physical Card
+                  </span>
                 )}
                 {(cardType==='ecode'||cardType==='both') && (
-                  <span className="text-xs font-bold" style={{color:C.g600}}>E-Code</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                    style={{backgroundColor:'#EDE9FE', color:'#5B21B6'}}>
+                    📧 E-Code
+                  </span>
                 )}
               </div>
             </div>
@@ -570,6 +576,8 @@ export default function GiftCards({user}) {
   const [showPayment,  setShowPayment]  = useState(false);
   const [showBrand,    setShowBrand]    = useState(false);
   const [modal,        setModal]        = useState(null);
+  const [activeTrades, setActiveTrades] = useState([]);
+  const [showAllTrades, setShowAllTrades] = useState(false);
   const countryRef  = useRef(null);
   const currencyRef = useRef(null);
   const paymentRef  = useRef(null);
@@ -577,6 +585,19 @@ export default function GiftCards({user}) {
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{ fetchRates(); loadListings(); },[]);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const fetchTrades = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/trades/active`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.data.success) setActiveTrades(res.data.trades || []);
+      } catch {}
+    };
+    fetchTrades();
+    const interval = setInterval(fetchTrades, 30000);
+    return () => clearInterval(interval);
+  },[]);
   useEffect(()=>{
     const h=e=>{
       if(countryRef.current&&!countryRef.current.contains(e.target))   setShowCountry(false);
@@ -712,10 +733,6 @@ export default function GiftCards({user}) {
           </div>
         </div>
       </div>
-
-      {/* Active trade alerts */}
-      <ActiveTradeBanner user={user} currentPage="gift-cards"/>
-
 
       {/* ══════════════════════════════════════════════════
           4. FILTER BAR
@@ -912,6 +929,22 @@ export default function GiftCards({user}) {
           5. OFFER GRID
       ══════════════════════════════════════════════════ */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-2 sm:px-3 py-3 space-y-3">
+
+        {/* ── Inline active trade cards ── */}
+        {activeTrades.length > 0 && (
+          <div className="mb-2">
+            {activeTrades.slice(0, showAllTrades ? activeTrades.length : 3).map(trade => (
+              <ActiveTradeCard key={trade.id} trade={trade} />
+            ))}
+            {activeTrades.length > 3 && (
+              <button onClick={() => setShowAllTrades(p => !p)}
+                className="w-full text-xs font-semibold py-1.5 rounded-xl border mb-1"
+                style={{color:'#92400E', borderColor:'#F59E0B', backgroundColor:'#FFFBEB'}}>
+                {showAllTrades ? 'Show less ▲' : `Show all (${activeTrades.length}) ▼`}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Count row */}
         <div className="flex items-center justify-between">

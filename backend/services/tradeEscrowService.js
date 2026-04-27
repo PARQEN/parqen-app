@@ -6,6 +6,7 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const hdWallet = require('./hdWalletService');
+const { checkAndAwardBadges } = require('./badgeService');
 
 // ── Supabase admin (bypasses RLS) ─────────────────────────────────────────────
 const supabaseAdmin = createClient(
@@ -360,6 +361,10 @@ class TradeEscrowService {
     if (tradeUpdateError) {
         console.warn('⚠️  Trade status update failed (DB trigger issue):', tradeUpdateError.message);
     }
+
+    // ── Award badges to both participants (fire and forget) ────────────────
+    checkAndAwardBadges(tradeData.seller_id).catch(() => {});
+    checkAndAwardBadges(tradeData.buyer_id).catch(() => {});
 
     // ── Log transaction for receiver ───────────────────────────────────────
     await this.logTransaction(

@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
-import ActiveTradeBanner from '../components/ActiveTradeBanner';
 import { TRUST_MAP, deriveBadge } from '../lib/badge';
+import ActiveTradeCard from '../components/ActiveTradeCard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -484,10 +484,25 @@ export default function SellBitcoin({user}) {
   const [sortBy,       setSortBy]       = useState('rate_high');
   const [modal,        setModal]        = useState(null);
   const [sellAmt,      setSellAmt]      = useState('');
+  const [activeTrades, setActiveTrades] = useState([]);
+  const [showAllTrades, setShowAllTrades] = useState(false);
   const countryRef = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{ fetchRates(); loadOffers(); },[]);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const fetchTrades = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/trades/active`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.data.success) setActiveTrades(res.data.trades || []);
+      } catch {}
+    };
+    fetchTrades();
+    const interval = setInterval(fetchTrades, 30000);
+    return () => clearInterval(interval);
+  }, []);
   useEffect(()=>{
     const h = e => { if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false); };
     document.addEventListener('mousedown',h);
@@ -620,11 +635,6 @@ export default function SellBitcoin({user}) {
         </div>
       </div>
 
-      {/* Active trade banner */}
-      <div className="flex-shrink-0">
-        <ActiveTradeBanner user={user} currentPage="sell"/>
-      </div>
-
       {/* ══ 3. FILTER BAR ══════════════════════════════════════ */}
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 py-2.5">
@@ -741,6 +751,22 @@ export default function SellBitcoin({user}) {
           )}
         </div>
       </div>
+
+      {/* ── Inline active trade cards ── */}
+      {activeTrades.length > 0 && (
+        <div className="px-3 mb-2 max-w-7xl mx-auto w-full">
+          {activeTrades.slice(0, showAllTrades ? activeTrades.length : 3).map(trade => (
+            <ActiveTradeCard key={trade.id} trade={trade} />
+          ))}
+          {activeTrades.length > 3 && (
+            <button onClick={() => setShowAllTrades(p => !p)}
+              className="w-full text-xs font-semibold py-1.5 rounded-xl border mb-1"
+              style={{color:'#92400E', borderColor:'#F59E0B', backgroundColor:'#FFFBEB'}}>
+              {showAllTrades ? 'Show less ▲' : `Show all (${activeTrades.length}) ▼`}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ══ 4. OFFER GRID ══════════════════════════════════════ */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-3 py-3 space-y-3" style={{WebkitOverflowScrolling:'touch'}}>

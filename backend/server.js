@@ -52,7 +52,8 @@ app.use(express.json({ limit: '10mb' }));
 const hdWalletService = require('./services/hdWalletService');
 const depositMonitor  = require('./services/depositMonitor');
 const hdWalletRoutes  = require('./routes/hdWalletRoutes');
-const tradeEscrowService = require('./services/tradeEscrowService');
+const tradeEscrowService    = require('./services/tradeEscrowService');
+const { checkAndAwardBadges } = require('./services/badgeService');
 app.use('/api/hd-wallet', hdWalletRoutes);
 
 // NOTE: walletRoutes removed — wallet routes are defined inline below
@@ -351,6 +352,8 @@ async function updateUserTradeStats(userId) {
     const total = (all || []).filter(t => t.status === 'COMPLETED').length;
     const rate  = all?.length > 0 ? Math.round((total / all.length) * 100) : 100;
     await supabaseAdmin.from('users').update({ total_trades: total, completion_rate: rate }).eq('id', userId);
+    // Auto-award any newly earned badges after stats update
+    checkAndAwardBadges(userId).catch(() => {});
   } catch (error) {
     console.error('Error updating user stats:', error);
   }
@@ -735,6 +738,20 @@ app.post('/api/auth/resend-code', async (req, res) => {
 // USER ROUTES
 // ============================================================
 
+// Trigger badge check + return current badge status for logged-in user
+app.post('/api/users/check-badges', verifyToken, async (req, res) => {
+  try {
+    await checkAndAwardBadges(req.userId);
+    const { data } = await supabaseAdmin
+      .from('user_badges')
+      .select('badge_name, is_unlocked, unlocked_at')
+      .eq('user_id', req.userId);
+    res.json({ success: true, badges: data || [] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/users/profile', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('users')
@@ -917,9 +934,11 @@ app.post('/api/listings', verifyToken, async (req, res) => {
       time_limit: timeLimit, processing_time_minutes: timeLimit,
       trade_instructions: b.trade_instructions || '', listing_terms: b.listing_terms || '',
       description: b.description || `${brand} via ${payMethod}`,
-      card_values: b.card_values || null,
-      card_type:   b.card_type   || 'both',
-      face_value:  b.face_value  || (b.card_values && b.card_values[0]) || null,
+      card_values: Array.isArray(b.card_values) && b.card_values.length > 0
+        ? b.card_values.map(v => String(parseFloat(v))).filter(v => !isNaN(parseFloat(v)) && parseFloat(v) > 0)
+        : null,
+      card_type:   b.card_type || 'both',
+      face_value:  b.face_value || (Array.isArray(b.card_values) && b.card_values[0] ? parseFloat(b.card_values[0]) : null) || null,
     }]).select();
     if (error) { console.error('[POST /listings]', error.message); return res.status(400).json({ error: error.message }); }
     res.json({ success: true, listing: data[0] });
@@ -1077,6 +1096,27 @@ app.get('/api/my-trades', verifyToken, async (req, res) => {
       .order('created_at', { ascending: false });
     if (error) return res.status(400).json({ error: error.message });
     res.json({ trades: data || [] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/trades/active', verifyToken, async (req, res) => {
+  try {
+    const { data: trades, error } = await supabaseAdmin
+      .from('trades')
+      .select(`*, buyer:buyer_id(id, username, completion_rate, positive_feedback, negative_feedback, country, avatar_url), seller:seller_id(id, username, completion_rate, positive_feedback, negative_feedback, country, avatar_url)`)
+      .or(`buyer_id.eq.${req.userId},seller_id.eq.${req.userId}`)
+      .in('status', ['CREATED', 'FUNDS_LOCKED', 'PAYMENT_SENT', 'DISPUTED'])
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    const ACTIVE_STATUSES = ['CREATED', 'FUNDS_LOCKED', 'PAYMENT_SENT', 'DISPUTED'];
+    const activeTrades = (trades || []).filter(t => ACTIVE_STATUSES.includes(t.status));
+
+    res.json({ success: true, trades: activeTrades, total: activeTrades.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1372,6 +1412,14 @@ app.post('/api/trades/:id/mark-paid', verifyToken, async (req, res) => {
 app.post('/api/trades/:id/release', verifyToken, async (req, res) => {
   try {
     const result = await tradeEscrowService.releaseBitcoinToBuyer(req.params.id, req.userId);
+    // Fire-and-forget: update stats + check badges for both parties
+    supabaseAdmin.from('trades').select('seller_id,buyer_id').eq('id', req.params.id).single()
+      .then(({ data: t }) => {
+        if (t) {
+          updateUserTradeStats(t.seller_id).catch(() => {});
+          updateUserTradeStats(t.buyer_id).catch(() => {});
+        }
+      }).catch(() => {});
     res.json(result);
   } catch (error) {
     console.error('❌ /api/trades/:id/release error:', error.message);

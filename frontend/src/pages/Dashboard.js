@@ -108,7 +108,8 @@ function SectionHeader({ icon:Icon, title, action, onAction }) {
 // ─── Profile Summary ───────────────────────────────────────────────────────────
 function ProfileSummary({ user, profile, stats }) {
   const navigate = useNavigate();
-  const badge   = BADGES[profile?.badge || 'BEGINNER'];
+  const badgeKey = (profile?.badge || 'BEGINNER').toUpperCase();
+  const badge    = BADGES[badgeKey] || BADGES.BEGINNER;
   const online  = isOnline(profile?.last_seen_at);
   const nextKey = badge.next;
   const thresh  = nextKey ? BADGE_THRESHOLDS[nextKey] : null;
@@ -188,8 +189,8 @@ function ProfileSummary({ user, profile, stats }) {
           {[
             {label:'Trades',   value:fmt(stats.totalTrades||0), color:C.green},
             {label:'Rating',   value:`${parseFloat(stats.averageRating||0).toFixed(1)}★`, color:C.amber},
-            {label:'Feedback', value:fmt(profile?.total_feedback_count || profile?.feedback_count || 0), color:C.paid},
-            {label:'Complete', value:`${parseFloat(profile?.completion_rate||0).toFixed(0)}%`, color:C.success},
+            {label:'👍 Positive', value:fmt(stats.positiveFeedback||0), color:C.success},
+            {label:'👎 Negative', value:fmt(stats.negativeFeedback||0), color:C.danger},
           ].map(({label,value,color})=>(
             <div key={label} className="text-center p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
               <p className="font-black text-base" style={{color}}>{value}</p>

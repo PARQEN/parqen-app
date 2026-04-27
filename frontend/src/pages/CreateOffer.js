@@ -335,7 +335,7 @@ export default function CreateOffer() {
         listing_type:      listingTypeMap[offerType],
         gift_card_brand:   isGC ? gcBrand : null,
         face_value:        isGC ? gcMinVal : null,
-        card_values:       isGC ? gcCardValues : null,
+        card_values:       isGC && gcCardValues.length > 0 ? gcCardValues.map(Number) : null,
         card_type:         isGC ? gcCardType : null,
         amount_usd:        isGC ? gcMinVal : minUSDVal,
         bitcoin_price:     rateUSD,

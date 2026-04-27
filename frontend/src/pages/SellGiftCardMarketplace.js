@@ -8,11 +8,13 @@ import {
   Tag, Percent, Zap, Award, Users, Eye, Info,
   AlertCircle, CheckCircle, HelpCircle, MapPin,
   Globe, Activity, RefreshCw, Flag, Phone,
-  Banknote, CreditCard, MessageCircle, ThumbsUp,
+  Banknote, CreditCard, MessageCircle, ThumbsUp, ThumbsDown, Repeat2,
   Sparkles, Package, Radio, Lock, Unlock, X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import ActiveTradeBanner from '../components/ActiveTradeBanner';
+import CountryFlag from '../components/CountryFlag';
+import ActiveTradeCard from '../components/ActiveTradeCard';
+import { BadgeChip } from '../lib/badge';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -96,30 +98,29 @@ function BuyerOfferCard({ offer, onSelect, user }) {
               {buyer.username?.charAt(0).toUpperCase() || 'B'}
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <button 
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
                   onClick={() => navigate(`/profile/${buyer.id}`)}
-                  className="font-bold text-gray-900 hover:underline"
+                  className="font-bold text-gray-900 hover:underline text-sm"
                 >
                   {buyer.username || 'Anonymous Buyer'}
                 </button>
-                {totalTrades > 100 && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">⭐ Top Buyer</span>
-                )}
+                <BadgeChip user={buyer} />
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <div className="flex items-center gap-1">
-                  <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{rating.toFixed(1)}</span>
-                </div>
-                <span className="text-gray-400">•</span>
-                <span style={{color:PRAQEN.primary}}>👍 {buyer.positive_feedback || 0}</span>
-                <span className="text-gray-400">•</span>
-                <span style={{color:'#EF4444'}}>👎 {buyer.negative_feedback || 0}</span>
+              <div className="flex items-center gap-2 text-xs mt-1 flex-wrap">
+                <span className="flex items-center gap-0.5 font-bold" style={{color:'#10B981'}}>
+                  <ThumbsUp size={11}/>{buyer.positive_feedback || 0}
+                </span>
+                <span className="flex items-center gap-0.5 font-bold" style={{color:'#EF4444'}}>
+                  <ThumbsDown size={11}/>{buyer.negative_feedback || 0}
+                </span>
+                <span className="flex items-center gap-0.5" style={{color:'#64748B'}}>
+                  <Repeat2 size={11}/>{totalTrades} trades
+                </span>
               </div>
-              <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                <Clock size={12} />
-                <span>Active {getTimeAgo(buyer.last_login || buyer.created_at)}</span>
+              <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                <Clock size={11} />
+                <span>{getTimeAgo(buyer.last_login || buyer.created_at)}</span>
               </div>
             </div>
           </div>
@@ -199,9 +200,22 @@ export default function SellGiftCardMarketplace({ user }) {
     maxAmount: '',
     minRating: '',
   });
+  const [activeTrades, setActiveTrades] = useState([]);
+  const [showAllTrades, setShowAllTrades] = useState(false);
 
+  useEffect(() => { loadBuyOffers(); }, []);
   useEffect(() => {
-    loadBuyOffers();
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const fetchTrades = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/trades/active`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.data.success) setActiveTrades(res.data.trades || []);
+      } catch {}
+    };
+    fetchTrades();
+    const interval = setInterval(fetchTrades, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadBuyOffers = async () => {
@@ -317,9 +331,6 @@ export default function SellGiftCardMarketplace({ user }) {
     <div className="min-h-screen" style={{ backgroundColor: PRAQEN.lightBg }}>
       <div className="max-w-7xl mx-auto px-3 py-4 md:px-4 md:py-6">
         
-        {/* Active Trade Alerts */}
-        <ActiveTradeBanner user={user} currentPage="gift-cards" />
-
         {/* Hero Section */}
         <div className="rounded-xl overflow-hidden mb-6 shadow-md" style={{ background: `linear-gradient(135deg, ${PRAQEN.primary}, ${PRAQEN.darkBg})` }}>
           <div className="p-5">
@@ -422,6 +433,22 @@ export default function SellGiftCardMarketplace({ user }) {
             </div>
           )}
         </div>
+
+        {/* ── Inline active trade cards ── */}
+        {activeTrades.length > 0 && (
+          <div className="mb-3">
+            {activeTrades.slice(0, showAllTrades ? activeTrades.length : 3).map(trade => (
+              <ActiveTradeCard key={trade.id} trade={trade} />
+            ))}
+            {activeTrades.length > 3 && (
+              <button onClick={() => setShowAllTrades(p => !p)}
+                className="w-full text-xs font-semibold py-1.5 rounded-xl border mb-1"
+                style={{color:'#92400E', borderColor:'#F59E0B', backgroundColor:'#FFFBEB'}}>
+                {showAllTrades ? 'Show less ▲' : `Show all (${activeTrades.length}) ▼`}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Results Count */}
         <div className="flex justify-between items-center mb-4">

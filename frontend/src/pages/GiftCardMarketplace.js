@@ -94,7 +94,7 @@ const GC_BRANDS = [
 const GC_FACE_VALUES = [10,20,25,50,100,200,500,1000];
 
 const fmt  = (n,d=0) => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
-const fBtc = (n)     => parseFloat(n||0).toFixed(6);
+const fBtc = (n)     => parseFloat(n||0).toFixed(8);
 
 const getUser     = (u) => Array.isArray(u)?u[0]:(u||{});
 const isVerified  = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
@@ -174,10 +174,9 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
     return {val:`$${cardRange[0]}`,sub:'USD starting'};
   })();
   const refUSD   = cardRange ? (cardRange[0]?.isRange ? cardRange[0].min : cardRange[0]) : (fv||1);
-  const btcGross = refUSD / rateUSD;
-  const btcOut   = btcGross - btcGross*0.005;
+  const btcOut = refUSD / rateUSD;
 
-  const marginLabel = margin===0?'Market':margin>0?`+${margin}%`:`${margin}%`;
+  const marginLabel = margin===0 ? 'Market rate' : margin>0 ? `+${margin}% above market` : `${Math.abs(margin)}% below market`;
   const marginBg    = margin>10?C.danger:margin>0?C.warn:C.success;
 
   const pos   = parseInt(u.positive_feedback||0);
@@ -220,8 +219,8 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
                 {u.username||'Seller'}
               </button>
               {isVerified(u) && <BadgeCheck size={13} style={{color:'#3B82F6',flexShrink:0}}/>}
-              <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
-                style={{background:badge.bg, borderColor:badge.borderColor, boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+              <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
+                style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                 <span style={{color:badge.textColor}}>{badge.label}</span>
               </span>
@@ -267,7 +266,7 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
             <div className="mt-3 flex items-center gap-3">
               <span className="inline-flex flex-col px-3 py-1.5 rounded-xl flex-shrink-0"
                 style={{backgroundColor:C.g100, minWidth:0}}>
-                <span className="text-xs font-normal leading-snug" style={{color:C.g400}}>I'm buying</span>
+                <span className="text-xs font-normal leading-snug" style={{color:C.g400}}>Seller accepts:</span>
                 <span className="text-xs font-black leading-snug tracking-wide truncate" style={{color:C.g700, maxWidth:'110px'}}>
                   {/card/i.test(brand) ? brand.toUpperCase() : `${brand.toUpperCase()} CARD`}
                 </span>
@@ -299,27 +298,35 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
         <div>
           <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU GIVE</p>
           <p className="text-2xl font-black leading-tight" style={{color:C.g800}}>{youGive.val}</p>
-          <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>{youGive.sub}</p>
+          <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>Gift Card</p>
         </div>
         <div className="border-l pl-2.5" style={{borderColor:C.g100}}>
           <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{color:C.g500}}>YOU RECEIVE</p>
-          <p className="text-2xl font-black leading-tight" style={{color:C.gold}}>₿{fBtc(btcOut)}</p>
+          <p className="font-black leading-tight" style={{color:C.gold, fontSize: btcOut < 0.001 ? '14px' : '20px'}}>
+            ₿{fBtc(btcOut)}
+          </p>
           <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>Bitcoin</p>
         </div>
       </div>
 
-      {/* ─ Card Range ───────────────────────────────────────────── */}
+      {/* ─ Denominations ────────────────────────────────────────── */}
       <div className="px-4 pb-2">
-        <p className="text-xs font-semibold mb-1" style={{color:C.g400}}>Card Range</p>
-        <div className="flex flex-wrap gap-1">
-          {!cardRange
-            ? <span className="text-xs font-bold" style={{color:C.g500}}>Any Value</span>
-            : <span className="text-xs font-black px-2 py-0.5 rounded-lg"
-                style={{backgroundColor:C.forest+'15', color:C.forest, border:`1px solid ${C.forest}30`}}>
-                ${cardRange[0]?.isRange ? cardRange[0].min : cardRange[0]}
+        {!cardRange ? (
+          <span className="text-xs font-bold" style={{color:C.g400}}>Any Value</span>
+        ) : cardRange[0]?.isRange ? (
+          <span className="text-xs font-bold" style={{color:C.forest}}>
+            ${cardRange[0].min} – ${cardRange[0].max}
+          </span>
+        ) : (
+          <p className="text-xs font-bold" style={{color:C.forest}}>
+            {cardRange.map((v,i) => (
+              <span key={v}>
+                {i > 0 && <span style={{color:C.g300}}> | </span>}
+                ${v}
               </span>
-          }
-        </div>
+            ))}
+          </p>
+        )}
       </div>
 
       {/* ─ Rate + margin ─────────────────────────────────────────── */}
@@ -327,8 +334,8 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
         <p className="text-xs font-semibold" style={{color:C.g600}}>
           Rate: {sym}{fmt(rateLocal)}/BTC
         </p>
-        <span className="text-xs font-black px-1.5 py-0.5 rounded"
-          style={{backgroundColor:marginBg, color:'#fff'}}>
+        <span className="font-semibold px-1.5 py-0.5 rounded"
+          style={{backgroundColor:marginBg, color:'#fff', fontSize:'10px'}}>
           {marginLabel}
         </span>
       </div>
@@ -404,8 +411,8 @@ function SellerModal({seller, listing, onClose, onTrade}) {
                 <CountryFlag countryCode={ccCode} className="w-4 h-3 rounded-sm"/>
               </div>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
-                  style={{background:badge.bg, borderColor:badge.borderColor, boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+                <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
+                  style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                   <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                   <span style={{color:badge.textColor}}>{badge.label}</span>
                 </span>
@@ -632,6 +639,16 @@ export default function GiftCards({user}) {
     if(sortBy==='rate_high') list.sort((a,b)=>parseFloat(b.margin||0)-parseFloat(a.margin||0));
     if(sortBy==='rating')    list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
     if(sortBy==='trades')    list.sort((a,b)=>getTrades(b.users)-getTrades(a.users));
+
+    // One offer per seller per payment method
+    const seen = new Set();
+    list = list.filter(l => {
+      const key = `${l.seller_id}:${String(l.payment_method||'').toLowerCase().trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     return list;
   };
 
@@ -645,8 +662,9 @@ export default function GiftCards({user}) {
   const sym        = selCurrency.symbol||'₵';
   const usdRate    = USD_RATES[cur]||1;
   const btcLocal   = btcPrice*usdRate;
-  const onlineCnt  = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
-  const hasFilters = selPayment!=='All Payments'||selFaceValue>0||sortBy!=='rate_low';
+  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const sellerCount = new Set(listings.map(l=>l.seller_id)).size;
+  const hasFilters  = selPayment!=='All Payments'||selFaceValue>0||sortBy!=='rate_low';
 
   if(loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.g100}}>
@@ -719,9 +737,20 @@ export default function GiftCards({user}) {
                 </Link>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-1.5 py-2 pl-4 flex-shrink-0">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
-              <span className="text-xs font-semibold" style={{color:C.g400}}>{onlineCnt} online</span>
+            <div className="ml-auto flex items-center gap-2 py-2 pl-4 flex-shrink-0">
+              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>
+                {sellerCount} seller{sellerCount!==1?'s':''}
+              </span>
+              <span style={{color:C.g300, fontSize:10}}>|</span>
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
+                          boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
+                <span className="text-xs font-semibold"
+                  style={{color: onlineCnt>0 ? C.online : C.g400}}>
+                  {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
+                </span>
+              </span>
             </div>
           </div>
         </div>

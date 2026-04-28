@@ -56,7 +56,7 @@ const PAYMENT_OPTIONS = [
 ];
 
 const fmt  = (n, d=0) => new Intl.NumberFormat('en-US', {minimumFractionDigits:0, maximumFractionDigits:d}).format(n||0);
-const fBtc = (n)      => parseFloat(n||0).toFixed(6);
+const fBtc = (n)      => parseFloat(n||0).toFixed(8);
 
 const getUser     = (u) => Array.isArray(u) ? u[0] : (u||{});
 const isVerified  = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
@@ -117,7 +117,7 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
   const exampleRecv = minLocal || Math.round(100*usdRate);
   const exampleBtc  = rateLocal > 0 ? exampleRecv / rateLocal : 0.001;
 
-  const marginLabel = margin===0 ? 'Market' : margin>0 ? `+${margin}%` : `${margin}%`;
+  const marginLabel = margin===0 ? 'Market rate' : margin>0 ? `+${margin}% above market` : `${Math.abs(margin)}% below market`;
   const marginBg    = margin>0 ? C.success : margin<0 ? C.danger : C.g400;
 
   const pos  = parseInt(u.positive_feedback||0);
@@ -158,8 +158,8 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
                 {u.username||'Buyer'}
               </button>
               {isVerified(u) && <BadgeCheck size={14} style={{color:'#3B82F6', flexShrink:0}}/>}
-              <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
-                style={{background:badge.bg, borderColor:badge.borderColor, boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+              <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
+                style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                 <span style={{color:badge.textColor}}>{badge.label}</span>
               </span>
@@ -207,7 +207,7 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
         <div className="mt-2.5">
           <span className="inline-flex flex-col px-2.5 py-1.5 rounded-lg"
             style={{backgroundColor:C.g100}}>
-            <span className="text-xs font-normal leading-tight" style={{color:C.g400}}>I'm selling with</span>
+            <span className="text-xs font-normal leading-tight" style={{color:C.g400}}>Buyer pays via:</span>
             <span className="text-xs font-black leading-tight tracking-wide" style={{color:C.g700}}>{pmLabel.toUpperCase()}</span>
           </span>
         </div>
@@ -220,7 +220,9 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
       <div className="px-4 py-3 grid grid-cols-2 gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{color:C.g500}}>YOU SEND</p>
-          <p className="text-2xl font-black leading-tight truncate" style={{color:C.gold}}>₿{fBtc(exampleBtc)}</p>
+          <p className="font-black leading-tight" style={{color:C.gold, fontSize: exampleBtc < 0.001 ? '14px' : '20px'}}>
+            ₿{fBtc(exampleBtc)}
+          </p>
           <p className="text-xs font-semibold mt-0.5" style={{color:C.g400}}>Bitcoin</p>
         </div>
         <div className="border-l pl-3" style={{borderColor:C.g100}}>
@@ -237,8 +239,8 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
         <p className="text-xs font-semibold truncate" style={{color:C.g600}}>
           Rate: {sym}{fmt(rateLocal)}/BTC
         </p>
-        <span className="text-xs font-black px-2 py-0.5 rounded flex-shrink-0"
-          style={{backgroundColor:marginBg, color:'#fff'}}>
+        <span className="font-semibold px-2 py-0.5 rounded flex-shrink-0"
+          style={{backgroundColor:marginBg, color:'#fff', fontSize:'10px'}}>
           {marginLabel}
         </span>
       </div>
@@ -314,8 +316,8 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                 <CountryFlag countryCode={ccCode} className="w-4 h-3 rounded-sm"/>
               </div>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                <span className={`inline-flex items-center gap-0.5 text-xs font-black px-1.5 py-0.5 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
-                  style={{background:badge.bg, borderColor:badge.borderColor, boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+                <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
+                  style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                   <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                   <span style={{color:badge.textColor}}>{badge.label}</span>
                 </span>
@@ -542,6 +544,16 @@ export default function SellBitcoin({user}) {
     if (sortBy==='rate_high') list.sort((a,b)=>parseFloat(b.margin||0)-parseFloat(a.margin||0));
     else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
     else if (sortBy==='trades') list.sort((a,b)=>getTrades(b.users)-getTrades(a.users));
+
+    // One offer per buyer per payment method
+    const seen = new Set();
+    list = list.filter(l => {
+      const key = `${l.seller_id}:${String(l.payment_method||'').toLowerCase().trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     return list;
   };
 
@@ -556,8 +568,9 @@ export default function SellBitcoin({user}) {
   const usdRate    = USD_RATES[cur] || 1;
   const btcLocal   = btcPrice * usdRate;
   const selPmInfo  = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
-  const onlineCnt  = offers.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
-  const hasFilters = selPayment!=='all' || sellAmt || selCountry.code!=='ALL';
+  const onlineCnt   = offers.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const buyerCount  = new Set(offers.map(l=>l.seller_id)).size;
+  const hasFilters  = selPayment!=='all' || sellAmt || selCountry.code!=='ALL';
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.g100}}>
@@ -627,9 +640,20 @@ export default function SellBitcoin({user}) {
                 {tab.label}
               </Link>
             ))}
-            <div className="ml-auto flex items-center gap-1.5 py-2 flex-shrink-0 pl-3">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
-              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>{onlineCnt} online</span>
+            <div className="ml-auto flex items-center gap-2 py-2 flex-shrink-0 pl-3">
+              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>
+                {buyerCount} buyer{buyerCount!==1?'s':''}
+              </span>
+              <span style={{color:C.g300, fontSize:10}}>|</span>
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
+                          boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
+                <span className="text-xs font-semibold"
+                  style={{color: onlineCnt>0 ? C.online : C.g400}}>
+                  {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still active'}
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -652,9 +676,8 @@ export default function SellBitcoin({user}) {
             <span className="pr-4 text-xs font-black flex-shrink-0" style={{color:C.g400}}>BTC</span>
           </div>
 
-          {/* Currency | Payment | Filter */}
-          <div className="flex items-center gap-1.5">
-
+          {/* Row: Country + Sort */}
+          <div className="flex items-center gap-1.5 mb-2">
             <div className="relative flex-1 min-w-0" ref={countryRef}>
               <button
                 onClick={()=>setShowCountry(!showCountry)}
@@ -687,49 +710,45 @@ export default function SellBitcoin({user}) {
                 </div>
               )}
             </div>
-
             <button
               onClick={()=>setShowFilters(!showFilters)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-xs font-bold transition min-w-0"
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition flex-shrink-0"
               style={{
-                borderColor:     selPayment!=='all' ? C.sell : C.g200,
-                color:           selPayment!=='all' ? C.sell : C.g600,
-                backgroundColor: selPayment!=='all' ? `${C.sell}08` : 'transparent',
+                borderColor:     showFilters ? C.sell : C.g200,
+                color:           showFilters ? C.sell : C.g600,
+                backgroundColor: showFilters ? `${C.sell}08` : 'transparent',
               }}>
-              {selPmInfo?.icon||'💳'}
-              <span className="ml-0.5 truncate">
-                {selPayment==='all' ? 'Payment' : (selPmInfo?.label||'').replace(' Mobile Money','').replace(' Cash','').replace(' Transfer','')}
-              </span>
-            </button>
-
-            <button
-              onClick={()=>setShowFilters(!showFilters)}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 text-xs font-black transition min-w-0"
-              style={{
-                borderColor:     showFilters||hasFilters ? C.sell : C.g200,
-                color:           showFilters||hasFilters ? C.sell : C.g600,
-                backgroundColor: showFilters||hasFilters ? `${C.sell}08` : 'transparent',
-              }}>
-              <Filter size={12} className="flex-shrink-0"/>
-              <span className="truncate">Filter</span>
-              {hasFilters && <span className="w-1.5 h-1.5 rounded-full ml-0.5 flex-shrink-0" style={{backgroundColor:C.sell}}/>}
+              <Filter size={12}/>
+              Sort
             </button>
           </div>
 
-          {/* Expanded filters */}
+          {/* Payment method pills — always visible */}
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
+            {PAYMENT_OPTIONS.map(p => {
+              const active = selPayment === p.value;
+              return (
+                <button key={p.value} onClick={() => setSelPayment(p.value)}
+                  className="flex items-center gap-1 px-3 py-2 rounded-full border-2 text-xs font-black whitespace-nowrap transition flex-shrink-0"
+                  style={{
+                    borderColor:     active ? C.sell : C.g200,
+                    color:           active ? '#fff' : C.g600,
+                    backgroundColor: active ? C.sell : 'transparent',
+                  }}>
+                  <span>{p.icon}</span>
+                  <span>{p.label.replace(' Mobile Money','').replace(' Cash','').replace(' Transfer','')}</span>
+                  {active && selPayment !== 'all' && (
+                    <span onClick={e=>{e.stopPropagation();setSelPayment('all');}} className="ml-0.5 hover:opacity-70">✕</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sort panel */}
           {showFilters && (
-            <div className="mt-2.5 pt-2.5 border-t grid grid-cols-1 sm:grid-cols-3 gap-2"
+            <div className="mt-2.5 pt-2.5 border-t grid grid-cols-1 sm:grid-cols-2 gap-2"
               style={{borderColor:C.g100}}>
-              <div>
-                <p className="text-xs font-bold mb-1" style={{color:C.g500}}>Payment Method</p>
-                <select value={selPayment} onChange={e=>setSelPayment(e.target.value)}
-                  className="w-full px-2.5 py-2 text-sm border-2 rounded-xl focus:outline-none"
-                  style={{borderColor:selPayment!=='all'?C.sell:C.g200, color:C.g800, fontSize:'16px'}}>
-                  {PAYMENT_OPTIONS.map(p=>(
-                    <option key={p.value} value={p.value}>{p.icon} {p.label}</option>
-                  ))}
-                </select>
-              </div>
               <div>
                 <p className="text-xs font-bold mb-1" style={{color:C.g500}}>Sort By</p>
                 <select value={sortBy} onChange={e=>setSortBy(e.target.value)}

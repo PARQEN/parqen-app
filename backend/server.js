@@ -906,6 +906,23 @@ app.post('/api/listings', verifyToken, async (req, res) => {
     const minLocal    = parseFloat(b.min_limit_local) || 0;
     const maxLocal    = parseFloat(b.max_limit_local) || 0;
 
+    // ── One active listing per payment method per seller ─────────────────────
+    if (payMethod && (listingType === 'SELL' || listingType === 'SELL_BITCOIN')) {
+      const { data: existing } = await supabaseAdmin
+        .from('listings')
+        .select('id')
+        .eq('seller_id', req.userId)
+        .eq('status', 'ACTIVE')
+        .eq('listing_type', listingType)
+        .ilike('payment_method', payMethod)
+        .maybeSingle();
+      if (existing) {
+        return res.status(400).json({
+          error: `You already have an active offer for ${payMethod}. Edit or deactivate it before creating a new one.`
+        });
+      }
+    }
+
     // ── Balance check: max limit must not exceed user's wallet capacity ──────
     if (maxUSD > 0) {
       const { data: bal } = await supabaseAdmin
@@ -1761,6 +1778,98 @@ app.get('/api/affiliate/earnings', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/referral/earnings', verifyToken, async (req, res) => {
+  try {
+    const { data: earnings, error } = await supabaseAdmin
+      .from('referral_earnings')
+      .select(`
+        id, amount_btc, type, created_at,
+        referred_user:referred_user_id(username, avatar_url, created_at, total_trades, badge)
+      `)
+      .eq('referrer_id', req.userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const totalEarned = (earnings || []).reduce((sum, e) => sum + parseFloat(e.amount_btc || 0), 0);
+
+    const referredMap = {};
+    (earnings || []).forEach(e => {
+      const key = e.referred_user?.username || 'unknown';
+      if (!referredMap[key]) {
+        referredMap[key] = {
+          username: e.referred_user?.username || 'Unknown',
+          avatar_url: e.referred_user?.avatar_url || null,
+          total_trades: e.referred_user?.total_trades || 0,
+          badge: e.referred_user?.badge || 'BEGINNER',
+          joined_at: e.referred_user?.created_at || null,
+          total_earned: 0,
+        };
+      }
+      referredMap[key].total_earned += parseFloat(e.amount_btc || 0);
+    });
+
+    res.json({
+      success: true,
+      totalEarned,
+      referralCount: Object.keys(referredMap).length,
+      referredUsers: Object.values(referredMap),
+      earnings: earnings || [],
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/referral/withdraw', verifyToken, async (req, res) => {
+  try {
+    const { data: earnings, error } = await supabaseAdmin
+      .from('referral_earnings')
+      .select('id, amount_btc')
+      .eq('referrer_id', req.userId)
+      .neq('type', 'WITHDRAWN');
+    if (error) throw error;
+
+    const totalEarnings = (earnings || []).reduce((sum, e) => sum + parseFloat(e.amount_btc || 0), 0);
+
+    if (totalEarnings <= 0) {
+      return res.status(400).json({ error: 'No earnings to withdraw' });
+    }
+
+    const btcRes = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+    const btcData = await btcRes.json();
+    const btcPrice = parseFloat(btcData.data.amount);
+
+    if (totalEarnings * btcPrice < 10) {
+      return res.status(400).json({ error: `Minimum $10 USD required. Current: $${(totalEarnings * btcPrice).toFixed(2)}` });
+    }
+
+    // Read current balance then upsert incremented value (supabase-js has no raw SQL in update)
+    const { data: balanceRow } = await supabaseAdmin
+      .from('user_balances')
+      .select('balance_btc')
+      .eq('user_id', req.userId)
+      .single();
+
+    const newBalance = parseFloat(balanceRow?.balance_btc || 0) + totalEarnings;
+
+    const { error: balErr } = await supabaseAdmin
+      .from('user_balances')
+      .upsert({ user_id: req.userId, balance_btc: newBalance }, { onConflict: 'user_id' });
+    if (balErr) throw balErr;
+
+    const ids = earnings.map(e => e.id);
+    const { error: updErr } = await supabaseAdmin
+      .from('referral_earnings')
+      .update({ type: 'WITHDRAWN' })
+      .in('id', ids);
+    if (updErr) throw updErr;
+
+    res.json({ success: true, amountBtc: totalEarnings, message: `₿ ${totalEarnings.toFixed(8)} added to wallet!` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
@@ -1930,6 +2039,78 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
     await supabaseAdmin.from('wallet_transactions').insert({ user_id: req.userId, type: 'WITHDRAWAL', amount_btc: amount, status: 'PENDING', destination_address: address, created_at: new Date() }).maybeSingle();
     res.json({ success: true, message: `Withdrawal of ${amount} BTC to ${address} is pending processing.`, new_balance: newBal, note: 'Withdrawals are processed manually within 24 hours. Contact support@praqen.com for urgent requests.' });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/wallet/send', verifyToken, async (req, res) => {
+  try {
+    const { address, amountBtc } = req.body;
+
+    if (!address || !amountBtc || parseFloat(amountBtc) <= 0) {
+      return res.status(400).json({ error: 'Address and a positive amount are required' });
+    }
+
+    // Validate Bitcoin address format (legacy, P2SH, bech32, testnet)
+    const btcAddressRe = /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,87}$|^(tb1|[mn2])[a-zA-HJ-NP-Z0-9]{25,87}$/;
+    if (!btcAddressRe.test(address)) {
+      return res.status(400).json({ error: 'Invalid Bitcoin address format' });
+    }
+
+    const amount = parseFloat(amountBtc);
+
+    // Check user balance
+    const { data: bal, error: balErr } = await supabaseAdmin
+      .from('user_balances')
+      .select('balance_btc')
+      .eq('user_id', req.userId)
+      .single();
+    if (balErr) throw balErr;
+
+    const available = parseFloat(bal?.balance_btc || 0);
+    if (available < amount) {
+      return res.status(400).json({
+        error: `Insufficient balance. Available: ${available.toFixed(8)} BTC, Requested: ${amount.toFixed(8)} BTC`
+      });
+    }
+
+    // Broadcast on-chain via HD wallet
+    const result = await hdWalletService.sendBitcoin(`user_${req.userId}`, address, amount);
+
+    // Deduct from user_balances
+    const newBalance = parseFloat((available - amount).toFixed(8));
+    await supabaseAdmin
+      .from('user_balances')
+      .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', req.userId);
+
+    // Record transaction
+    await supabaseAdmin
+      .from('wallet_transactions')
+      .insert({
+        user_id:             req.userId,
+        type:                'WITHDRAWAL',
+        amount_btc:          amount,
+        status:              'CONFIRMED',
+        tx_hash:             result.txid,
+        destination_address: address,
+        created_at:          new Date().toISOString(),
+      });
+
+    console.log(`[wallet/send] User ${req.userId.slice(0,8)} sent ${amount} BTC → ${address} | txid: ${result.txid}`);
+
+    res.json({
+      success:     true,
+      txid:        result.txid,
+      amount_btc:  amount,
+      to:          address,
+      fee_sats:    result.fee_sats,
+      new_balance: newBalance,
+      explorer:    result.explorer_url,
+      message:     `${amount} BTC sent successfully`,
+    });
+  } catch (error) {
+    console.error('[POST /api/wallet/send]', error.message);
     res.status(500).json({ error: error.message });
   }
 });

@@ -245,14 +245,15 @@ function ProfileSummary({ user, profile, stats }) {
 }
 
 // ─── Affiliate Section — Premium Design ───────────────────────────────────────
-function AffiliateSection({ user, profile, earnings }) {
+function AffiliateSection({ user, profile, earnings, referralData, btcPrice, onWithdraw }) {
   const [copied, setCopied] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const referralLink = `https://praqen.com/signup?ref=${user?.referral_code || profile?.referral_code || 'PRAQEN'}`;
 
-  const totalEarnings  = earnings.reduce((s,e)=>s+parseFloat(e.commission_btc||0),0);
-  const totalReferrals = new Set(earnings.map(e=>e.referred_user_id)).size;
-  const totalTrades    = earnings.length;
+  const totalEarnings  = referralData?.totalEarned ?? earnings.reduce((s,e)=>s+parseFloat(e.commission_btc||0),0);
+  const totalUsd       = totalEarnings * (btcPrice || 0);
+  const totalReferrals = referralData?.referralCount ?? new Set(earnings.map(e=>e.referred_user_id)).size;
+  const totalTrades    = referralData?.earnings?.length ?? earnings.length;
   const lastEarning    = earnings[0]?.commission_btc||0;
 
   const copy = () => {
@@ -327,18 +328,22 @@ function AffiliateSection({ user, profile, earnings }) {
 
           {/* 3 stat chips */}
           <div className="grid grid-cols-3 gap-2 mb-5">
-            {[
-              {label:'Total Earned',   value:`₿ ${fmtBtc(totalEarnings)}`, icon:'💰', color:'#FDE68A'},
-              {label:'Referrals',      value:fmt(totalReferrals),            icon:'👥', color:'#C4B5FD'},
-              {label:'Ref. Trades',    value:fmt(totalTrades),               icon:'⚡', color:'#86EFAC'},
-            ].map(({label,value,icon,color})=>(
-              <div key={label} className="text-center p-3 rounded-xl"
-                style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-                <p className="text-lg mb-0.5">{icon}</p>
-                <p className="font-black text-sm text-white">{value}</p>
-                <p className="text-xs" style={{color:'rgba(255,255,255,0.55)'}}>{label}</p>
-              </div>
-            ))}
+            <div className="text-center p-3 rounded-xl" style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
+              <p className="text-lg mb-0.5">💰</p>
+              <p className="font-black text-sm text-white">₿ {fmtBtc(totalEarnings)}</p>
+              {btcPrice > 0 && <p className="text-xs" style={{color:'#FDE68A'}}>≈ ${totalUsd.toFixed(2)}</p>}
+              <p className="text-xs" style={{color:'rgba(255,255,255,0.55)'}}>Total Earned</p>
+            </div>
+            <div className="text-center p-3 rounded-xl" style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
+              <p className="text-lg mb-0.5">👥</p>
+              <p className="font-black text-sm text-white">{fmt(totalReferrals)}</p>
+              <p className="text-xs" style={{color:'rgba(255,255,255,0.55)'}}>Referrals</p>
+            </div>
+            <div className="text-center p-3 rounded-xl" style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
+              <p className="text-lg mb-0.5">⚡</p>
+              <p className="font-black text-sm text-white">{fmt(totalTrades)}</p>
+              <p className="text-xs" style={{color:'rgba(255,255,255,0.55)'}}>Ref. Trades</p>
+            </div>
           </div>
 
           {/* Referral link box */}
@@ -436,6 +441,76 @@ function AffiliateSection({ user, profile, earnings }) {
               <div className="h-2 rounded-full transition-all"
                 style={{width:`${Math.min(100,(totalTrades/nextTier.trades)*100)}%`, backgroundColor:nextTier.color}}/>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── WITHDRAWAL ──────────────────────────────────────────────── */}
+      {btcPrice > 0 && (
+        <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
+          <p className="text-xs font-black mb-3" style={{color:C.forest}}>💸 Withdraw Earnings</p>
+          <div className="flex justify-between text-xs mb-1">
+            <span style={{color:C.g500}}>Progress to $10.00 minimum</span>
+            <span className="font-bold" style={{color:C.forest}}>${totalUsd.toFixed(2)} / $10.00</span>
+          </div>
+          <div className="w-full rounded-full h-2.5 mb-3" style={{backgroundColor:C.g200}}>
+            <div className="h-2.5 rounded-full transition-all"
+              style={{width:`${Math.min(100,(totalUsd/10)*100)}%`, backgroundColor:C.success}}/>
+          </div>
+          <button
+            onClick={onWithdraw}
+            disabled={totalUsd < 10}
+            className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{backgroundColor: totalUsd >= 10 ? C.forest : C.g400}}>
+            {totalUsd >= 10
+              ? `💰 Withdraw ₿ ${fmtBtc(totalEarnings)} to Wallet`
+              : `⏳ Need $${(10 - totalUsd).toFixed(2)} more to withdraw`}
+          </button>
+        </div>
+      )}
+
+      {/* ── PEOPLE YOU REFERRED ─────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden" style={{borderColor:C.g200}}>
+        <div className="px-4 py-3 border-b flex items-center justify-between"
+          style={{borderColor:C.g100, backgroundColor:`${C.purple}08`}}>
+          <div className="flex items-center gap-2">
+            <Users size={14} style={{color:C.purple}}/>
+            <p className="text-xs font-black" style={{color:C.forest}}>People You Referred</p>
+          </div>
+          <span className="text-xs font-black px-2.5 py-1 rounded-full text-white"
+            style={{backgroundColor:C.purple}}>
+            {totalReferrals} total
+          </span>
+        </div>
+        {!referralData?.referredUsers?.length ? (
+          <div className="p-6 text-center">
+            <p className="text-2xl mb-2">👥</p>
+            <p className="text-sm font-black mb-1" style={{color:C.forest}}>No referrals yet</p>
+            <p className="text-xs" style={{color:C.g400}}>Share your link to start earning!</p>
+          </div>
+        ) : (
+          <div className="divide-y max-h-64 overflow-y-auto" style={{borderColor:C.g50}}>
+            {referralData.referredUsers.map((ru, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-black text-sm text-white"
+                  style={{backgroundColor:C.purple}}>
+                  {ru.username?.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black" style={{color:C.forest}}>{ru.username}</p>
+                  <p className="text-xs" style={{color:C.g400}}>
+                    {ru.total_trades || 0} trades
+                    {ru.joined_at && ` · Joined ${new Date(ru.joined_at).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})}`}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="font-black text-xs" style={{color:C.success}}>+₿ {fmtBtc(ru.total_earned)}</p>
+                  {btcPrice > 0 && (
+                    <p className="text-xs" style={{color:C.g400}}>≈ ${(ru.total_earned * btcPrice).toFixed(2)}</p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -580,6 +655,8 @@ export default function Dashboard({ user }) {
   const [recentTrades, setRecentTrades]   = useState([]);
   const [activeTrades, setActiveTrades]   = useState([]);
   const [earnings, setEarnings]           = useState([]);
+  const [referralData, setReferralData]   = useState(null);
+  const [btcPrice, setBtcPrice]           = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
   const [showBalance, setShowBalance]     = useState(true);
   const [showWithdraw, setShowWithdraw]   = useState(false);
@@ -622,7 +699,44 @@ export default function Dashboard({ user }) {
     }
   };
 
+  const fetchReferralData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_URL}/referral/earnings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setReferralData(res.data);
+    } catch (e) { /* silent */ }
+  };
+
+  const fetchBtcPrice = async () => {
+    try {
+      const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+      const data = await res.json();
+      setBtcPrice(parseFloat(data.data.amount));
+    } catch (e) { /* silent */ }
+  };
+
+  const handleReferralWithdraw = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await axios.post(`${API_URL}/referral/withdraw`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(res.data.message || 'Withdrawal submitted!');
+      fetchReferralData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Withdrawal failed');
+    }
+  };
+
   useEffect(() => { loadDashboardData(); setLoading(false); }, [user]);
+
+  useEffect(() => {
+    fetchReferralData();
+    fetchBtcPrice();
+  }, [user]);
 
   // Auto-refresh every 60s
   useEffect(() => {
@@ -957,7 +1071,7 @@ export default function Dashboard({ user }) {
 
         {/* ── AFFILIATE TAB ─────────────────────────────────────────────────── */}
         {activeTab==='affiliate' && (
-          <AffiliateSection user={displayUser} profile={profile} earnings={earnings}/>
+          <AffiliateSection user={displayUser} profile={profile} earnings={earnings} referralData={referralData} btcPrice={btcPrice} onWithdraw={handleReferralWithdraw}/>
         )}
 
       </div>

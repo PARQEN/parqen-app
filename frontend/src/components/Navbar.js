@@ -26,12 +26,13 @@ export default function Navbar({ user, onLogout }) {
   const navigate   = useNavigate();
   const location   = useLocation();
   const { rates: USD_RATES, btcUsd } = useRates();
-  const [profileDrop, setProfileDrop] = useState(false);
-  const [marketDrop,  setMarketDrop]  = useState(false);
-  const [balance,     setBalance]     = useState(0);
-  const [hdBalance,   setHdBalance]   = useState(0);
-  const [localUser,   setLocalUser]   = useState(user);
-  const [showBal,     setShowBal]     = useState(true);
+  const [profileDrop,     setProfileDrop]     = useState(false);
+  const [marketDrop,      setMarketDrop]      = useState(false);
+  const [balance,         setBalance]         = useState(0);
+  const [hdBalance,       setHdBalance]       = useState(0);
+  const [localUser,       setLocalUser]       = useState(user);
+  const [showBal,         setShowBal]         = useState(true);
+  const [displayCurrency, setDisplayCurrency] = useState(localStorage.getItem('praqen_currency') || 'USD');
   const dropRef   = useRef(null);
   const marketRef = useRef(null);
 
@@ -47,6 +48,22 @@ export default function Navbar({ user, onLogout }) {
   }, []);
 
   useEffect(() => { if (user?.id) setLocalUser(user); }, [user?.id]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    axios.get(`${API_URL}/users/profile`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        if (res.data.preferred_currency) {
+          setDisplayCurrency(res.data.preferred_currency);
+          localStorage.setItem('praqen_currency', res.data.preferred_currency);
+        }
+      })
+      .catch(() => {
+        const saved = localStorage.getItem('praqen_currency');
+        if (saved) setDisplayCurrency(saved);
+      });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -78,10 +95,10 @@ export default function Navbar({ user, onLogout }) {
 
   const displayUser = localUser?.id ? localUser : user;
   const totalBtc    = parseFloat(balance || 0) + parseFloat(hdBalance || 0);
-  const ghsRate     = USD_RATES?.GHS || 0;
-  const btcToGhs    = (btcUsd || 0) * ghsRate;
-  const totalLocal  = totalBtc * btcToGhs;
-  const localCode   = localUser?.currency || 'GHS';
+  const fxRate      = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 0);
+  const btcLocal    = (btcUsd || 0) * (displayCurrency === 'USD' ? 1 : fxRate);
+  const totalLocal  = totalBtc * (displayCurrency === 'USD' ? (btcUsd || 0) : btcLocal);
+  const localCode   = displayCurrency;
   const handleLogout = () => { onLogout(); navigate('/login'); };
 
   const isActive       = (path) => location.pathname === path;

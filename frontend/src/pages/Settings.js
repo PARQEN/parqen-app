@@ -82,9 +82,23 @@ export default function Settings({ user, setUser }) {
   // Payment methods
   const [payments, setPayments] = useState({ bankName: '', accountNumber: '', mobileProvider: '', mobileNumber: '' });
 
+  // Phone verification flow
+  const [phoneStep,    setPhoneStep]    = useState('idle'); // idle | sending | otp | verifying | done
+  const [phoneOtp,     setPhoneOtp]     = useState('');
+
+  // KYC upload
+  const [kycFiles,     setKycFiles]     = useState({ id: null, selfie: null });
+  const [kycLoading,   setKycLoading]   = useState(false);
+  const [kycSubmitted, setKycSubmitted] = useState(false);
+
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
     setAccountForm({ username: user.username || '', fullName: user.full_name || '', email: user.email || '', phone: user.phone || '', bio: user.bio || '' });
+    setPrefs(p => ({
+      ...p,
+      currency: user.preferred_currency || localStorage.getItem('praqen_currency') || 'GHS',
+      language: user.preferred_language || localStorage.getItem('praqen_language') || 'en',
+    }));
   }, [user]);
 
   // Derived verification status
@@ -132,6 +146,56 @@ export default function Settings({ user, setUser }) {
   const handleLogout = () => {
     localStorage.removeItem('token'); localStorage.removeItem('user');
     toast.info('Logged out'); navigate('/login');
+  };
+
+  const handleSendPhoneOtp = async () => {
+    const phone = accountForm.phone.trim();
+    if (!phone) { toast.error('Enter your phone number first'); return; }
+    setPhoneStep('sending');
+    try {
+      await axios.post(`${API_URL}/auth/send-otp`, { method: 'sms', contact: phone });
+      toast.success(`OTP sent to ${phone}`);
+      setPhoneStep('otp');
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to send OTP'); setPhoneStep('idle'); }
+  };
+
+  const handleVerifyPhone = async () => {
+    if (phoneOtp.length < 4) { toast.error('Enter the OTP code'); return; }
+    setPhoneStep('verifying');
+    try {
+      await axios.post(`${API_URL}/auth/verify-phone`, { phone: accountForm.phone.trim(), otp: phoneOtp }, { headers: authH() });
+      toast.success('Phone verified!');
+      setPhoneStep('done');
+      if (setUser) setUser(u => ({ ...u, phone_verified: true, phone: accountForm.phone.trim() }));
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...stored, phone_verified: true, phone: accountForm.phone.trim() }));
+    } catch (e) { toast.error(e?.response?.data?.error || 'Invalid OTP'); setPhoneStep('otp'); }
+  };
+
+  const handleKycSubmit = async () => {
+    if (!kycFiles.id || !kycFiles.selfie) { toast.error('Please upload both documents'); return; }
+    setKycLoading(true);
+    try {
+      await axios.post(`${API_URL}/kyc/submit`,
+        { idDocName: kycFiles.id.name, selfieDocName: kycFiles.selfie.name },
+        { headers: authH() }
+      );
+      toast.success("KYC submitted! We'll review within 24 hours.");
+      setKycSubmitted(true);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to submit KYC'); }
+    finally { setKycLoading(false); }
+  };
+
+  const handleSavePreferences = async () => {
+    setLoading(true);
+    try {
+      await axios.put(`${API_URL}/users/preferences`, prefs, { headers: authH() });
+      localStorage.setItem('praqen_currency', prefs.currency);
+      localStorage.setItem('praqen_language', prefs.language);
+      if (setUser) setUser(u => ({ ...u, preferred_currency: prefs.currency, preferred_language: prefs.language }));
+      toast.success('Preferences saved!');
+    } catch (e) { toast.error('Failed to save preferences'); }
+    finally { setLoading(false); }
   };
 
   const TABS = [
@@ -292,12 +356,115 @@ export default function Settings({ user, setUser }) {
                 <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
                   <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Verification Steps</h2>
                   <div className="space-y-3">
+
+                    {/* Step 1 — Email */}
                     <VerifStep n={1} title="Email Verified" badge="Basic" done={emailVerified} active={!emailVerified}
                       desc={emailVerified ? `${accountForm.email} is verified` : 'Verify your email address to start trading'} />
-                    <VerifStep n={2} title="Phone Number" badge="Standard" done={phoneVerified} active={emailVerified && !phoneVerified}
-                      desc={phoneVerified ? `${accountForm.phone || 'Phone'} verified` : 'Add and verify your phone number for $2,000 limit'} />
-                    <VerifStep n={3} title="Identity (KYC)" badge="Advanced" done={kycVerified} active={phoneVerified && !kycVerified}
-                      desc={kycVerified ? 'Identity verified — full access unlocked' : 'Upload government ID for unlimited trading'} />
+
+                    {/* Step 2 — Phone (interactive) */}
+                    <div className={`p-4 rounded-xl border transition ${phoneVerified||phoneStep==='done' ? 'bg-green-50 border-green-200' : emailVerified ? 'border-blue-200 bg-blue-50' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${phoneVerified||phoneStep==='done' ? 'bg-green-500 text-white' : emailVerified ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                          {phoneVerified||phoneStep==='done' ? <CheckCircle size={18}/> : 2}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-bold text-sm ${phoneVerified||phoneStep==='done' ? 'text-green-800' : emailVerified ? 'text-blue-800' : 'text-gray-600'}`}>Phone Number</p>
+                            <span className={`text-xs font-black px-2 py-0.5 rounded-full ${phoneVerified||phoneStep==='done' ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>Standard</span>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${phoneVerified||phoneStep==='done' ? 'text-green-600' : emailVerified ? 'text-blue-600' : 'text-gray-400'}`}>
+                            {phoneVerified||phoneStep==='done' ? `${accountForm.phone||'Phone'} verified ✓` : 'Verify your phone number to unlock $2,000 trade limit'}
+                          </p>
+
+                          {/* Phone OTP flow */}
+                          {!phoneVerified && phoneStep!=='done' && emailVerified && (
+                            <div className="mt-3 space-y-2">
+                              {(phoneStep==='idle'||phoneStep==='sending') && (
+                                <button onClick={handleSendPhoneOtp} disabled={phoneStep==='sending'}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-60"
+                                  style={{backgroundColor:C.paid}}>
+                                  <Smartphone size={13}/>
+                                  {phoneStep==='sending' ? 'Sending OTP…' : `Send OTP to ${accountForm.phone||'your phone'}`}
+                                </button>
+                              )}
+                              {(phoneStep==='otp'||phoneStep==='verifying') && (
+                                <div className="flex gap-2 items-center flex-wrap">
+                                  <input
+                                    type="text" inputMode="numeric" maxLength={6}
+                                    placeholder="Enter 6-digit OTP"
+                                    value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value.replace(/\D/g,''))}
+                                    className="px-3 py-2 border-2 rounded-xl text-sm font-black tracking-widest focus:outline-none w-40"
+                                    style={{borderColor:C.paid, color:C.g800, letterSpacing:'0.2em'}}/>
+                                  <button onClick={handleVerifyPhone} disabled={phoneStep==='verifying'}
+                                    className="px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-60"
+                                    style={{backgroundColor:C.success}}>
+                                    {phoneStep==='verifying' ? 'Verifying…' : '✓ Verify'}
+                                  </button>
+                                  <button onClick={()=>{setPhoneStep('idle');setPhoneOtp('');}} className="text-xs text-gray-400 underline">Resend</button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {phoneVerified||phoneStep==='done'
+                          ? <CheckCircle size={16} className="text-green-500 flex-shrink-0 mt-0.5"/>
+                          : emailVerified ? null
+                          : <Clock size={16} className="text-gray-300 flex-shrink-0 mt-0.5"/>}
+                      </div>
+                    </div>
+
+                    {/* Step 3 — KYC (interactive) */}
+                    <div className={`p-4 rounded-xl border transition ${kycVerified ? 'bg-green-50 border-green-200' : phoneVerified ? 'border-blue-200 bg-blue-50' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${kycVerified ? 'bg-green-500 text-white' : phoneVerified ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                          {kycVerified ? <CheckCircle size={18}/> : 3}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-bold text-sm ${kycVerified ? 'text-green-800' : phoneVerified ? 'text-blue-800' : 'text-gray-600'}`}>Identity (KYC)</p>
+                            <span className={`text-xs font-black px-2 py-0.5 rounded-full ${kycVerified ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>Advanced</span>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${kycVerified ? 'text-green-600' : phoneVerified ? 'text-blue-600' : 'text-gray-400'}`}>
+                            {kycVerified ? 'Identity verified — unlimited trading unlocked ✓' : 'Upload your government ID + selfie for unlimited trading'}
+                          </p>
+
+                          {/* KYC upload flow */}
+                          {!kycVerified && phoneVerified && !kycSubmitted && (
+                            <div className="mt-3 space-y-2">
+                              {[
+                                { key: 'id',     label: '🪪 National ID / Passport' },
+                                { key: 'selfie', label: '🤳 Selfie holding your ID' },
+                              ].map(({ key, label }) => (
+                                <label key={key} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-dashed cursor-pointer hover:border-blue-400 transition"
+                                  style={{borderColor: kycFiles[key] ? C.success : C.g200}}>
+                                  <Upload size={14} style={{color: kycFiles[key] ? C.success : C.g400, flexShrink:0}}/>
+                                  <span className="text-xs font-bold flex-1" style={{color: kycFiles[key] ? C.success : C.g600}}>
+                                    {kycFiles[key] ? `✓ ${kycFiles[key].name}` : label}
+                                  </span>
+                                  <input type="file" accept="image/*,.pdf" className="hidden"
+                                    onChange={e=>setKycFiles(f=>({...f,[key]:e.target.files[0]||null}))}/>
+                                </label>
+                              ))}
+                              <button onClick={handleKycSubmit} disabled={kycLoading||!kycFiles.id||!kycFiles.selfie}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-50 mt-1"
+                                style={{backgroundColor: C.green}}>
+                                {kycLoading ? <><RefreshCw size={13} className="animate-spin"/> Submitting…</> : <><Upload size={13}/> Submit for Review</>}
+                              </button>
+                            </div>
+                          )}
+                          {kycSubmitted && !kycVerified && (
+                            <div className="mt-2 flex items-center gap-2 text-xs font-bold" style={{color:C.warn}}>
+                              <Clock size={12}/> Under review — usually within 24 hours
+                            </div>
+                          )}
+                        </div>
+                        {kycVerified
+                          ? <CheckCircle size={16} className="text-green-500 flex-shrink-0 mt-0.5"/>
+                          : phoneVerified ? null
+                          : <Clock size={16} className="text-gray-300 flex-shrink-0 mt-0.5"/>}
+                      </div>
+                    </div>
+
                   </div>
                 </div>
 
@@ -335,26 +502,6 @@ export default function Settings({ user, setUser }) {
                   </div>
                 </div>
 
-                {/* KYC upload — only if not verified */}
-                {!kycVerified && (
-                  <div className="bg-white rounded-2xl shadow-sm border p-6" style={{ borderColor: C.g200 }}>
-                    <h2 className="text-lg font-black mb-2" style={{ color: C.forest }}>Submit KYC Documents</h2>
-                    <p className="text-xs text-gray-400 mb-4">Upload a valid government-issued ID. Reviewed within 24 hours.</p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {['National ID / Passport', 'Selfie with ID'].map(doc => (
-                        <div key={doc} className="border-2 border-dashed rounded-2xl p-6 text-center hover:border-green-400 transition cursor-pointer" style={{ borderColor: C.g200 }}>
-                          <Upload size={28} className="mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm font-bold text-gray-700">{doc}</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG or PDF · Max 5MB</p>
-                        </div>
-                      ))}
-                    </div>
-                    <button className="mt-4 flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90"
-                      style={{ backgroundColor: C.green }}>
-                      <Upload size={15} /> Submit for Review
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
@@ -472,11 +619,12 @@ export default function Settings({ user, setUser }) {
                     </select>
                   </div>
 
-                  <button onClick={() => toast.success('Preferences saved!')}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90"
+                  <button onClick={handleSavePreferences} disabled={loading}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold text-sm hover:opacity-90 disabled:opacity-50"
                     style={{ backgroundColor: C.green }}>
-                    <Save size={15} /> Save Preferences
+                    {loading ? <><RefreshCw size={15} className="animate-spin"/> Saving…</> : <><Save size={15}/> Save Preferences</>}
                   </button>
+                  <p className="text-xs mt-2" style={{color:C.g400}}>Currency selection affects how values display in your wallet.</p>
                 </div>
               </div>
             )}

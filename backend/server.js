@@ -752,10 +752,21 @@ app.post('/api/users/check-badges', verifyToken, async (req, res) => {
   }
 });
 
+app.post('/api/users/heartbeat', verifyToken, async (req, res) => {
+  try {
+    await supabaseAdmin.from('users')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', req.userId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/users/profile', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('users')
-      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, badge, referral_code, total_referrals, referral_earnings_btc')
+      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
       .eq('id', req.userId).single();
     if (error) return res.status(400).json({ error: error.message });
     const { data: wallet } = await supabaseAdmin.from('mock_wallets').select('*').eq('user_id', req.userId).single();
@@ -772,7 +783,7 @@ app.get('/api/users/profile', verifyToken, async (req, res) => {
 app.get('/api/users/:userId', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('users')
-      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, badge, referral_code, total_referrals, referral_earnings_btc')
+      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
       .eq('id', req.params.userId).single();
     if (error) return res.status(404).json({ error: 'User not found' });
     const { data: reviews } = await supabaseAdmin.from('reviews')
@@ -1306,6 +1317,7 @@ app.post('/api/trades', verifyToken, async (req, res) => {
     }
 
     const verifiedFee = parseFloat(calculateFee(verifiedAmountBtc));
+    const tradeRef = 'PRAQ-' + require('crypto').randomBytes(4).toString('hex').toUpperCase();
 
     const { data: trade, error } = await supabaseAdmin.from('trades').insert([{
       listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, trade_type: resolvedType,
@@ -1318,6 +1330,7 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       platform_fee_usd: (tradeAmountUsd * 0.005).toFixed(2), fee_status: 'PENDING',
       payment_method: paymentMethod || listing.payment_method,
       gift_card_brand: listingTypeUpper.includes('GIFT_CARD') ? (listing.gift_card_brand || null) : null,
+      trade_ref: tradeRef,
     }]).select();
     if (error) return res.status(400).json({ error: error.message });
 
@@ -2159,6 +2172,81 @@ app.post('/api/admin/upgrade-wallets', verifyToken, async (req, res) => {
     res.json({ success: true, upgraded, skipped, total: users?.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// USER PREFERENCES (currency, language, timezone)
+// ============================================================
+app.put('/api/users/preferences', verifyToken, async (req, res) => {
+  try {
+    const { currency, language, timezone } = req.body;
+    const updateData = { updated_at: new Date().toISOString() };
+    if (currency) updateData.preferred_currency = currency;
+    if (language) updateData.preferred_language = language;
+    if (timezone) updateData.timezone = timezone;
+    const { data, error } = await supabaseAdmin.from('users').update(updateData).eq('id', req.userId).select().single();
+    if (error) { console.warn('[preferences] Column may not exist:', error.message); return res.json({ success: true }); }
+    res.json({ success: true, user: data });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// PHONE VERIFICATION — verify OTP and mark phone verified
+// ============================================================
+app.post('/api/auth/verify-phone', verifyToken, async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP required' });
+    const stored = otpStore.get(phone);
+    if (!stored || stored.otp !== otp || Date.now() > stored.expires)
+      return res.status(400).json({ error: 'Invalid or expired OTP. Request a new one.' });
+    otpStore.delete(phone);
+    const { error } = await supabaseAdmin.from('users').update({
+      phone, phone_verified: true, updated_at: new Date().toISOString()
+    }).eq('id', req.userId);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ success: true, message: 'Phone number verified!' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// KYC SUBMIT — mark kyc as pending review
+// ============================================================
+app.post('/api/kyc/submit', verifyToken, async (req, res) => {
+  try {
+    const { idDocName, selfieDocName } = req.body;
+    if (!idDocName || !selfieDocName) return res.status(400).json({ error: 'Both documents are required' });
+    const { error } = await supabaseAdmin.from('users').update({
+      kyc_status: 'pending', kyc_submitted_at: new Date().toISOString(), updated_at: new Date().toISOString()
+    }).eq('id', req.userId);
+    if (error) { console.warn('[kyc] Column may not exist:', error.message); }
+    res.json({ success: true, message: 'KYC documents submitted for review. We will respond within 24 hours.' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// SUPPORT — lookup trade by reference number
+// ============================================================
+app.get('/api/support/trade/:ref', verifyToken, async (req, res) => {
+  try {
+    const ref = (req.params.ref || '').toUpperCase();
+    const { data: trade, error } = await supabaseAdmin
+      .from('trades')
+      .select(`
+        id, trade_ref, status, amount_btc, amount_usd, amount_local,
+        local_currency, currency_symbol, payment_method, created_at,
+        completed_at, cancelled_at,
+        buyer:buyer_id(id, username),
+        seller:seller_id(id, username)
+      `)
+      .eq('trade_ref', ref)
+      .single();
+    if (error || !trade) return res.status(404).json({ success: false, error: 'Trade not found' });
+    res.json({ success: true, trade });
+  } catch (err) {
+    console.error('Support trade lookup error:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

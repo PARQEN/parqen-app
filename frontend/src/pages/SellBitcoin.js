@@ -28,32 +28,137 @@ const C = {
 };
 
 
-const CUR_SYM = { GHS:'₵', NGN:'₦', KES:'KSh', ZAR:'R', UGX:'USh', TZS:'TSh', USD:'$', GBP:'£', EUR:'€', XAF:'CFA', XOF:'CFA' };
+const CUR_SYM = {
+  GHS:'₵', NGN:'₦', KES:'KSh', ZAR:'R', UGX:'USh', TZS:'TSh',
+  USD:'$', GBP:'£', EUR:'€', XAF:'CFA', XOF:'CFA', RWF:'RF',
+  MZN:'MT', ZMW:'ZK', CDF:'FC', EGP:'E£', MAD:'MAD',
+  INR:'₹', CNY:'¥', PHP:'₱', IDR:'Rp', PKR:'₨', BDT:'৳',
+  VND:'₫', THB:'฿', MYR:'RM', SGD:'S$', AED:'AED', SAR:'SR',
+  BRL:'R$', MXN:'MX$', COP:'COP$', TRY:'₺', PLN:'zł', UAH:'₴',
+};
+
+const COUNTRY_REGIONS = {
+  Africa:'#10B981', Asia:'#3B82F6', 'Middle East':'#F97316',
+  Americas:'#EC4899', Europe:'#7C3AED',
+};
 
 const COUNTRIES = [
-  {code:'ALL', name:'All Countries',   flag:'🌍', currency:'GHS', symbol:'₵'},
-  {code:'GH',  name:'Ghana',           flag:'🇬🇭', currency:'GHS', symbol:'₵'},
-  {code:'NG',  name:'Nigeria',         flag:'🇳🇬', currency:'NGN', symbol:'₦'},
-  {code:'KE',  name:'Kenya',           flag:'🇰🇪', currency:'KES', symbol:'KSh'},
-  {code:'ZA',  name:'South Africa',    flag:'🇿🇦', currency:'ZAR', symbol:'R'},
-  {code:'UG',  name:'Uganda',          flag:'🇺🇬', currency:'UGX', symbol:'USh'},
-  {code:'US',  name:'United States',   flag:'🇺🇸', currency:'USD', symbol:'$'},
-  {code:'GB',  name:'United Kingdom',  flag:'🇬🇧', currency:'GBP', symbol:'£'},
-  {code:'EU',  name:'Europe',          flag:'🇪🇺', currency:'EUR', symbol:'€'},
-  {code:'CM',  name:'Cameroon',        flag:'🇨🇲', currency:'XAF', symbol:'CFA'},
-  {code:'SN',  name:'Senegal',         flag:'🇸🇳', currency:'XOF', symbol:'CFA'},
+  {code:'ALL', name:'All Countries',  flag:'🌍', currency:'USD', symbol:'$',    region:null},
+  // Africa
+  {code:'GH',  name:'Ghana',          flag:'🇬🇭', currency:'GHS', symbol:'₵',    region:'Africa'},
+  {code:'NG',  name:'Nigeria',        flag:'🇳🇬', currency:'NGN', symbol:'₦',    region:'Africa'},
+  {code:'KE',  name:'Kenya',          flag:'🇰🇪', currency:'KES', symbol:'KSh',  region:'Africa'},
+  {code:'TZ',  name:'Tanzania',       flag:'🇹🇿', currency:'TZS', symbol:'TSh',  region:'Africa'},
+  {code:'UG',  name:'Uganda',         flag:'🇺🇬', currency:'UGX', symbol:'USh',  region:'Africa'},
+  {code:'RW',  name:'Rwanda',         flag:'🇷🇼', currency:'RWF', symbol:'RF',   region:'Africa'},
+  {code:'CI',  name:"Côte d'Ivoire",  flag:'🇨🇮', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'CM',  name:'Cameroon',       flag:'🇨🇲', currency:'XAF', symbol:'CFA',  region:'Africa'},
+  {code:'SN',  name:'Senegal',        flag:'🇸🇳', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'ML',  name:'Mali',           flag:'🇲🇱', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'BF',  name:'Burkina Faso',   flag:'🇧🇫', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'BJ',  name:'Benin',          flag:'🇧🇯', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'TG',  name:'Togo',           flag:'🇹🇬', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'NE',  name:'Niger',          flag:'🇳🇪', currency:'XOF', symbol:'CFA',  region:'Africa'},
+  {code:'CD',  name:'DR Congo',       flag:'🇨🇩', currency:'CDF', symbol:'FC',   region:'Africa'},
+  {code:'ZM',  name:'Zambia',         flag:'🇿🇲', currency:'ZMW', symbol:'ZK',   region:'Africa'},
+  {code:'ZW',  name:'Zimbabwe',       flag:'🇿🇼', currency:'USD', symbol:'$',    region:'Africa'},
+  {code:'MZ',  name:'Mozambique',     flag:'🇲🇿', currency:'MZN', symbol:'MT',   region:'Africa'},
+  {code:'ZA',  name:'South Africa',   flag:'🇿🇦', currency:'ZAR', symbol:'R',    region:'Africa'},
+  {code:'EG',  name:'Egypt',          flag:'🇪🇬', currency:'EGP', symbol:'E£',   region:'Africa'},
+  {code:'MA',  name:'Morocco',        flag:'🇲🇦', currency:'MAD', symbol:'MAD',  region:'Africa'},
+  // Asia
+  {code:'IN',  name:'India',          flag:'🇮🇳', currency:'INR', symbol:'₹',    region:'Asia'},
+  {code:'CN',  name:'China',          flag:'🇨🇳', currency:'CNY', symbol:'¥',    region:'Asia'},
+  {code:'PH',  name:'Philippines',    flag:'🇵🇭', currency:'PHP', symbol:'₱',    region:'Asia'},
+  {code:'ID',  name:'Indonesia',      flag:'🇮🇩', currency:'IDR', symbol:'Rp',   region:'Asia'},
+  {code:'PK',  name:'Pakistan',       flag:'🇵🇰', currency:'PKR', symbol:'₨',    region:'Asia'},
+  {code:'BD',  name:'Bangladesh',     flag:'🇧🇩', currency:'BDT', symbol:'৳',    region:'Asia'},
+  {code:'VN',  name:'Vietnam',        flag:'🇻🇳', currency:'VND', symbol:'₫',    region:'Asia'},
+  {code:'TH',  name:'Thailand',       flag:'🇹🇭', currency:'THB', symbol:'฿',    region:'Asia'},
+  {code:'MY',  name:'Malaysia',       flag:'🇲🇾', currency:'MYR', symbol:'RM',   region:'Asia'},
+  {code:'SG',  name:'Singapore',      flag:'🇸🇬', currency:'SGD', symbol:'S$',   region:'Asia'},
+  // Middle East
+  {code:'AE',  name:'UAE',            flag:'🇦🇪', currency:'AED', symbol:'AED',  region:'Middle East'},
+  {code:'SA',  name:'Saudi Arabia',   flag:'🇸🇦', currency:'SAR', symbol:'SR',   region:'Middle East'},
+  // Americas
+  {code:'US',  name:'United States',  flag:'🇺🇸', currency:'USD', symbol:'$',    region:'Americas'},
+  {code:'BR',  name:'Brazil',         flag:'🇧🇷', currency:'BRL', symbol:'R$',   region:'Americas'},
+  {code:'MX',  name:'Mexico',         flag:'🇲🇽', currency:'MXN', symbol:'MX$',  region:'Americas'},
+  {code:'CO',  name:'Colombia',       flag:'🇨🇴', currency:'COP', symbol:'COP$', region:'Americas'},
+  // Europe
+  {code:'GB',  name:'United Kingdom', flag:'🇬🇧', currency:'GBP', symbol:'£',    region:'Europe'},
+  {code:'TR',  name:'Turkey',         flag:'🇹🇷', currency:'TRY', symbol:'₺',    region:'Europe'},
+  {code:'PL',  name:'Poland',         flag:'🇵🇱', currency:'PLN', symbol:'zł',   region:'Europe'},
+  {code:'UA',  name:'Ukraine',        flag:'🇺🇦', currency:'UAH', symbol:'₴',    region:'Europe'},
+  {code:'EU',  name:'Europe (EUR)',   flag:'🇪🇺', currency:'EUR', symbol:'€',    region:'Europe'},
 ];
 
 const PAYMENT_OPTIONS = [
-  {value:'all',         label:'All Methods',       icon:'💳'},
-  {value:'mtn',         label:'MTN Mobile Money',  icon:'📱'},
-  {value:'vodafone',    label:'Vodafone Cash',     icon:'📱'},
-  {value:'airteltigo',  label:'AirtelTigo',        icon:'📱'},
-  {value:'bank',        label:'Bank Transfer',     icon:'🏦'},
-  {value:'paypal',      label:'PayPal',            icon:'💰'},
-  {value:'mpesa',       label:'M-Pesa',            icon:'📱'},
-  {value:'opay',        label:'OPay',              icon:'💳'},
+  {value:'all',            label:'All Methods',                   icon:'💳', cat:null},
+  // Mobile Money
+  {value:'mtn',            label:'MTN Mobile Money',              icon:'📱', cat:'Mobile Money'},
+  {value:'vodafone',       label:'Vodafone Cash',                 icon:'📱', cat:'Mobile Money'},
+  {value:'airteltigo',     label:'AirtelTigo Money',              icon:'📱', cat:'Mobile Money'},
+  {value:'mpesa',          label:'M-Pesa',                        icon:'📱', cat:'Mobile Money'},
+  {value:'airtel money',   label:'Airtel Money',                  icon:'📱', cat:'Mobile Money'},
+  {value:'orange money',   label:'Orange Money',                  icon:'📱', cat:'Mobile Money'},
+  {value:'wave',           label:'Wave',                          icon:'🌊', cat:'Mobile Money'},
+  {value:'chipper',        label:'Chipper Cash',                  icon:'💚', cat:'Mobile Money'},
+  {value:'ecocash',        label:'EcoCash',                       icon:'📱', cat:'Mobile Money'},
+  {value:'tigo pesa',      label:'Tigo Pesa / Mixx',              icon:'📱', cat:'Mobile Money'},
+  {value:'moov money',     label:'Moov Money',                    icon:'📱', cat:'Mobile Money'},
+  {value:'africell',       label:'Africell Money',                icon:'📱', cat:'Mobile Money'},
+  {value:'paga',           label:'Paga',                          icon:'🟢', cat:'Mobile Money'},
+  // Digital Wallet
+  {value:'paypal',         label:'PayPal',                        icon:'💰', cat:'Digital Wallet'},
+  {value:'cash app',       label:'Cash App',                      icon:'💸', cat:'Digital Wallet'},
+  {value:'apple pay',      label:'Apple Pay',                     icon:'🍎', cat:'Digital Wallet'},
+  {value:'alipay',         label:'Alipay',                        icon:'💙', cat:'Digital Wallet'},
+  {value:'wechat',         label:'WeChat Pay',                    icon:'💬', cat:'Digital Wallet'},
+  {value:'venmo',          label:'Venmo',                         icon:'🔵', cat:'Digital Wallet'},
+  {value:'zelle',          label:'Zelle',                         icon:'💜', cat:'Digital Wallet'},
+  {value:'revolut',        label:'Revolut',                       icon:'🔷', cat:'Digital Wallet'},
+  {value:'skrill',         label:'Skrill',                        icon:'💳', cat:'Digital Wallet'},
+  {value:'neteller',       label:'Neteller',                      icon:'💳', cat:'Digital Wallet'},
+  {value:'payeer',         label:'Payeer',                        icon:'💳', cat:'Digital Wallet'},
+  {value:'perfect money',  label:'Perfect Money',                 icon:'💳', cat:'Digital Wallet'},
+  // Remittance
+  {value:'wise',           label:'Wise',                          icon:'🌍', cat:'Remittance'},
+  {value:'worldremit',     label:'WorldRemit',                    icon:'🌐', cat:'Remittance'},
+  {value:'remitly',        label:'Remitly',                       icon:'🚀', cat:'Remittance'},
+  {value:'western union',  label:'Western Union',                 icon:'🏢', cat:'Remittance'},
+  {value:'moneygram',      label:'MoneyGram',                     icon:'🏢', cat:'Remittance'},
+  // Bank
+  {value:'bank transfer',  label:'Bank Transfer',                 icon:'🏦', cat:'Bank'},
+  {value:'wire transfer',  label:'Wire Transfer',                 icon:'🔗', cat:'Bank'},
+  {value:'mobile banking', label:'Mobile Banking App',            icon:'📲', cat:'Bank'},
+  {value:'interbank',      label:'Interbank (GhIPSS/NIBSS/EFT)',  icon:'🏦', cat:'Bank'},
+  {value:'ussd',           label:'USSD Bank Transfer',            icon:'📞', cat:'Bank'},
+  {value:'instant eft',    label:'Instant EFT (South Africa)',    icon:'🏦', cat:'Bank'},
+  {value:'cash deposit',   label:'Cash Deposit (Bank Counter)',   icon:'🏦', cat:'Bank'},
+  // FinTech
+  {value:'opay',           label:'OPay',                          icon:'🟢', cat:'FinTech'},
+  {value:'palmpay',        label:'PalmPay',                       icon:'🌴', cat:'FinTech'},
+  {value:'kuda',           label:'Kuda Bank',                     icon:'🏦', cat:'FinTech'},
+  {value:'moniepoint',     label:'Moniepoint',                    icon:'🏦', cat:'FinTech'},
+  {value:'paystack',       label:'Paystack',                      icon:'💚', cat:'FinTech'},
+  {value:'flutterwave',    label:'Flutterwave (Barter)',           icon:'🦋', cat:'FinTech'},
+  // Cash
+  {value:'cash in person', label:'Cash in Person (Face-to-Face)', icon:'💵', cat:'Cash'},
+  {value:'cash out',       label:'Cash Out',                      icon:'💵', cat:'Cash'},
+  // Crypto
+  {value:'usdt',           label:'USDT (Tether – TRC20)',          icon:'💵', cat:'Crypto'},
+  {value:'binance pay',    label:'Binance Pay',                   icon:'🟡', cat:'Crypto'},
+  {value:'bitcoin',        label:'Bitcoin (BTC)',                  icon:'₿',  cat:'Crypto'},
+  {value:'ethereum',       label:'Ethereum (ETH)',                icon:'⬡',  cat:'Crypto'},
+  {value:'luno',           label:'Luno Wallet',                   icon:'🌙', cat:'Crypto'},
+  {value:'yellow card',    label:'Yellow Card Wallet',            icon:'💛', cat:'Crypto'},
 ];
+
+const PM_CAT_COLORS = {
+  'Mobile Money':'#10B981','Digital Wallet':'#3B82F6','Remittance':'#0D9488',
+  'Bank':'#7C3AED','FinTech':'#F59E0B','Cash':'#F4A422','Crypto':'#F97316',
+};
 
 const fmt  = (n, d=0) => new Intl.NumberFormat('en-US', {minimumFractionDigits:0, maximumFractionDigits:d}).format(n||0);
 const fBtc = (n)      => parseFloat(n||0).toFixed(8);
@@ -158,8 +263,8 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
                 {u.username||'Buyer'}
               </button>
               {isVerified(u) && <BadgeCheck size={14} style={{color:'#3B82F6', flexShrink:0}}/>}
-              <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
-                style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+              <span className={`inline-flex items-center gap-px font-medium px-1 py-0 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-md' : ''}`}
+                style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'8px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                 <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                 <span style={{color:badge.textColor}}>{badge.label}</span>
               </span>
@@ -316,8 +421,8 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
                 <CountryFlag countryCode={ccCode} className="w-4 h-3 rounded-sm"/>
               </div>
               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                <span className={`inline-flex items-center gap-0.5 font-semibold px-1.5 py-0.5 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
-                  style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'9px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
+                <span className={`inline-flex items-center gap-px font-medium px-1 py-0 rounded-full border ${badge.animate ? 'shadow-md' : ''}`}
+                  style={{background:badge.bg, borderColor:badge.borderColor, fontSize:'8px', boxShadow: badge.glow ? `0 0 8px ${badge.glow}` : undefined}}>
                   <span style={{color:badge.iconColor||badge.textColor}}>{badge.icon}</span>
                   <span style={{color:badge.textColor}}>{badge.label}</span>
                 </span>
@@ -340,18 +445,36 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-1 sm:gap-2 mt-4 pt-4 border-t border-white/20 text-center">
-            {[
-              {label:'Trades',   value:fmt(trades)},
-              {label:'Rating',   value:`${rating.toFixed(1)}★`},
-              {label:'Reviews',  value:fmt(fb)},
-              {label:'Complete', value:`${u.completion_rate||98}%`},
-            ].map(s=>(
-              <div key={s.label}>
-                <p className="text-white font-black text-sm">{s.value}</p>
-                <p className="text-white/50 text-xs">{s.label}</p>
+          {/* Stats grid — Feedback first */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/20">
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <ThumbsUp size={14} style={{color:'#86EFAC', flexShrink:0}}/>
+              <div>
+                <p className="text-white font-black text-sm leading-none">{fmt(u.positive_feedback||0)}</p>
+                <p className="text-white/50 text-xs mt-0.5">Positive</p>
               </div>
-            ))}
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <ThumbsDown size={14} style={{color:'#FCA5A5', flexShrink:0}}/>
+              <div>
+                <p className="text-white font-black text-sm leading-none">{fmt(u.negative_feedback||0)}</p>
+                <p className="text-white/50 text-xs mt-0.5">Negative</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <Repeat2 size={14} style={{color:'rgba(255,255,255,0.7)', flexShrink:0}}/>
+              <div>
+                <p className="text-white font-black text-sm leading-none">{fmt(trades)}</p>
+                <p className="text-white/50 text-xs mt-0.5">Trades</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
+              <span className="text-sm flex-shrink-0">⭐</span>
+              <div>
+                <p className="text-white font-black text-sm leading-none">{rating.toFixed(1)}</p>
+                <p className="text-white/50 text-xs mt-0.5">Rating</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -479,16 +602,19 @@ export default function SellBitcoin({user}) {
   const [loading,      setLoading]      = useState(true);
   const [btcPrice,     setBtcPrice]     = useState(68000);
   const [loadingRates, setLoadingRates] = useState(false);
-  const [selCountry,   setSelCountry]   = useState(COUNTRIES[1]);
-  const [selPayment,   setSelPayment]   = useState('all');
-  const [showFilters,  setShowFilters]  = useState(false);
-  const [showCountry,  setShowCountry]  = useState(false);
+  const [selCountry,    setSelCountry]    = useState(COUNTRIES[0]);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [selPayment,    setSelPayment]    = useState('all');
+  const [showFilters,   setShowFilters]   = useState(false);
+  const [showCountry,   setShowCountry]   = useState(false);
+  const [showPayment,   setShowPayment]   = useState(false);
   const [sortBy,       setSortBy]       = useState('rate_high');
   const [modal,        setModal]        = useState(null);
   const [sellAmt,      setSellAmt]      = useState('');
   const [activeTrades, setActiveTrades] = useState([]);
   const [showAllTrades, setShowAllTrades] = useState(false);
   const countryRef = useRef(null);
+  const paymentRef = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{ fetchRates(); loadOffers(); },[]);
@@ -506,7 +632,10 @@ export default function SellBitcoin({user}) {
     return () => clearInterval(interval);
   }, []);
   useEffect(()=>{
-    const h = e => { if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false); };
+    const h = e => {
+      if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false);
+      if(paymentRef.current&&!paymentRef.current.contains(e.target)) setShowPayment(false);
+    };
     document.addEventListener('mousedown',h);
     return () => document.removeEventListener('mousedown',h);
   },[]);
@@ -627,15 +756,16 @@ export default function SellBitcoin({user}) {
         <div className="max-w-7xl mx-auto px-3 overflow-x-auto" style={{WebkitOverflowScrolling:'touch'}}>
           <div className="flex items-center min-w-max">
             {[
-              {label:'Buy BTC',    path:'/buy-bitcoin',  active:false},
-              {label:'Sell BTC',   path:'/sell-bitcoin', active:true},
-              {label:'Gift Cards', path:'/gift-cards',   active:false},
+              {label:'Buy BTC',    path:'/buy-bitcoin',  active:false, color:'#1B4332'},
+              {label:'Sell BTC',   path:'/sell-bitcoin', active:true,  color:'#D97706'},
+              {label:'Gift Cards', path:'/gift-cards',   active:false, color:'#0D9488'},
             ].map(tab=>(
               <Link key={tab.path} to={tab.path}
-                className="px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-bold border-b-2 transition-colors whitespace-nowrap"
+                className="px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-black border-b-2 transition-all whitespace-nowrap"
                 style={{
-                  borderColor: tab.active ? C.sell : 'transparent',
-                  color:       tab.active ? C.sell : C.g500,
+                  borderColor:     tab.active ? tab.color : 'transparent',
+                  color:           tab.active ? tab.color : C.g400,
+                  backgroundColor: tab.active ? tab.color+'18' : 'transparent',
                 }}>
                 {tab.label}
               </Link>
@@ -661,113 +791,149 @@ export default function SellBitcoin({user}) {
 
       {/* ══ 3. FILTER BAR ══════════════════════════════════════ */}
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
-        <div className="max-w-7xl mx-auto px-3 py-2.5">
+        <div className="max-w-7xl mx-auto px-3 py-3 space-y-3">
 
-          {/* Amount input */}
-          <div className="flex items-center border-2 rounded-xl overflow-hidden mb-2"
-            style={{borderColor:sellAmt ? C.sell : C.g200, height:'52px'}}>
-            <input
-              type="number"
-              value={sellAmt}
-              onChange={e=>setSellAmt(e.target.value)}
-              placeholder="Enter BTC amount"
-              className="flex-1 pl-4 pr-2 text-base font-bold focus:outline-none bg-transparent w-full min-w-0"
-              style={{color:C.g800, fontSize:'16px'}}/>
-            <span className="pr-4 text-xs font-black flex-shrink-0" style={{color:C.g400}}>BTC</span>
-          </div>
-
-          {/* Row: Country + Sort */}
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="relative flex-1 min-w-0" ref={countryRef}>
-              <button
-                onClick={()=>setShowCountry(!showCountry)}
-                className="w-full flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border-2 font-bold transition"
-                style={{
-                  borderColor:     selCountry.code!=='ALL' ? C.sell : C.g200,
-                  color:           selCountry.code!=='ALL' ? C.sell : C.g600,
-                  backgroundColor: selCountry.code!=='ALL' ? `${C.sell}08` : 'transparent',
-                }}>
-                <span className="text-base leading-none flex-shrink-0">{selCountry.flag}</span>
-                <span className="text-xs font-black truncate">{selCountry.currency}</span>
-                <ChevronDown size={12} className={`transition-transform flex-shrink-0 ${showCountry?'rotate-180':''}`}
-                  style={{color:selCountry.code!=='ALL' ? C.sell : C.g400}}/>
-              </button>
-              {showCountry && (
-                <div className="absolute top-full left-0 mt-1.5 w-48 sm:w-52 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                  style={{borderColor:C.g100}}>
-                  {COUNTRIES.map(c=>(
-                    <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);}}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
-                      style={{borderColor:C.g50}}>
-                      <span className="text-base">{c.flag}</span>
-                      <div className="flex-1 text-left">
-                        <p className="font-bold text-xs" style={{color:C.g800}}>{c.name}</p>
-                        <p className="text-xs" style={{color:C.g400}}>{c.currency}</p>
-                      </div>
-                      {selCountry.code===c.code && <CheckCircle size={12} style={{color:C.sell}}/>}
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* AMOUNT — full width */}
+          <div>
+            <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>AMOUNT</p>
+            <div className="flex items-center border-2 rounded-xl overflow-hidden"
+              style={{borderColor:sellAmt ? C.sell : C.g200}}>
+              <input
+                type="number"
+                value={sellAmt}
+                onChange={e=>setSellAmt(e.target.value)}
+                placeholder="e.g. 0.01"
+                className="flex-1 pl-3 pr-1 py-2.5 text-sm font-bold focus:outline-none bg-transparent min-w-0"
+                style={{color:C.g800, fontSize:'15px'}}/>
+              <span className="pr-3 text-xs font-black flex-shrink-0" style={{color:C.g400}}>BTC</span>
             </div>
-            <button
-              onClick={()=>setShowFilters(!showFilters)}
-              className="flex items-center gap-1 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition flex-shrink-0"
-              style={{
-                borderColor:     showFilters ? C.sell : C.g200,
-                color:           showFilters ? C.sell : C.g600,
-                backgroundColor: showFilters ? `${C.sell}08` : 'transparent',
-              }}>
-              <Filter size={12}/>
-              Sort
-            </button>
           </div>
 
-          {/* Payment method pills — always visible */}
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth:'none', WebkitOverflowScrolling:'touch'}}>
-            {PAYMENT_OPTIONS.map(p => {
-              const active = selPayment === p.value;
-              return (
-                <button key={p.value} onClick={() => setSelPayment(p.value)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-full border-2 text-xs font-black whitespace-nowrap transition flex-shrink-0"
+          {/* CURRENCY + PAYMENT grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* CURRENCY (country) dropdown */}
+            <div>
+              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>CURRENCY</p>
+              <div className="relative" ref={countryRef}>
+                <button
+                  onClick={()=>{setShowCountry(!showCountry);setShowPayment(false);}}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
                   style={{
-                    borderColor:     active ? C.sell : C.g200,
-                    color:           active ? '#fff' : C.g600,
-                    backgroundColor: active ? C.sell : 'transparent',
+                    borderColor:     selCountry.code!=='ALL' ? C.sell : C.g200,
+                    color:           selCountry.code!=='ALL' ? C.sell : C.g600,
+                    backgroundColor: selCountry.code!=='ALL' ? `${C.sell}08` : 'transparent',
                   }}>
-                  <span>{p.icon}</span>
-                  <span>{p.label.replace(' Mobile Money','').replace(' Cash','').replace(' Transfer','')}</span>
-                  {active && selPayment !== 'all' && (
-                    <span onClick={e=>{e.stopPropagation();setSelPayment('all');}} className="ml-0.5 hover:opacity-70">✕</span>
-                  )}
+                  <span className="text-sm leading-none flex-shrink-0">{selCountry.flag}</span>
+                  <span className="text-xs font-black truncate flex-1 text-left">{selCountry.name}</span>
+                  <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showCountry?'rotate-180':''}`}
+                    style={{color:selCountry.code!=='ALL' ? C.sell : C.g400}}/>
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Sort panel */}
-          {showFilters && (
-            <div className="mt-2.5 pt-2.5 border-t grid grid-cols-1 sm:grid-cols-2 gap-2"
-              style={{borderColor:C.g100}}>
-              <div>
-                <p className="text-xs font-bold mb-1" style={{color:C.g500}}>Sort By</p>
-                <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                  className="w-full px-2.5 py-2 text-sm border-2 rounded-xl focus:outline-none"
-                  style={{borderColor:C.g200, color:C.g800, fontSize:'16px'}}>
-                  <option value="rate_high">Best Rate (Highest)</option>
-                  <option value="rating">Top Rated</option>
-                  <option value="trades">Most Trades</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button onClick={()=>navigate('/create-offer')}
-                  className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-1.5 transition hover:opacity-90"
-                  style={{backgroundColor:C.sell, color:'#fff'}}>
-                  <PlusCircle size={13}/> Post Buy Offer
-                </button>
+                {showCountry && (
+                  <div className="absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                    style={{borderColor:C.g100,minWidth:'240px',right:'auto'}}>
+                    <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                      <input autoFocus type="text" placeholder="🔍  Search country…"
+                        value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs font-semibold rounded-xl border focus:outline-none"
+                        style={{borderColor:C.g200,color:C.g800}}/>
+                    </div>
+                    <div className="overflow-y-auto max-h-60">
+                      {(() => {
+                        const q = countrySearch.toLowerCase();
+                        const filtered = COUNTRIES.filter(c=>!q||c.name.toLowerCase().includes(q));
+                        let lastReg = null;
+                        return filtered.map(c=>{
+                          const regHdr = !q && c.region && c.region!==lastReg
+                            ? (lastReg=c.region, <div key={`r-${c.region}`} className="px-3 py-1" style={{backgroundColor:'#F8FAFC'}}>
+                                <span className="text-xs font-black uppercase tracking-wider" style={{color:COUNTRY_REGIONS[c.region]||C.g500}}>{c.region}</span>
+                              </div>)
+                            : (c.region&&(lastReg=c.region), null);
+                          return [regHdr,
+                            <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);setCountrySearch('');}}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
+                              style={{backgroundColor:selCountry.code===c.code?`${C.sell}08`:'transparent'}}>
+                              <span className="text-base flex-shrink-0">{c.flag}</span>
+                              <div className="flex-1 text-left min-w-0">
+                                <p className="font-bold text-xs truncate" style={{color:C.g800}}>{c.name}</p>
+                                {c.currency&&<p className="text-xs" style={{color:C.g400}}>{c.symbol} {c.currency}</p>}
+                              </div>
+                              {selCountry.code===c.code&&<CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
+                            </button>
+                          ];
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+
+            {/* PAYMENT dropdown */}
+            <div>
+              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>PAYMENT</p>
+              <div className="relative" ref={paymentRef}>
+                <button
+                  onClick={()=>{setShowPayment(!showPayment);setShowCountry(false);}}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
+                  style={{
+                    borderColor:     selPayment!=='all' ? C.sell : C.g200,
+                    color:           selPayment!=='all' ? C.sell : C.g600,
+                    backgroundColor: selPayment!=='all' ? `${C.sell}08` : 'transparent',
+                  }}>
+                  <span className="text-sm leading-none flex-shrink-0">{PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.icon||'💳'}</span>
+                  <span className="text-xs font-black truncate flex-1 text-left">
+                    {PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.label||'All Methods'}
+                  </span>
+                  <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showPayment?'rotate-180':''}`}
+                    style={{color:selPayment!=='all' ? C.sell : C.g400}}/>
+                </button>
+                {showPayment && (
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden max-h-64 overflow-y-auto"
+                    style={{borderColor:C.g100,minWidth:'220px'}}>
+                    {(() => {
+                      let lastCat = null;
+                      return PAYMENT_OPTIONS.map(p => {
+                        const catHeader = p.cat && p.cat !== lastCat ? (lastCat = p.cat, (
+                          <div key={`h-${p.cat}`} className="px-3 py-1 sticky top-0" style={{backgroundColor:'#F8FAFC'}}>
+                            <span className="text-xs font-black uppercase tracking-wider" style={{color:PM_CAT_COLORS[p.cat]||C.g500}}>{p.cat}</span>
+                          </div>
+                        )) : (lastCat = p.cat || lastCat, null);
+                        return [catHeader, (
+                          <button key={p.value} onClick={()=>{setSelPayment(p.value);setShowPayment(false);}}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
+                            style={{backgroundColor:selPayment===p.value?`${C.sell}08`:'transparent'}}>
+                            <span className="text-sm flex-shrink-0">{p.icon}</span>
+                            <span className="flex-1 text-left font-semibold text-xs leading-tight" style={{color:C.g800}}>{p.label}</span>
+                            {selPayment===p.value && <CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
+                          </button>
+                        )];
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Sort always visible */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+              className="flex-1 px-2.5 py-1.5 text-xs font-bold border-2 rounded-xl focus:outline-none"
+              style={{borderColor:sortBy!=='rate_high'?C.sell:C.g200, color:C.g800}}>
+              <option value="rate_high">Best Rate (Highest)</option>
+              <option value="rating">Top Rated</option>
+              <option value="trades">Most Trades</option>
+            </select>
+            {hasFilters && (
+              <button onClick={()=>{setSellAmt('');setSelPayment('all');setSelCountry(COUNTRIES[0]);setSortBy('rate_high');}}
+                className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-black border-2 transition"
+                style={{borderColor:C.danger, color:C.danger, backgroundColor:'#FEF2F2'}}>
+                Clear
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useRates } from '../contexts/RatesContext';
 import {
   Copy, Bitcoin, RefreshCw, CheckCircle,
   ArrowDownLeft, ArrowUpRight, Shield, AlertTriangle,
@@ -263,19 +264,39 @@ function TxRow({ tx }) {
   );
 }
 
+const CURRENCY_SYMBOLS = { USD:'$', GBP:'£', EUR:'€', GHS:'₵', NGN:'₦', KES:'KSh ', ZAR:'R ' };
+
 // ─── Main Wallet Page ──────────────────────────────────────────────────────────
 export default function WalletPage({ user }) {
   const navigate = useNavigate();
+  const { rates: USD_RATES } = useRates();
 
-  const [walletData,    setWalletData]    = useState(null);
-  const [transactions,  setTransactions]  = useState([]);
-  const [btcPrice,      setBtcPrice]      = useState(0);
-  const [loading,       setLoading]       = useState(true);
-  const [refreshing,    setRefreshing]    = useState(false);
-  const [checking,      setChecking]      = useState(false);
-  const [showBal,       setShowBal]       = useState(true);
-  const [showSend,      setShowSend]      = useState(false);
-  const [showRecv,      setShowRecv]      = useState(false);
+  const [walletData,       setWalletData]       = useState(null);
+  const [transactions,     setTransactions]     = useState([]);
+  const [btcPrice,         setBtcPrice]         = useState(0);
+  const [loading,          setLoading]          = useState(true);
+  const [refreshing,       setRefreshing]       = useState(false);
+  const [checking,         setChecking]         = useState(false);
+  const [showBal,          setShowBal]          = useState(true);
+  const [showSend,         setShowSend]         = useState(false);
+  const [showRecv,         setShowRecv]         = useState(false);
+  const [displayCurrency,  setDisplayCurrency]  = useState(localStorage.getItem('praqen_currency') || 'USD');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    axios.get(`${API_URL}/users/profile`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        if (res.data.preferred_currency) {
+          setDisplayCurrency(res.data.preferred_currency);
+          localStorage.setItem('praqen_currency', res.data.preferred_currency);
+        }
+      })
+      .catch(() => {
+        const saved = localStorage.getItem('praqen_currency');
+        if (saved) setDisplayCurrency(saved);
+      });
+  }, []);
 
   // ── Load wallet from HD wallet endpoint ────────────────────────────────────
   const loadWallet = async () => {
@@ -369,6 +390,10 @@ export default function WalletPage({ user }) {
   const balUsd  = balance * (btcPrice || 88000);
   const network = walletData?.network || 'testnet';
 
+  const fxRate   = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 1);
+  const sym      = CURRENCY_SYMBOLS[displayCurrency] || `${displayCurrency} `;
+  const fmtLocal = n => `${sym}${(n * fxRate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: C.mist }}>
       <div className="text-center space-y-3">
@@ -430,10 +455,10 @@ export default function WalletPage({ user }) {
               {showBal ? (
                 <>
                   <p className="text-4xl font-black text-white tracking-tight">₿ {fmt(balance)}</p>
-                  <p className="text-white/60 text-sm mt-0.5">≈ {fmtUsd(balUsd)}</p>
+                  <p className="text-white/60 text-sm mt-0.5">≈ {fmtLocal(balUsd)}</p>
                   {btcPrice > 0 && (
                     <p className="text-white/40 text-xs mt-0.5">
-                      Live BTC: {fmtUsd(btcPrice)}
+                      Live BTC: {fmtLocal(btcPrice)}
                     </p>
                   )}
                 </>
@@ -536,7 +561,7 @@ export default function WalletPage({ user }) {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'BTC Balance',  value: `₿${fmt(balance, 6)}`, color: C.gold },
-            { label: 'USD Value',    value: fmtUsd(balUsd),         color: C.success },
+            { label: `${displayCurrency} Value`, value: fmtLocal(balUsd), color: C.success },
             { label: 'Transactions', value: `${transactions.length}`, color: C.paid },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border p-4 shadow-sm text-center" style={{ borderColor: C.g200 }}>

@@ -1002,6 +1002,25 @@ export default function TradeDetail({user}) {
                 '💸 0.5% fee auto-deducted to PRAQEN wallet',
                 '🚨 Open dispute if problem — resolved in 24h',
               ].map(t=><p key={t} className="text-xs" style={{color:C.g600}}>{t}</p>)}
+
+              {/* Trade Reference */}
+              {(trade?.trade_ref) && (
+                <div className="mt-3 pt-3 border-t" style={{borderColor:C.g100}}>
+                  <p className="text-xs font-semibold mb-1" style={{color:C.g500}}>Trade Reference</p>
+                  <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2" style={{border:`1.5px solid ${C.g200}`}}>
+                    <span className="font-mono font-black text-sm flex-1" style={{color:C.forest, letterSpacing:'0.05em'}}>
+                      {trade.trade_ref}
+                    </span>
+                    <button
+                      onClick={()=>{navigator.clipboard.writeText(trade.trade_ref);toast.success('Reference copied!');}}
+                      className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-200 transition"
+                      title="Copy reference">
+                      <Copy size={12} style={{color:C.g500}}/>
+                    </button>
+                  </div>
+                  <p className="text-xs mt-1" style={{color:C.g400}}>Share this ID with support if you have issues</p>
+                </div>
+              )}
             </div>
           </div>
 

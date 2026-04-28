@@ -269,10 +269,27 @@ export default function Profile({userId:propUserId}){
 
             {/* Trust score + edit */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex flex-col items-center px-4 py-3 rounded-2xl" style={{backgroundColor:'rgba(255,255,255,0.12)'}}>
-                <p className="text-3xl font-black text-white">{score}</p>
-                <p className="text-xs text-white/50 uppercase tracking-wider">Trust Score</p>
-                <span className="text-xs font-black mt-1 px-2 py-0.5 rounded-full" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
+              <div className="flex flex-col rounded-2xl overflow-hidden" style={{border:'1.5px solid rgba(255,255,255,0.2)'}}>
+                {/* Feedback — two solid colour blocks side by side */}
+                <div className="flex">
+                  <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 gap-0.5" style={{backgroundColor:'rgba(34,197,94,0.28)'}}>
+                    <ThumbsUp size={15} style={{color:'#86EFAC'}}/>
+                    <p className="text-xl font-black leading-none text-white">{fmt(user.positive_feedback||0)}</p>
+                    <p className="text-xs font-bold" style={{color:'#86EFAC'}}>Positive</p>
+                  </div>
+                  <div className="w-px" style={{backgroundColor:'rgba(255,255,255,0.15)'}}/>
+                  <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 gap-0.5" style={{backgroundColor:'rgba(239,68,68,0.22)'}}>
+                    <ThumbsDown size={15} style={{color:'#FCA5A5'}}/>
+                    <p className="text-xl font-black leading-none text-white">{fmt(user.negative_feedback||0)}</p>
+                    <p className="text-xs font-bold" style={{color:'#FCA5A5'}}>Negative</p>
+                  </div>
+                </div>
+                {/* Score — below, darker strip */}
+                <div className="flex flex-col items-center px-4 py-2 text-center" style={{backgroundColor:'rgba(0,0,0,0.2)',borderTop:'1px solid rgba(255,255,255,0.12)'}}>
+                  <p className="text-2xl font-black text-white leading-none">{score}</p>
+                  <p className="text-xs text-white/55 uppercase tracking-wider">Trust Score</p>
+                  <span className="text-xs font-black mt-1 px-2 py-0.5 rounded-full" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
+                </div>
               </div>
               {own&&!editing&&<button onClick={()=>setEditing(true)}
                 className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/20 transition"
@@ -282,34 +299,6 @@ export default function Profile({userId:propUserId}){
             </div>
           </div>
 
-          {/* Stats Grid with REAL Feedback Counts */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t" style={{borderColor:'rgba(255,255,255,0.15)'}}>
-            <div className="text-center">
-              <p className="text-xl sm:text-2xl font-black text-white">{fmt(user.total_trades || 0)}</p>
-              <p className="text-xs text-white/60 mt-0.5">Trades</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1">
-                <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                <p className="text-xl sm:text-2xl font-black" style={{color:C.gold}}>{parseFloat(user.average_rating || 0).toFixed(1)}</p>
-              </div>
-              <p className="text-xs text-white/60 mt-0.5">Rating</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1">
-                <ThumbsUp size={14} style={{color:C.success}} />
-                <p className="text-xl sm:text-2xl font-black" style={{color:C.success}}>{fmt(user.positive_feedback || 0)}</p>
-              </div>
-              <p className="text-xs text-white/60 mt-0.5">Positive</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1">
-                <ThumbsDown size={14} style={{color:C.danger}} />
-                <p className="text-xl sm:text-2xl font-black" style={{color:C.danger}}>{fmt(user.negative_feedback || 0)}</p>
-              </div>
-              <p className="text-xs text-white/60 mt-0.5">Negative</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -335,6 +324,27 @@ export default function Profile({userId:propUserId}){
               {/* Trust score card */}
               <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
                 <div className="flex items-center gap-2 mb-3"><Shield size={13} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trust Score</p></div>
+
+                {/* Feedback — hero numbers at the very top */}
+                <div className="flex items-center gap-3 mb-3 p-3 rounded-2xl" style={{background:'linear-gradient(135deg,rgba(134,239,172,0.12),rgba(252,165,165,0.08))',border:`1.5px solid ${C.g100}`}}>
+                  <div className="flex-1 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <ThumbsUp size={16} style={{color:C.success}}/>
+                      <p className="text-3xl font-black leading-none" style={{color:C.success}}>{fmt(user.positive_feedback||0)}</p>
+                    </div>
+                    <p className="text-xs font-semibold" style={{color:C.g500}}>Positive</p>
+                  </div>
+                  <div className="w-px self-stretch" style={{backgroundColor:C.g200}}/>
+                  <div className="flex-1 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <ThumbsDown size={16} style={{color:C.danger}}/>
+                      <p className="text-3xl font-black leading-none" style={{color:C.danger}}>{fmt(user.negative_feedback||0)}</p>
+                    </div>
+                    <p className="text-xs font-semibold" style={{color:C.g500}}>Negative</p>
+                  </div>
+                </div>
+
+                {/* Score + label below feedback */}
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-4xl font-black" style={{color:trust.color}}>{score}</p>
                   <span className="text-xs font-black px-3 py-1.5 rounded-xl" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
@@ -342,6 +352,22 @@ export default function Profile({userId:propUserId}){
                 <div className="h-3 rounded-full mb-3" style={{backgroundColor:C.g200}}>
                   <div className="h-3 rounded-full" style={{width:`${score}%`,backgroundColor:trust.color}}/>
                 </div>
+
+                {/* Trades + Rating row */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="rounded-xl px-3 py-2 text-center" style={{backgroundColor:C.g50,border:`1px solid ${C.g100}`}}>
+                    <p className="font-black text-lg leading-none" style={{color:C.forest}}>{fmt(user.total_trades||0)}</p>
+                    <p className="text-xs mt-0.5" style={{color:C.g400}}>Trades</p>
+                  </div>
+                  <div className="rounded-xl px-3 py-2 text-center" style={{backgroundColor:C.g50,border:`1px solid ${C.g100}`}}>
+                    <div className="flex items-center justify-center gap-1">
+                      <Star size={12} className="fill-yellow-400 text-yellow-400"/>
+                      <p className="font-black text-lg leading-none" style={{color:C.gold}}>{parseFloat(user.average_rating||0).toFixed(1)}</p>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{color:C.g400}}>Rating</p>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   {[
                     {label:'Email verified', done:emailOk, pts:10},

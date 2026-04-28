@@ -73,50 +73,82 @@ const CURRENCIES_LIST = [...new Map(
 // ── Payment methods — comprehensive list with categories ──────────────────────
 const PAYMENT_METHODS = [
   // Mobile Money
-  { id:'mtn_momo',    name:'MTN Mobile Money',     icon:'📱', cat:'Mobile Money',   countries:['GH','NG','UG','CM','RW','CI'] },
-  { id:'vodafone',    name:'Vodafone Cash',         icon:'📱', cat:'Mobile Money',   countries:['GH'] },
-  { id:'airteltigo',  name:'AirtelTigo Money',      icon:'📱', cat:'Mobile Money',   countries:['GH'] },
-  { id:'mpesa',       name:'M-Pesa',                icon:'📱', cat:'Mobile Money',   countries:['KE','TZ'] },
-  { id:'airtel_money',name:'Airtel Money',          icon:'📱', cat:'Mobile Money',   countries:['UG','TZ','KE'] },
-  { id:'orange_money',name:'Orange Money',          icon:'📱', cat:'Mobile Money',   countries:['CM','SN','CI'] },
-  { id:'wave',        name:'Wave',                  icon:'🌊', cat:'Mobile Money',   countries:['SN','CI'] },
-  { id:'chipper',     name:'Chipper Cash',          icon:'💚', cat:'Mobile Money',   countries:[] },
-  { id:'ecocash',     name:'EcoCash',               icon:'📱', cat:'Mobile Money',   countries:[] },
-  { id:'tigo_pesa',   name:'Tigo Pesa',             icon:'📱', cat:'Mobile Money',   countries:['TZ'] },
-  // Digital Wallets
-  { id:'paypal',      name:'PayPal',                icon:'💰', cat:'Digital Wallet', countries:['US','GB','EU','AU','CA'] },
-  { id:'cash_app',    name:'Cash App',              icon:'💸', cat:'Digital Wallet', countries:['US','GB'] },
-  { id:'apple_pay',   name:'Apple Pay',             icon:'🍎', cat:'Digital Wallet', countries:['US','GB','EU','AU','CA'] },
-  { id:'alipay',      name:'Alipay',                icon:'💙', cat:'Digital Wallet', countries:[] },
-  { id:'venmo',       name:'Venmo',                 icon:'🔵', cat:'Digital Wallet', countries:['US'] },
-  { id:'zelle',       name:'Zelle',                 icon:'💜', cat:'Digital Wallet', countries:['US'] },
-  { id:'revolut',     name:'Revolut',               icon:'🔷', cat:'Digital Wallet', countries:['GB','EU'] },
-  { id:'wise',        name:'Wise',                  icon:'🌍', cat:'Digital Wallet', countries:['US','GB','EU','AU','CA'] },
-  { id:'moneypay',    name:'MoneyPay',              icon:'💳', cat:'Digital Wallet', countries:[] },
+  { id:'mtn_momo',      name:'MTN Mobile Money',             icon:'📱', cat:'Mobile Money',   countries:['GH','NG','UG','CM','RW','CI'] },
+  { id:'vodafone',      name:'Vodafone Cash',                icon:'📱', cat:'Mobile Money',   countries:['GH'] },
+  { id:'airteltigo',    name:'AirtelTigo Money',             icon:'📱', cat:'Mobile Money',   countries:['GH'] },
+  { id:'mpesa',         name:'M-Pesa',                       icon:'📱', cat:'Mobile Money',   countries:['KE','TZ'] },
+  { id:'airtel_money',  name:'Airtel Money',                 icon:'📱', cat:'Mobile Money',   countries:['UG','TZ','KE'] },
+  { id:'orange_money',  name:'Orange Money',                 icon:'📱', cat:'Mobile Money',   countries:['CM','SN','CI'] },
+  { id:'wave',          name:'Wave',                         icon:'🌊', cat:'Mobile Money',   countries:['SN','CI'] },
+  { id:'chipper',       name:'Chipper Cash',                 icon:'💚', cat:'Mobile Money',   countries:[] },
+  { id:'ecocash',       name:'EcoCash',                      icon:'📱', cat:'Mobile Money',   countries:['ZW'] },
+  { id:'tigo_pesa',     name:'Tigo Pesa / Mixx',             icon:'📱', cat:'Mobile Money',   countries:['TZ'] },
+  { id:'moov_money',    name:'Moov Money',                   icon:'📱', cat:'Mobile Money',   countries:['BJ','CI','TG'] },
+  { id:'africell',      name:'Africell Money',               icon:'📱', cat:'Mobile Money',   countries:['SL','GM'] },
+  { id:'paga',          name:'Paga',                         icon:'🟢', cat:'Mobile Money',   countries:['NG'] },
+  // Digital Wallets & E-wallets
+  { id:'paypal',        name:'PayPal',                       icon:'💰', cat:'Digital Wallet', countries:['US','GB','EU','AU','CA'] },
+  { id:'cash_app',      name:'Cash App',                     icon:'💸', cat:'Digital Wallet', countries:['US','GB'] },
+  { id:'apple_pay',     name:'Apple Pay',                    icon:'🍎', cat:'Digital Wallet', countries:['US','GB','EU','AU','CA'] },
+  { id:'alipay',        name:'Alipay',                       icon:'💙', cat:'Digital Wallet', countries:[] },
+  { id:'wechat_pay',    name:'WeChat Pay',                   icon:'💬', cat:'Digital Wallet', countries:[] },
+  { id:'venmo',         name:'Venmo',                        icon:'🔵', cat:'Digital Wallet', countries:['US'] },
+  { id:'zelle',         name:'Zelle',                        icon:'💜', cat:'Digital Wallet', countries:['US'] },
+  { id:'revolut',       name:'Revolut',                      icon:'🔷', cat:'Digital Wallet', countries:['GB','EU'] },
+  { id:'skrill',        name:'Skrill',                       icon:'💳', cat:'Digital Wallet', countries:[] },
+  { id:'neteller',      name:'Neteller',                     icon:'💳', cat:'Digital Wallet', countries:[] },
+  { id:'payeer',        name:'Payeer',                       icon:'💳', cat:'Digital Wallet', countries:[] },
+  { id:'perfect_money', name:'Perfect Money',                icon:'💳', cat:'Digital Wallet', countries:[] },
+  // Remittance
+  { id:'wise',          name:'Wise',                         icon:'🌍', cat:'Remittance',     countries:['US','GB','EU','AU','CA'] },
+  { id:'worldremit',    name:'WorldRemit',                   icon:'🌐', cat:'Remittance',     countries:[] },
+  { id:'remitly',       name:'Remitly',                      icon:'🚀', cat:'Remittance',     countries:[] },
+  { id:'western_union', name:'Western Union',                icon:'🏢', cat:'Remittance',     countries:[] },
+  { id:'moneygram',     name:'MoneyGram',                    icon:'🏢', cat:'Remittance',     countries:[] },
   // FinTech / Neobank
-  { id:'opay',        name:'OPay',                  icon:'🟢', cat:'FinTech',        countries:['NG'] },
-  { id:'palmpay',     name:'PalmPay',               icon:'🌴', cat:'FinTech',        countries:['NG'] },
-  { id:'kuda',        name:'Kuda Bank',             icon:'🏦', cat:'FinTech',        countries:['NG'] },
-  { id:'moniepoint',  name:'Moniepoint',            icon:'🏦', cat:'FinTech',        countries:['NG'] },
-  { id:'gtbank',      name:'GTBank',                icon:'🏦', cat:'FinTech',        countries:['NG'] },
-  { id:'access',      name:'Access Bank',           icon:'🏦', cat:'FinTech',        countries:['NG'] },
+  { id:'opay',          name:'OPay',                         icon:'🟢', cat:'FinTech',        countries:['NG'] },
+  { id:'palmpay',       name:'PalmPay',                      icon:'🌴', cat:'FinTech',        countries:['NG'] },
+  { id:'kuda',          name:'Kuda Bank',                    icon:'🏦', cat:'FinTech',        countries:['NG'] },
+  { id:'moniepoint',    name:'Moniepoint',                   icon:'🏦', cat:'FinTech',        countries:['NG'] },
+  { id:'gtbank',        name:'GTBank',                       icon:'🏦', cat:'FinTech',        countries:['NG'] },
+  { id:'access',        name:'Access Bank',                  icon:'🏦', cat:'FinTech',        countries:['NG'] },
+  { id:'paystack',      name:'Paystack',                     icon:'💚', cat:'FinTech',        countries:['NG','GH','ZA'] },
+  { id:'flutterwave',   name:'Flutterwave (Barter)',          icon:'🦋', cat:'FinTech',        countries:['NG','GH','KE','ZA'] },
   // Bank
-  { id:'bank_transfer',name:'Bank Transfer',        icon:'🏦', cat:'Bank',           countries:[] },
-  { id:'wire_transfer',name:'Wire Transfer',        icon:'🔗', cat:'Bank',           countries:[] },
+  { id:'bank_transfer', name:'Bank Transfer',                icon:'🏦', cat:'Bank',           countries:[] },
+  { id:'wire_transfer', name:'Wire Transfer',                icon:'🔗', cat:'Bank',           countries:[] },
+  { id:'mobile_banking',name:'Mobile Banking App',           icon:'📲', cat:'Bank',           countries:[] },
+  { id:'interbank',     name:'Interbank (GhIPSS/NIBSS/EFT)', icon:'🏦', cat:'Bank',           countries:['GH','NG'] },
+  { id:'ussd',          name:'USSD Bank Transfer',           icon:'📞', cat:'Bank',           countries:[] },
+  { id:'instant_eft',   name:'Instant EFT (South Africa)',   icon:'🏦', cat:'Bank',           countries:['ZA'] },
+  { id:'cash_deposit',  name:'Cash Deposit (Bank Counter)',  icon:'🏦', cat:'Bank',           countries:[] },
+  // Cash
+  { id:'cash_person',   name:'Cash in Person (Face-to-Face)',icon:'💵', cat:'Cash',           countries:[] },
+  { id:'cash_out',      name:'Cash Out',                     icon:'💵', cat:'Cash',           countries:[] },
+  // Crypto
+  { id:'usdt',          name:'USDT (Tether – TRC20)',         icon:'💵', cat:'Crypto',         countries:[] },
+  { id:'binance_pay',   name:'Binance Pay',                  icon:'🟡', cat:'Crypto',         countries:[] },
+  { id:'btc_pay',       name:'Bitcoin (BTC)',                 icon:'₿',  cat:'Crypto',         countries:[] },
+  { id:'eth_pay',       name:'Ethereum (ETH)',               icon:'⬡',  cat:'Crypto',         countries:[] },
+  { id:'luno',          name:'Luno Wallet',                  icon:'🌙', cat:'Crypto',         countries:[] },
+  { id:'yellow_card',   name:'Yellow Card Wallet',           icon:'💛', cat:'Crypto',         countries:[] },
   // Gift Card / Voucher payment
-  { id:'pls_gc',      name:'PLS Gift Card',         icon:'🎁', cat:'Gift Card Pay',  countries:[] },
-  { id:'vanilla',     name:'Vanilla Card',          icon:'🎁', cat:'Gift Card Pay',  countries:[] },
-  { id:'razer_gold',  name:'Razer Gold',            icon:'🎮', cat:'Gift Card Pay',  countries:[] },
-  { id:'walmart_w2w', name:'Walmart to Walmart',    icon:'🛒', cat:'Gift Card Pay',  countries:['US'] },
-  { id:'psn_pay',     name:'PlayStation Gift Card', icon:'🎮', cat:'Gift Card Pay',  countries:[] },
+  { id:'pls_gc',        name:'PLS Gift Card',                icon:'🎁', cat:'Gift Card Pay',  countries:[] },
+  { id:'vanilla',       name:'Vanilla Card',                 icon:'🎁', cat:'Gift Card Pay',  countries:[] },
+  { id:'razer_gold',    name:'Razer Gold',                   icon:'🎮', cat:'Gift Card Pay',  countries:[] },
+  { id:'walmart_w2w',   name:'Walmart to Walmart',           icon:'🛒', cat:'Gift Card Pay',  countries:['US'] },
+  { id:'psn_pay',       name:'PlayStation Gift Card',        icon:'🎮', cat:'Gift Card Pay',  countries:[] },
 ];
 
 const CAT_COLORS = {
   'Mobile Money':  C.success,
-  'Digital Wallet':C.paid,
+  'Digital Wallet':'#3B82F6',
+  'Remittance':    '#0D9488',
   'FinTech':       C.amber,
-  'Bank':          C.purple,
-  'Gift Card Pay': C.orange,
+  'Bank':          '#7C3AED',
+  'Cash':          C.gold,
+  'Crypto':        '#F97316',
+  'Gift Card Pay': '#EC4899',
 };
 
 // ── Gift card brands ──────────────────────────────────────────────────────────
@@ -449,7 +481,7 @@ export default function CreateOffer() {
 
   // ── Market card preview ───────────────────────────────────────────────────
   const MarketCardPreview = () => (
-    <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: C.g200, maxWidth: 280 }}>
+    <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: C.g200, width:'100%', boxSizing:'border-box' }}>
       <div className="px-3 pt-3 pb-2 border-b" style={{ borderColor: C.g100 }}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white text-sm"
@@ -577,32 +609,32 @@ export default function CreateOffer() {
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-6 px-3 sm:px-4" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif", overflowX:'hidden' }}>
+    <div className="min-h-screen py-4 px-3" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif", overflowX:'hidden', width:'100%', boxSizing:'border-box' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto" style={{ width:'100%', boxSizing:'border-box' }}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="mb-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg"
+        <div className="mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-base flex-shrink-0"
               style={{ background: `linear-gradient(135deg,${C.forest},${C.mint})`, color: C.white }}>P</div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black leading-none" style={{ color: C.forest, fontFamily:"'Syne',sans-serif" }}>
+            <div className="min-w-0">
+              <h1 className="text-lg font-black leading-none" style={{ color: C.forest, fontFamily:"'Syne',sans-serif" }}>
                 Create an Offer
               </h1>
               <p className="text-xs mt-0.5" style={{ color: C.g500 }}>
-                Live BTC price: <span className="font-black" style={{ color: C.forest }}>
-                  {loadingPrice ? '…' : `$${fmt(btcPrice, 0)}`}
+                Live BTC:{' '}
+                <span className="font-black" style={{ color: C.forest }}>
+                  {loadingPrice ? '…' : `$${fmt(btcPrice, 0)} USD`}
                 </span>
-                {!loadingPrice && <span style={{ color: C.g400 }}> USD</span>}
               </p>
             </div>
           </div>
         </div>
 
         {/* ── Step progress bar ────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 mb-5">
+        <div className="flex items-center gap-1 mb-4">
           {steps.map((s, i) => {
             const Icon = s.icon;
             const done   = step > s.id;
@@ -632,7 +664,7 @@ export default function CreateOffer() {
         </div>
 
         {/* ── Card ─────────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow-sm border p-5 sm:p-6 mb-4" style={{ borderColor: C.g200 }}>
+        <div className="bg-white rounded-2xl shadow-sm border p-4 mb-4" style={{ borderColor: C.g200, width:'100%', boxSizing:'border-box' }}>
 
           {/* ━━ STEP 1: Offer Type ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
           {step === 1 && (
@@ -648,7 +680,7 @@ export default function CreateOffer() {
                   style={{ color: C.g400 }}>
                   <Bitcoin size={10} /> Bitcoin Offers
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {OFFER_TYPES.filter(t => !t.id.startsWith('gc')).map(ot => {
                     const Icon = ot.icon;
                     const active = offerType === ot.id;
@@ -764,19 +796,20 @@ export default function CreateOffer() {
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none"
                     style={{ borderColor: C.g200 }} />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
                   {filteredBrands.map(b => {
                     const active = gcBrand === b.name;
                     return (
                       <button key={b.name} onClick={() => setGcBrand(b.name)}
-                        className="flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all hover:shadow-sm"
+                        className="flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all"
                         style={{
                           borderColor: active ? C.purple : C.g200,
                           backgroundColor: active ? `${C.purple}10` : C.white,
+                          width:'100%', boxSizing:'border-box',
                         }}>
-                        <span className="text-lg flex-shrink-0">{b.icon}</span>
-                        <span className="text-xs font-bold truncate" style={{ color: C.g800 }}>{b.name}</span>
-                        {active && <Check size={12} style={{ color: C.purple, marginLeft: 'auto', flexShrink: 0 }} />}
+                        <span className="text-base flex-shrink-0">{b.icon}</span>
+                        <span className="text-xs font-bold truncate flex-1 min-w-0" style={{ color: C.g800 }}>{b.name}</span>
+                        {active && <Check size={11} style={{ color: C.purple, flexShrink: 0 }} />}
                       </button>
                     );
                   })}
@@ -790,16 +823,17 @@ export default function CreateOffer() {
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { val:'physical', label:'Physical Card' },
+                    { val:'physical', label:'Physical' },
                     { val:'ecode',    label:'E-Code' },
                     { val:'both',     label:'Both' },
                   ].map(({ val, label }) => (
                     <button key={val} onClick={() => setGcCardType(val)}
-                      className="py-2.5 rounded-xl font-bold text-sm transition-all border-2"
+                      className="py-2.5 rounded-xl font-bold text-xs transition-all border-2"
                       style={{
                         borderColor: gcCardType === val ? C.purple : C.g200,
                         backgroundColor: gcCardType === val ? C.purple : C.white,
                         color: gcCardType === val ? C.white : C.g700,
+                        width:'100%', boxSizing:'border-box',
                       }}>
                       {label}
                     </button>
@@ -893,20 +927,21 @@ export default function CreateOffer() {
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none"
                     style={{ borderColor: C.g200 }} />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                   {COUNTRIES.filter(c =>
                     c.name.toLowerCase().includes(countrySearch.toLowerCase())
                   ).map(c => (
                     <button key={c.code}
                       onClick={() => { setCountry(c.code); setCountrySearch(''); }}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all hover:shadow-sm"
+                      className="flex items-center gap-2 p-2 rounded-xl border-2 text-left transition-all"
                       style={{
                         borderColor: country === c.code ? C.green : C.g200,
                         backgroundColor: country === c.code ? `${C.green}10` : C.white,
+                        width:'100%', boxSizing:'border-box',
                       }}>
-                      <span className="text-xl flex-shrink-0">{c.flag}</span>
-                      <span className="text-xs font-bold truncate flex-1" style={{ color: C.g800 }}>{c.name}</span>
-                      {country === c.code && <Check size={12} style={{ color: C.green, flexShrink: 0 }} />}
+                      <span className="text-base flex-shrink-0">{c.flag}</span>
+                      <span className="text-xs font-bold truncate flex-1 min-w-0" style={{ color: C.g800 }}>{c.name}</span>
+                      {country === c.code && <Check size={11} style={{ color: C.green, flexShrink: 0 }} />}
                     </button>
                   ))}
                 </div>
@@ -927,7 +962,7 @@ export default function CreateOffer() {
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none"
                     style={{ borderColor: C.g200 }} />
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1">
+                <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto pr-1">
                   {CURRENCIES_LIST.filter(c =>
                     c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
                     c.symbol.toLowerCase().includes(currencySearch.toLowerCase())
@@ -1056,15 +1091,17 @@ export default function CreateOffer() {
 
               {/* Live price banner */}
               <div className="p-4 rounded-2xl text-white"
-                style={{ background: `linear-gradient(135deg,${C.forest},${C.green})` }}>
-                <div className="flex items-center justify-between">
-                  <div>
+                style={{ background: `linear-gradient(135deg,${C.forest},${C.green})`, width:'100%', boxSizing:'border-box' }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
+                  <div style={{ minWidth:0, flex:1 }}>
                     <p className="text-xs text-white/60 mb-0.5">Live Market Price</p>
-                    <p className="text-2xl font-black">{loadingPrice ? '…' : `${sym}${fmt(btcLocal, 0)}`}</p>
-                    <p className="text-xs text-white/50 mt-0.5">{cur} per 1 BTC · Refreshes every 60s</p>
+                    <p className="text-xl font-black" style={{ wordBreak:'break-all' }}>
+                      {loadingPrice ? '…' : `${sym}${fmt(btcLocal, 0)}`}
+                    </p>
+                    <p className="text-xs text-white/50 mt-0.5">{cur}/BTC · auto-refresh</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-white/60 mb-0.5">USD price</p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs text-white/60 mb-0.5">USD</p>
                     <p className="text-base font-black">${fmt(btcPrice, 0)}</p>
                     <button onClick={() => setLoadingPrice(true)}
                       className="mt-1 text-xs text-white/40 flex items-center gap-1 ml-auto hover:text-white/70">
@@ -1077,25 +1114,26 @@ export default function CreateOffer() {
               {/* Rate type */}
               <div>
                 <label className="block text-sm font-bold mb-2" style={{ color: C.g700 }}>Rate Type</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2">
                   {[
                     { val:'market', icon:TrendingUp, title:'Market Rate', desc:'Auto-adjusts with BTC price. Always competitive.' },
                     { val:'fixed',  icon:Tag,        title:'Fixed Rate',  desc:'You lock a price. Stays constant even if BTC moves.' },
                   ].map(({ val, icon: Icon, title, desc }) => (
                     <button key={val} onClick={() => setPricingType(val)}
-                      className="p-3.5 rounded-xl text-left border-2 transition-all"
+                      className="p-3 rounded-xl text-left border-2 transition-all"
                       style={{
                         borderColor: pricingType === val ? C.green : C.g200,
                         backgroundColor: pricingType === val ? `${C.green}08` : C.white,
+                        width:'100%', boxSizing:'border-box',
                       }}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: pricingType === val ? C.green : C.g100 }}>
                           <Icon size={13} style={{ color: pricingType === val ? C.white : C.g400 }} />
                         </div>
-                        {pricingType === val && <Check size={12} style={{ color: C.green }} />}
+                        <p className="font-black text-sm" style={{ color: C.forest }}>{title}</p>
+                        {pricingType === val && <Check size={12} style={{ color: C.green, marginLeft:'auto', flexShrink:0 }} />}
                       </div>
-                      <p className="font-black text-sm mb-0.5" style={{ color: C.forest }}>{title}</p>
                       <p className="text-xs leading-relaxed" style={{ color: C.g500 }}>{desc}</p>
                     </button>
                   ))}
@@ -1185,85 +1223,78 @@ export default function CreateOffer() {
                       const profitLocal    = yourProfitUSD * localRate;
                       return (
                         <div className="mt-3 rounded-xl overflow-hidden border-2"
-                          style={{ borderColor: `${C.success}30` }}>
+                          style={{ borderColor: `${C.success}30`, width:'100%', boxSizing:'border-box' }}>
                           {/* Header */}
-                          <div className="px-3 py-2 flex items-center justify-between"
+                          <div className="px-3 py-2 flex items-center justify-between flex-wrap gap-1"
                             style={{ backgroundColor: `${C.success}12` }}>
-                            <p className="text-xs font-black uppercase tracking-wide" style={{ color: C.success }}>
-                              💡 Trade Breakdown — per $100 trade
+                            <p className="text-xs font-black" style={{ color: C.success }}>
+                              💡 Per $100 trade
                             </p>
                             <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: C.success, color: C.white }}>
-                              {margin}% margin
+                              {margin > 0 ? '+' : ''}{margin}% margin
                             </span>
                           </div>
                           {/* Rows */}
                           <div className="px-3 py-2 space-y-2" style={{ backgroundColor: `${C.success}05` }}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                                  style={{ backgroundColor: C.paid, color: C.white }}>1</span>
-                                <span className="text-xs" style={{ color: C.g600 }}>
-                                  {offerType === 'sell' ? 'Buyer pays you (cash)' : 'You pay seller (cash)'}
-                                </span>
+                            {[
+                              {
+                                n: '1',
+                                label: offerType === 'sell' ? 'Buyer pays you' : 'You pay seller',
+                                val: `$${fmt(exampleCash, 0)}`,
+                                color: C.g800,
+                              },
+                              {
+                                n: '2',
+                                label: offerType === 'sell' ? 'Buyer gets BTC worth' : 'You get BTC worth',
+                                val: `$${fmt(buyerGetsUSD, 2)}`,
+                                color: C.paid,
+                              },
+                            ].map(({ n, label, val, color }) => (
+                              <div key={n} className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0"
+                                    style={{ backgroundColor: C.paid, color: C.white }}>{n}</span>
+                                  <span className="text-xs truncate" style={{ color: C.g600 }}>{label}</span>
+                                </div>
+                                <span className="text-xs font-black flex-shrink-0" style={{ color }}>{val}</span>
                               </div>
-                              <span className="text-xs font-black" style={{ color: C.g800 }}>
-                                ${fmt(exampleCash, 0)} USD
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                                  style={{ backgroundColor: C.paid, color: C.white }}>2</span>
-                                <span className="text-xs" style={{ color: C.g600 }}>
-                                  {offerType === 'sell' ? 'Buyer receives BTC worth' : 'You receive BTC worth'}
-                                </span>
-                              </div>
-                              <span className="text-xs font-black" style={{ color: C.paid }}>
-                                ${fmt(buyerGetsUSD, 2)} USD
-                                {cur !== 'USD' && <span style={{ color: C.g400 }}> ({sym}{fmt(buyerGetsLocal, 0)} {cur})</span>}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between pt-1.5 border-t"
+                            ))}
+                            <div className="flex items-start justify-between gap-2 pt-1.5 border-t"
                               style={{ borderColor: yourProfitUSD < 0 ? `${C.danger}25` : `${C.success}25` }}>
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0"
                                   style={{ backgroundColor: yourProfitUSD < 0 ? C.danger : C.success, color: C.white }}>
                                   {yourProfitUSD < 0 ? '↓' : '✓'}
                                 </span>
                                 <span className="text-xs font-bold" style={{ color: C.g700 }}>
-                                  {yourProfitUSD < 0 ? 'Your loss (below market)' : 'Your profit'}
+                                  {yourProfitUSD < 0 ? 'Your loss' : 'Your profit'}
                                 </span>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right flex-shrink-0">
                                 <span className="text-sm font-black"
                                   style={{ color: yourProfitUSD < 0 ? C.danger : C.success }}>
-                                  {yourProfitUSD < 0 ? '-' : '+'}${fmt(Math.abs(yourProfitUSD), 2)} USD
+                                  {yourProfitUSD < 0 ? '-' : '+'}${fmt(Math.abs(yourProfitUSD), 2)}
                                 </span>
-                                {cur !== 'USD' && (
-                                  <p className="text-xs" style={{ color: yourProfitUSD < 0 ? C.danger : C.success }}>
-                                    {yourProfitUSD < 0 ? '-' : ''}{sym}{fmt(Math.abs(profitLocal), 0)} {cur}
-                                  </p>
-                                )}
                                 <p className="text-xs" style={{ color: C.g400 }}>
-                                  ({fmt(Math.abs(yourProfitPct), 1)}% of cash {yourProfitUSD < 0 ? 'lost' : 'received'})
+                                  {fmt(Math.abs(yourProfitPct), 1)}%
                                 </p>
                               </div>
                             </div>
                           </div>
                           {/* Rate row */}
-                          <div className="px-3 py-2 flex items-center justify-between border-t"
+                          <div className="px-3 py-2 flex items-center justify-between gap-2 border-t"
                             style={{ borderColor: `${C.success}20`, backgroundColor: C.white }}>
-                            <div>
-                              <p className="text-xs" style={{ color: C.g500 }}>Your offer rate</p>
-                              <p className="text-sm font-black" style={{ color: C.forest }}>
-                                {sym}{fmt(effectiveRate, 0)} {cur}/BTC
+                            <div className="min-w-0">
+                              <p className="text-xs" style={{ color: C.g500 }}>Your rate</p>
+                              <p className="text-xs font-black truncate" style={{ color: C.forest }}>
+                                {sym}{fmt(effectiveRate, 0)} {cur}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs" style={{ color: C.g400 }}>Market rate</p>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs" style={{ color: C.g400 }}>Market</p>
                               <p className="text-xs font-semibold" style={{ color: C.g500 }}>
-                                {sym}{fmt(btcLocal, 0)} {cur}/BTC
+                                {sym}{fmt(btcLocal, 0)} {cur}
                               </p>
                             </div>
                           </div>
@@ -1359,11 +1390,11 @@ export default function CreateOffer() {
               </div>
 
               {/* Min / Max in local currency */}
-              <div className="p-4 rounded-2xl border-2 space-y-4" style={{ borderColor: C.g200 }}>
+              <div className="p-3 rounded-2xl border-2 space-y-3" style={{ borderColor: C.g200, width:'100%', boxSizing:'border-box' }}>
                 <h3 className="font-black text-sm flex items-center gap-2" style={{ color: C.forest }}>
-                  <BarChart2 size={14} style={{ color: C.green }} /> Trade Limits in {sym} {cur}
+                  <BarChart2 size={14} style={{ color: C.green }} /> Limits in {sym} {cur}
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { key:'min', label:'Minimum', val:minLimit, set:setMinLimit, ph:'e.g. 100' },
                     { key:'max', label:'Maximum', val:maxLimit, set:setMaxLimit, ph:'e.g. 5000' },
@@ -1410,17 +1441,16 @@ export default function CreateOffer() {
                 )}
 
                 {minLimit && maxLimit && curr && parseFloat(maxLimit) >= parseFloat(minLimit) && (
-                  <div className="p-3 rounded-xl space-y-1.5" style={{ backgroundColor: C.mist }}>
-                    <p className="text-xs font-black mb-1" style={{ color: C.forest }}>📣 Market card will display:</p>
+                  <div className="p-3 rounded-xl space-y-1.5" style={{ backgroundColor: C.mist, width:'100%', boxSizing:'border-box' }}>
+                    <p className="text-xs font-black mb-1" style={{ color: C.forest }}>📣 Offer card preview:</p>
                     {[
-                      { label:'Trade range', val:`${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}` },
-                      { label:'BTC range', val:`₿${(parseFloat(minLimit)/effectiveRate).toFixed(6)} – ₿${(parseFloat(maxLimit)/effectiveRate).toFixed(6)}` },
-                      { label:'USD range', val:`$${fmt(parseFloat(minLimit)/localRate,0)} – $${fmt(parseFloat(maxLimit)/localRate,0)}` },
-                      { label:'Your rate', val:`${sym}${fmt(effectiveRate,0)} ${cur}/BTC` },
+                      { label:'Range', val:`${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}` },
+                      { label:'USD', val:`$${fmt(parseFloat(minLimit)/localRate,0)} – $${fmt(parseFloat(maxLimit)/localRate,0)}` },
+                      { label:'Rate', val:`${sym}${fmt(effectiveRate,0)} ${cur}/BTC` },
                     ].map(({ label, val }) => (
-                      <div key={label} className="flex items-center justify-between text-xs">
-                        <span style={{ color: C.g500 }}>{label}</span>
-                        <span className="font-bold" style={{ color: C.g800 }}>{val}</span>
+                      <div key={label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                        <span className="text-xs" style={{ color: C.g500, flexShrink:0 }}>{label}</span>
+                        <span className="text-xs font-bold" style={{ color: C.g800, textAlign:'right', wordBreak:'break-all' }}>{val}</span>
                       </div>
                     ))}
                   </div>
@@ -1428,14 +1458,14 @@ export default function CreateOffer() {
               </div>
 
               {/* Time limit */}
-              <div className="p-4 rounded-2xl border-2 space-y-3" style={{ borderColor: C.g200 }}>
+              <div className="p-3 rounded-2xl border-2 space-y-3" style={{ borderColor: C.g200, width:'100%', boxSizing:'border-box' }}>
                 <h3 className="font-black text-sm flex items-center gap-2" style={{ color: C.forest }}>
                   <Clock size={14} style={{ color: C.green }} /> Payment Window
                 </h3>
                 <p className="text-xs" style={{ color: C.g500 }}>
                   How long your trade partner has to send payment before the trade auto-cancels.
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {TIME_LIMITS.map(t => (
                     <button key={t} onClick={() => setTimeLimit(t)}
                       className="py-2.5 rounded-xl font-black text-sm transition border-2"
@@ -1499,48 +1529,47 @@ export default function CreateOffer() {
               </div>
 
               {/* Full review + market card preview */}
-              <div className="rounded-2xl overflow-hidden border" style={{ borderColor: C.g200 }}>
+              <div className="rounded-2xl overflow-hidden border" style={{ borderColor: C.g200, width:'100%', boxSizing:'border-box' }}>
                 <div className="px-4 py-3 flex items-center gap-2"
                   style={{ background: `linear-gradient(135deg,${C.forest},${C.mint})` }}>
                   <Eye size={14} className="text-white" />
                   <p className="text-sm font-black text-white">Offer Preview</p>
-                  <span className="ml-auto text-xs text-white/50">How it appears in market</span>
                 </div>
 
-                <div className="p-4 bg-white">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    {/* Details list */}
-                    <div className="flex-1 space-y-1.5">
-                      {[
-                        { label:'Type',       val: OFFER_TYPES.find(o => o.id === offerType)?.title },
-                        ...(isGC ? [
-                          { label:'Brand',      val: gcBrand },
-                          { label:'Card Type',  val: gcCardType === 'physical' ? 'Physical Card' : gcCardType === 'ecode' ? 'E-Code' : 'Physical Card & E-Code' },
-                          { label:'Card Range', val: gcCardValues.length ? gcCardValues.map(v => `$${v}`).join(', ') : '—' },
-                        ] : []),
-                        { label:'Country',    val: curr ? `${curr.flag} ${curr.name}` : '—' },
-                        { label:'Currency',   val: curr ? `${curr.symbol} ${curr.currency}` : '—' },
-                        { label:'Payment',    val: selectedPay?.name || '—' },
-                        { label:'Rate',       val: curr ? `${sym}${fmt(effectiveRate, 0)} ${cur}/BTC` : '—' },
-                        { label:'Margin',     val: pricingType === 'market' ? `${margin > 0 ? '+' : ''}${margin}%` : 'Fixed' },
-                        ...(!isGC ? [
-                          { label:'Limits',   val: minLimit && maxLimit && curr
-                            ? `${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}`
-                            : '—' },
-                        ] : []),
-                        { label:'Time limit', val: `${timeLimit} min` },
-                      ].map(({ label, val }) => (
-                        <div key={label} className="flex items-center justify-between text-xs py-1 border-b last:border-0"
-                          style={{ borderColor: C.g100 }}>
-                          <span style={{ color: C.g500 }}>{label}</span>
-                          <span className="font-bold" style={{ color: C.g800 }}>{val}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="p-3 bg-white space-y-4">
+                  {/* Details list */}
+                  <div className="space-y-1">
+                    {[
+                      { label:'Type',    val: OFFER_TYPES.find(o => o.id === offerType)?.title },
+                      ...(isGC ? [
+                        { label:'Brand',      val: gcBrand },
+                        { label:'Card Type',  val: gcCardType === 'physical' ? 'Physical' : gcCardType === 'ecode' ? 'E-Code' : 'Physical & E-Code' },
+                        { label:'Range',      val: gcCardValues.length ? gcCardValues.map(v => `$${v}`).join(', ') : '—' },
+                      ] : []),
+                      { label:'Country',  val: curr ? `${curr.flag} ${curr.name}` : '—' },
+                      { label:'Currency', val: curr ? `${curr.symbol} ${curr.currency}` : '—' },
+                      { label:'Payment',  val: selectedPay?.name || '—' },
+                      { label:'Rate',     val: curr ? `${sym}${fmt(effectiveRate, 0)} ${cur}/BTC` : '—' },
+                      { label:'Margin',   val: pricingType === 'market' ? `${margin > 0 ? '+' : ''}${margin}%` : 'Fixed' },
+                      ...(!isGC ? [
+                        { label:'Limits', val: minLimit && maxLimit && curr
+                          ? `${sym}${fmt(parseFloat(minLimit))} – ${sym}${fmt(parseFloat(maxLimit))} ${cur}`
+                          : '—' },
+                      ] : []),
+                      { label:'Window',  val: `${timeLimit} min` },
+                    ].map(({ label, val }) => (
+                      <div key={label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+                        paddingTop:4, paddingBottom:4, borderBottom:`1px solid ${C.g100}` }}>
+                        <span className="text-xs flex-shrink-0" style={{ color: C.g500 }}>{label}</span>
+                        <span className="text-xs font-bold" style={{ color: C.g800, textAlign:'right', wordBreak:'break-all' }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                    {/* Market card preview */}
-                    <div className="flex-shrink-0">
-                      <p className="text-xs font-black uppercase mb-2" style={{ color: C.g400 }}>Market Card Preview</p>
+                  {/* Market card preview — full width on mobile */}
+                  <div>
+                    <p className="text-xs font-black uppercase mb-2" style={{ color: C.g400 }}>Market Card Preview</p>
+                    <div style={{ maxWidth:'100%', overflowX:'hidden' }}>
                       <MarketCardPreview />
                     </div>
                   </div>
@@ -1560,34 +1589,39 @@ export default function CreateOffer() {
         </div>
 
         {/* ── Navigation ──────────────────────────────────────────────────── */}
-        <div className="flex gap-3">
+        <div style={{ display:'flex', gap:10, width:'100%', boxSizing:'border-box' }}>
           {step > 1 && (
             <button onClick={back}
-              className="flex items-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm border hover:bg-gray-50 transition"
-              style={{ borderColor: C.g200, color: C.g600 }}>
+              style={{
+                display:'flex', alignItems:'center', gap:6, padding:'14px 18px',
+                borderRadius:14, fontWeight:700, fontSize:14, border:`2px solid ${C.g200}`,
+                color:C.g600, background:C.white, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap',
+              }}>
               <ChevronLeft size={16} />Back
             </button>
           )}
           <button
             onClick={step < 5 ? next : handleSubmit}
             disabled={!canNext() || submitting}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-sm transition active:scale-[0.98] disabled:opacity-40"
             style={{
-              backgroundColor: canNext() ? C.green : C.g300,
-              color: C.white,
+              flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              padding:'14px 12px', borderRadius:14, fontWeight:900, fontSize:14,
+              backgroundColor: canNext() ? C.green : C.g300, color:C.white,
+              border:'none', cursor: canNext() ? 'pointer' : 'not-allowed', opacity: submitting ? 0.7 : 1,
+              transition:'opacity 0.15s',
             }}>
             {submitting
               ? <><RefreshCw size={16} className="animate-spin" />Publishing…</>
               : step < 5
                 ? <>Continue <ChevronRight size={16} /></>
-                : <>🚀 Publish Offer <ArrowRight size={16} /></>}
+                : <>🚀 Publish Offer</>}
           </button>
         </div>
 
         {/* Security note */}
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <Shield size={12} style={{ color: C.g400 }} />
-          <p className="text-xs text-center" style={{ color: C.g400 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12, paddingBottom:24 }}>
+          <Shield size={12} style={{ color: C.g400, flexShrink:0 }} />
+          <p style={{ fontSize:11, color: C.g400, textAlign:'center', margin:0 }}>
             All trades escrow-protected · 0.5% fee on completed trades only
           </p>
         </div>

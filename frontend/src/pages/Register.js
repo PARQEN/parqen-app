@@ -5,7 +5,7 @@ import { API_URL } from '../App';
 import {
   Mail, Lock, User, Phone, Eye, EyeOff, Shield,
   CheckCircle, ArrowRight, ArrowLeft, RefreshCw,
-  AlertCircle, Bitcoin, Smartphone, AtSign,
+  AlertCircle, Smartphone, AtSign,
   Check, X, Home, Gift, LogIn,
 } from 'lucide-react';
 
@@ -154,17 +154,16 @@ const PHONE_CODES = [
 function BottomNav() {
   const navigate = useNavigate();
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t z-40 lg:hidden shadow-2xl"
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40 shadow-2xl"
       style={{ borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom)' }}>
       <div className="flex items-center justify-around px-2 py-2">
         {[
-          { icon:Home,    label:'Home',    path:'/' },
-          { icon:Bitcoin, label:'P2P',     path:'/buy-bitcoin' },
-          { icon:Gift,    label:'Gifts',   path:'/gift-cards' },
-          { icon:LogIn,   label:'Sign In', path:'/login' },
-        ].map(({ icon:Icon, label, path }) => (
+          { Icon:Home,  label:'Home',    path:'/' },
+          { Icon:Gift,  label:'Gifts',   path:'/gift-cards' },
+          { Icon:LogIn, label:'Sign In', path:'/login' },
+        ].map(({ Icon, label, path }) => (
           <button key={label} onClick={() => navigate(path)}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition"
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition"
             style={{ color: C.g400 }}>
             <Icon size={20} strokeWidth={1.8}/>
             <span className="text-xs font-bold">{label}</span>
@@ -356,6 +355,8 @@ export default function Register({ onLogin }) {
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         .slide{animation:slideUp .25s ease}
         .fade{animation:fadeIn .3s ease}
+        input:focus{outline:none;}
+        button:focus{outline:none;}
       `}</style>
 
       {/* ── Desktop left branding panel (lg+ only) ── */}
@@ -424,7 +425,7 @@ export default function Register({ onLogin }) {
         </div>
 
         {/* Form card area — overlaps hero on mobile */}
-        <div className="w-full lg:max-w-md px-4 lg:px-0 -mt-6 lg:mt-0 pb-28 lg:py-10 relative z-10">
+        <div className="w-full lg:max-w-md px-4 lg:px-0 -mt-6 lg:mt-0 pb-20 lg:pb-10 lg:py-10 relative z-10">
 
           {/* Card */}
           <div className="bg-white rounded-3xl shadow-xl border overflow-hidden" style={{ borderColor:C.g200 }}>

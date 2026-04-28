@@ -98,6 +98,30 @@ function App() {
     }
   };
 
+  // ── Online heartbeat: keep last_seen_at fresh while logged in ──────────────
+  useEffect(() => {
+    if (!token) return;
+
+    const ping = () => {
+      axios.post(`${API_URL}/users/heartbeat`).catch(() => {});
+    };
+
+    // Fire immediately so status shows Online right away
+    ping();
+
+    // Re-ping every 60 seconds
+    const interval = setInterval(ping, 60000);
+
+    // Also ping whenever the user switches back to this tab
+    const onVisible = () => { if (document.visibilityState === 'visible') ping(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [token]);
+
   const login = (userData, token) => {
     console.log('🔐 LOGIN FUNCTION CALLED');
     console.log('Token:', token.slice(0, 20) + '...');
@@ -107,7 +131,7 @@ function App() {
 
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
-    
+
     // Fire event for Navbar and other components
     window.dispatchEvent(new Event('userUpdated'));
 

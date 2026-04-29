@@ -403,8 +403,9 @@ function ActiveTradeModal({ trades, userId, onClose }) {
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function MyTrades({user}) {
   const navigate  = useNavigate();
-  const [trades,   setTrades]   = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const _cache = () => { try{const c=JSON.parse(sessionStorage.getItem('praqen_trades')||'null');return c&&Date.now()-c.ts<60000?c.data:null;}catch{return null;} };
+  const [trades,   setTrades]   = useState(()=>_cache()||[]);
+  const [loading,  setLoading]  = useState(()=>!_cache());
   const [filter,   setFilter]   = useState('all');
   const [search,   setSearch]   = useState('');
   const [dismissed,setDismissed]= useState(new Set());
@@ -426,7 +427,7 @@ export default function MyTrades({user}) {
 
   useEffect(()=>{
     if(!user){navigate('/login');return;}
-    load();
+    load(trades.length === 0);
     timerRef.current = setInterval(()=>{ if(document.visibilityState==='visible') silentRefresh(); },15000);
     return()=>clearInterval(timerRef.current);
   },[user]);
@@ -441,11 +442,13 @@ export default function MyTrades({user}) {
     }
   },[trades]);
 
-  const load = async()=>{
-    setLoading(true);
+  const load = async(showSpinner = false)=>{
+    if (showSpinner) setLoading(true);
     try{
       const r = await axios.get(`${API_URL}/my-trades`,{headers:authH()});
-      setTrades(r.data.trades||[]);
+      const data = r.data.trades||[];
+      setTrades(data);
+      try { sessionStorage.setItem('praqen_trades', JSON.stringify({data, ts:Date.now()})); } catch {}
     }catch(e){ console.error('Failed to load trades',e); }
     finally{ setLoading(false); }
   };
@@ -453,7 +456,9 @@ export default function MyTrades({user}) {
   const silentRefresh = async()=>{
     try{
       const r = await axios.get(`${API_URL}/my-trades`,{headers:authH()});
-      setTrades(r.data.trades||[]);
+      const data = r.data.trades||[];
+      setTrades(data);
+      try { sessionStorage.setItem('praqen_trades', JSON.stringify({data, ts:Date.now()})); } catch {}
     }catch{}
   };
 
@@ -489,15 +494,6 @@ export default function MyTrades({user}) {
       );
     });
 
-  if(loading) return(
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
-      <div className="text-center">
-        <div className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3"
-          style={{borderColor:C.sage,borderTopColor:'transparent'}}/>
-        <p className="text-sm font-semibold" style={{color:C.green}}>Loading your trades…</p>
-      </div>
-    </div>
-  );
 
   return(
     <div className="min-h-screen flex flex-col" style={{backgroundColor:C.g50, fontFamily:"'DM Sans',sans-serif"}}>
@@ -603,7 +599,23 @@ export default function MyTrades({user}) {
         </div>
 
         {/* ── TRADE LIST ─────────────────────────────────────── */}
-        {trades.length===0?(
+        {loading && !trades.length ? (
+          <div className="space-y-2">
+            {Array(4).fill(0).map((_,i)=>(
+              <div key={i} className="bg-white rounded-2xl border animate-pulse p-4" style={{borderColor:C.g200}}>
+                <div className="flex justify-between mb-3">
+                  <div className="h-5 rounded-full w-32" style={{backgroundColor:C.g200}}/>
+                  <div className="h-4 rounded w-20" style={{backgroundColor:C.g100}}/>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 rounded w-3/4" style={{backgroundColor:C.g100}}/>
+                  <div className="h-3 rounded w-1/2" style={{backgroundColor:C.g100}}/>
+                  <div className="h-3 rounded w-2/3" style={{backgroundColor:C.g100}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : trades.length===0?(
           <div className="bg-white rounded-2xl border p-10 text-center shadow-sm" style={{borderColor:C.g200}}>
             <div className="text-5xl mb-4">🔄</div>
             <h3 className="font-black text-lg mb-2" style={{color:C.forest}}>No trades yet</h3>

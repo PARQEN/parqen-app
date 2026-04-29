@@ -82,6 +82,9 @@ export default function Settings({ user, setUser }) {
   // Payment methods
   const [payments, setPayments] = useState({ bankName: '', accountNumber: '', mobileProvider: '', mobileNumber: '' });
 
+  // Hide full name toggle
+  const [hideFullName, setHideFullName] = useState(false);
+
   // Phone verification flow
   const [phoneStep,    setPhoneStep]    = useState('idle'); // idle | sending | otp | verifying | done
   const [phoneOtp,     setPhoneOtp]     = useState('');
@@ -99,6 +102,13 @@ export default function Settings({ user, setUser }) {
       currency: user.preferred_currency || localStorage.getItem('praqen_currency') || 'GHS',
       language: user.preferred_language || localStorage.getItem('praqen_language') || 'en',
     }));
+    // Seed hideFullName from user object or localStorage
+    const saved = localStorage.getItem('hide_full_name');
+    if (saved !== null) {
+      setHideFullName(saved === 'true');
+    } else if (user.hide_full_name !== undefined) {
+      setHideFullName(!!user.hide_full_name);
+    }
   }, [user]);
 
   // Derived verification status
@@ -157,6 +167,14 @@ export default function Settings({ user, setUser }) {
       toast.success(`OTP sent to ${phone}`);
       setPhoneStep('otp');
     } catch (e) { toast.error(e?.response?.data?.error || 'Failed to send OTP'); setPhoneStep('idle'); }
+  };
+
+  const toggleFullName = async (hide) => {
+    setHideFullName(hide);
+    localStorage.setItem('hide_full_name', hide ? 'true' : 'false');
+    try {
+      await axios.put(`${API_URL}/users/profile`, { hide_full_name: hide }, { headers: authH() });
+    } catch { /* non-critical — local state already updated */ }
   };
 
   const handleVerifyPhone = async () => {
@@ -307,7 +325,7 @@ export default function Settings({ user, setUser }) {
                       { val: 'hide', label: 'Hide full name', desc: 'Only username is shown', example: accountForm.username || 'samuel123' },
                     ].map(({ val, label, desc, example }) => (
                       <label key={val} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${prefs.nameDisplay === val ? 'border-green-300 bg-green-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                        <input type="radio" name="nameDisplay" value={val} checked={prefs.nameDisplay === val} onChange={() => setPrefs({ ...prefs, nameDisplay: val })} className="accent-green-600" />
+                        <input type="radio" name="nameDisplay" value={val} checked={prefs.nameDisplay === val} onChange={() => { setPrefs({ ...prefs, nameDisplay: val }); toggleFullName(val === 'hide'); }} className="accent-green-600" />
                         <div className="flex-1">
                           <p className="text-sm font-bold text-gray-800">{label}</p>
                           <p className="text-xs text-gray-500">{desc}</p>

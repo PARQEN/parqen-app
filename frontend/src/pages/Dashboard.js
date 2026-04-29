@@ -9,7 +9,7 @@ import {
   MessageCircle, Gift, Copy, RefreshCw, Users,
   Medal, Crown, Zap, BarChart3, ChevronRight,
   PlusCircle, X, Link, TrendingDown, Award, Flame,
-  UserCheck, UserX, Target, Percent, Lock
+  UserCheck, UserX, Target, Percent, Lock, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -187,12 +187,17 @@ function ProfileSummary({ user, profile, stats }) {
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {[
-            {label:'Trades',   value:fmt(stats.totalTrades||0), color:C.green},
-            {label:'Rating',   value:`${parseFloat(stats.averageRating||0).toFixed(1)}★`, color:C.amber},
-            {label:'👍 Positive', value:fmt(stats.positiveFeedback||0), color:C.success},
-            {label:'👎 Negative', value:fmt(stats.negativeFeedback||0), color:C.danger},
-          ].map(({label,value,color})=>(
+            {label:'Trades',   value:fmt(stats.totalTrades||0),                          color:C.green,   icon:null},
+            {label:'Rating',   value:`${parseFloat(stats.averageRating||0).toFixed(1)}★`,color:C.amber,   icon:null},
+            {label:'Positive', value:fmt(stats.positiveFeedback||0),                     color:C.success, icon:ThumbsUp},
+            {label:'Negative', value:fmt(stats.negativeFeedback||0),                     color:C.danger,  icon:ThumbsDown},
+          ].map(({label,value,color,icon:Icon})=>(
             <div key={label} className="text-center p-2.5 rounded-xl" style={{backgroundColor:C.g50}}>
+              {Icon && (
+                <div className="flex justify-center mb-0.5">
+                  <Icon size={13} style={{color}}/>
+                </div>
+              )}
               <p className="font-black text-base" style={{color}}>{value}</p>
               <p className="text-xs font-semibold" style={{color:C.g400}}>{label}</p>
             </div>

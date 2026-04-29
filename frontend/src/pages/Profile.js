@@ -140,17 +140,24 @@ export default function Profile({userId:propUserId}){
     setLoading(true);
     try{
       const tk=localStorage.getItem('token');
-      if(own){
+      // Re-derive isOwn here so the first call is always correct,
+      // regardless of whether the `own` state has been set yet.
+      const cu=JSON.parse(localStorage.getItem('user')||'{}');
+      const isOwn=!!(tk&&cu.id&&cu.id===userId);
+      if(isOwn!==own) setOwn(isOwn);
+
+      if(isOwn){
+        // Always fetch fresh authenticated data — never read from localStorage cache
         const r=await axios.get(`${API_URL}/users/profile`,{headers:{Authorization:`Bearer ${tk}`}});
         const u=r.data.user; setUser(u); localStorage.setItem('user',JSON.stringify(u));
         setForm({username:u.username||'',full_name:u.full_name||'',bio:u.bio||'',location:u.location||'Ghana',website:u.website||''});
       } else {
+        // Viewing another user's profile — fetch public data
         const r=await axios.get(`${API_URL}/users/${userId}`);
         setUser(r.data.user); setReviews(r.data.reviews||[]);
       }
 
-      if (own) {
-        const tk = localStorage.getItem('token');
+      if (isOwn) {
         try {
           const badgeRes = await axios.post(`${API_URL}/users/check-badges`, {}, { headers: { Authorization: `Bearer ${tk}` } });
           setBadges(badgeRes.data.badges || []);
@@ -200,7 +207,7 @@ export default function Profile({userId:propUserId}){
   const score=calcTrust(user,reviews); const trust=trustLvl(score);
   const tierIdx=getTier(user); const tier=TIERS[tierIdx]; const nextTier=TIERS[tierIdx+1];
   const emailOk=!!(user.is_email_verified||user.email_verified);
-  const phoneOk=!!(user.is_phone_verified||user.phone_verified);
+  const phoneOk=!!(user.is_phone_verified||user.phone_verified||user.phone);
   const kycOk=!!(user.kyc_verified||user.is_id_verified);
   const verifPct=Math.round([emailOk,phoneOk,kycOk].filter(Boolean).length/3*100);
   const earned=BADGE_DEFS.filter(b=>badges.some(badge=>badge.badge_name===b.label&&badge.is_unlocked)||b.check(user));
@@ -221,131 +228,98 @@ export default function Profile({userId:propUserId}){
   const displayFlag = userCC === 'GH' ? '🇬🇭' : (FLAGS[userCC] || '🌍');
 
   return(
-    <div className="min-h-screen pb-0" style={{backgroundColor:C.mist,fontFamily:"'DM Sans',sans-serif"}}>
+    <div className="min-h-screen pb-0" style={{backgroundColor:C.mist,fontFamily:"'DM Sans',sans-serif",overflowX:'hidden',width:'100%',maxWidth:'100vw'}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
 
       {/* ── PROFILE CARD ──────────────────────────────────────────────────── */}
-      <div className="pt-6 pb-0 px-4 sm:px-6 lg:px-8" style={{backgroundColor:C.mist}}>
-        <div className="max-w-5xl mx-auto">
-          <div className="rounded-3xl bg-white" style={{border:'4px solid #8B5CF6',boxShadow:'0 8px 40px rgba(139,92,246,0.18)'}}>
+      <div className="pt-4 pb-0 px-3 sm:px-5 lg:px-8" style={{backgroundColor:C.mist,boxSizing:'border-box'}}>
+        <div style={{maxWidth:'100%',width:'100%',margin:'0 auto'}} className="lg:max-w-5xl">
+          <div className="rounded-2xl sm:rounded-3xl bg-white" style={{border:'3px solid #8B5CF6',boxShadow:'0 4px 24px rgba(139,92,246,0.14)',overflow:'hidden',width:'100%',boxSizing:'border-box'}}>
 
-            {/* Row 1: Avatar + Verifications + Edit btn - Full width */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 px-5 py-5 lg:px-8 lg:py-6 border-b" style={{borderColor:C.g100}}>
-              
-              {/* Left: Avatar */}
-              <div className="flex items-center gap-4 flex-1">
-                <div className="relative flex-shrink-0">
-                  <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden shadow-lg" style={{backgroundColor:'#0f172a',border:'3px solid #E2E8F0'}}>
+            {/* ── Profile Header ── */}
+            <div className="px-3 sm:px-5 lg:px-8 pt-4 pb-4 border-b" style={{borderColor:C.g100,boxSizing:'border-box',width:'100%'}}>
+
+              {/* Row 1: Username + flag (same line) */}
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <h1 style={{
+                  color:'#111827', fontFamily:"'Syne',sans-serif",
+                  fontSize:'clamp(1.4rem,5vw,2.2rem)', fontWeight:900,
+                  letterSpacing:'0.08em', textTransform:'uppercase', lineHeight:1,
+                }}>
+                  {user.username}
+                </h1>
+                <span style={{fontSize:'clamp(1.4rem,5vw,2rem)',lineHeight:1}}>{displayFlag}</span>
+              </div>
+
+              {/* Row 2: Avatar + Info + Verifications */}
+              <div className="flex gap-3 sm:gap-4 items-start">
+
+                {/* Avatar — fixed width, no flex shrink issues */}
+                <div className="relative" style={{flexShrink:0,width:80}}>
+                  <div className="rounded-full overflow-hidden shadow-lg" style={{width:80,height:80,backgroundColor:'#0f172a',border:'3px solid #E2E8F0'}}>
                     {user.avatar_url
                       ?<img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
-                      :<div className="w-full h-full flex items-center justify-center font-black text-3xl lg:text-4xl" style={{color:'#F4A422'}}>{user.username?.charAt(0)?.toUpperCase()||'?'}</div>}
+                      :<div className="w-full h-full flex items-center justify-center font-black text-3xl" style={{color:'#F4A422'}}>{user.username?.charAt(0)?.toUpperCase()||'?'}</div>}
                   </div>
                   {own&&(
                     <button onClick={()=>fileRef.current?.click()} disabled={uploading}
-                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full shadow-md flex items-center justify-center" style={{backgroundColor:'white',border:'1.5px solid #E2E8F0'}}>
+                      className="absolute rounded-full shadow-md flex items-center justify-center"
+                      style={{bottom:-4,right:-4,width:28,height:28,backgroundColor:'white',border:'1.5px solid #E2E8F0'}}>
                       {uploading?<RefreshCw size={12} className="animate-spin" style={{color:C.green}}/>:<Camera size={12} style={{color:C.green}}/>}
                     </button>
                   )}
                   <input ref={fileRef} type="file" accept="image/*" onChange={upload} className="hidden"/>
                 </div>
 
-                {/* Username and basic info */}
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h1 className="text-2xl lg:text-3xl font-black" style={{color:'#111827',fontFamily:"'Syne',sans-serif"}}>
-                      {user.username} {displayFlag}
-                    </h1>
+                {/* Info block — takes remaining width */}
+                <div style={{flex:1,minWidth:0}}>
+
+                  {/* Badge — full width row, no overflow */}
+                  <div className="mb-2" style={{display:'inline-block',maxWidth:'100%'}}>
                     <BadgeChip user={user}/>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+
+                  {/* ID + Location inline */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2" style={{fontSize:12}}>
                     <span className="font-mono font-bold flex items-center gap-1" style={{color:'#6B7280'}}>
                       ID: #{String(user.id||'').slice(0,8).toUpperCase()}
-                      <button onClick={()=>{navigator.clipboard.writeText(user.id||'');toast.success('ID copied!');}} className="hover:opacity-70"><Copy size={11}/></button>
+                      <button onClick={()=>{navigator.clipboard.writeText(user.id||'');toast.success('ID copied!');}} className="hover:opacity-70"><Copy size={10}/></button>
                     </span>
-                    <div className="flex items-center gap-1 font-bold" style={{color:'#6B7280'}}>
-                      <span>Location:</span>
-                      <ProfileFlag/>
-                    </div>
-                    {user.bio&&<p className="text-sm mt-1 lg:mt-0" style={{color:C.g500}}>{user.bio}</p>}
+                    <span style={{color:'#D1D5DB'}}>·</span>
+                    <span className="font-bold" style={{color:'#6B7280'}}>
+                      Location: {user.location||'Unknown'} {displayFlag}
+                    </span>
                   </div>
-                </div>
-              </div>
 
-              {/* Right: Verification badges */}
-              <div className="flex flex-col lg:flex-row gap-2 lg:gap-4 lg:items-center">
-                {/* Email - No icon, only checkmark */}
-                <div className="flex items-center gap-2">
-                  {emailOk
-                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
-                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
-                  <span className="text-sm font-medium" style={{color:emailOk ? '#374151' : '#9CA3AF'}}>
-                    Email {emailOk ? 'verified ✓' : 'unverified'}
-                  </span>
-                </div>
-                
-                {/* Phone - With flag */}
-                <div className="flex items-center gap-2">
-                  {phoneOk
-                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
-                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
-                  <span className="text-sm font-medium" style={{color:phoneOk ? '#374151' : '#9CA3AF'}}>
-                    {displayFlag || '🌍'} Phone {phoneOk ? 'verified ✓' : 'unverified'}
-                  </span>
-                </div>
-                
-                {/* ID - With flag */}
-                <div className="flex items-center gap-2">
-                  {kycOk
-                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
-                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
-                  <span className="text-sm font-medium" style={{color:kycOk ? '#374151' : '#9CA3AF'}}>
-                    {displayFlag || '🌍'} ID {kycOk ? 'verified ✓' : 'unverified'}
-                  </span>
+                  {/* Verification rows */}
+                  <div className="flex flex-col gap-1 mb-2">
+                    {[
+                      {ok:emailOk, label:'Email'},
+                      {ok:phoneOk, label:'Phone', flag:true},
+                      {ok:kycOk,   label:'ID',    flag:true},
+                    ].map(({ok,label,flag})=>(
+                      <div key={label} className="flex items-center gap-2">
+                        {ok
+                          ?<CheckCircle size={14} style={{color:'#10B981',flexShrink:0}}/>
+                          :<div style={{width:14,height:14,borderRadius:'50%',border:'2px solid #D1D5DB',flexShrink:0}}/>}
+                        <span style={{fontSize:12,fontWeight:500,color:ok?'#374151':'#9CA3AF'}}>
+                          {label} {ok?'verified':'unverified'}{flag?` ${displayFlag}`:''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bio — below verifications */}
+                  {user.bio&&<p style={{color:C.g500,fontSize:12,lineHeight:1.5}}>{user.bio}</p>}
+
                 </div>
 
-                {/* Edit button */}
-                {own&&!editing&&(
-                  <button onClick={()=>setEditing(true)}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition flex-shrink-0"
-                    style={{border:'1.5px solid #E2E8F0'}}>
-                    <Edit2 size={14} style={{color:C.g500}}/>
-                  </button>
-                )}
               </div>
             </div>
 
-            {/* Edit Form (when editing) */}
-            {editing&&(
-              <div className="px-5 py-4 lg:px-8 border-b" style={{borderColor:C.g100}}>
-                <form onSubmit={saveProfile} className="space-y-3 max-w-2xl">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input value={form.username} onChange={e=>setForm({...form,username:e.target.value})} placeholder="Username"
-                      className="px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none" style={{borderColor:C.sage}}/>
-                    <input value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="Full Name"
-                      className="px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
-                  </div>
-                  <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location"
-                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
-                  <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} placeholder="Bio" rows={2}
-                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none resize-none" style={{borderColor:C.sage}}/>
-                  <div className="flex gap-2">
-                    <button type="submit" disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs text-white"
-                      style={{backgroundColor:C.green}}>
-                      {saving?<RefreshCw size={11} className="animate-spin"/>:<Save size={11}/>}{saving?'Saving…':'Save'}
-                    </button>
-                    <button type="button" onClick={()=>setEditing(false)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs border" style={{borderColor:C.g200,color:C.g600}}>
-                      <X size={11}/>Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
             {/* Row 2: Stats section - Full width */}
-            <div className="px-5 py-4 lg:px-8 lg:py-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="px-3 py-4 sm:px-5 lg:px-8 lg:py-5" style={{boxSizing:'border-box',width:'100%'}}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 
                 {/* FEEDBACK Card */}
                 <div className="rounded-2xl overflow-hidden" style={{backgroundColor:'#FEFCE8',border:'2px solid #FDE68A'}}>
@@ -401,31 +375,169 @@ export default function Profile({userId:propUserId}){
 
               </div>
 
-              {/* Joined section - Below stats */}
-              <div className="flex flex-wrap items-center justify-between text-sm mt-4 pt-3 border-t" style={{borderColor:C.g100}}>
-                <div className="flex items-center gap-2">
-                  <Clock size={14} style={{color:C.g400}}/>
-                  <span className="font-bold" style={{color:C.g600}}>Joined:</span>
-                  <span style={{color:C.g700}}>{fmtAge(user.created_at)}</span>
-                </div>
-                {user.created_at&&(
-                  <span className="text-xs" style={{color:C.g400}}>
-                    {new Date(user.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+              {/* Joined + Edit Profile row */}
+              <div className="flex items-center justify-between flex-wrap gap-y-2 mt-4 pt-3 border-t" style={{borderColor:C.g100}}>
+                <div className="flex items-center flex-wrap gap-y-1" style={{fontSize:12}}>
+                  <div className="flex items-center gap-1 pr-2">
+                    <Clock size={12} style={{color:C.g400}}/>
+                    <span className="font-bold" style={{color:C.g600}}>Joined:</span>
+                    <span style={{color:C.g700}}>{fmtAge(user.created_at)}</span>
+                  </div>
+                  {user.created_at&&(
+                    <>
+                      <span className="px-1.5" style={{color:C.g300}}>|</span>
+                      <span className="pr-2" style={{color:C.g400}}>
+                        {new Date(user.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                      </span>
+                    </>
+                  )}
+                  <span className="px-1.5" style={{color:C.g300}}>|</span>
+                  <span className="font-bold" style={{color:C.g500}}>
+                    Has blocked: {fmt(user.blocked_count||user.blocks_count||0)}
                   </span>
+                </div>
+                {own&&!editing&&(
+                  <button onClick={()=>setEditing(true)}
+                    className="flex items-center gap-1 rounded-xl font-black transition hover:opacity-80"
+                    style={{padding:'5px 12px',backgroundColor:`${C.green}12`,color:C.green,border:`1.5px solid ${C.sage}`,fontSize:11,whiteSpace:'nowrap'}}>
+                    <Edit2 size={11}/>Edit Profile
+                  </button>
                 )}
-                <span className="text-xs font-bold" style={{color:C.g500}}>
-                  Has blocked: {fmt(user.blocked_count||user.blocks_count||0)}
-                </span>
               </div>
             </div>
+
+            {/* ── Edit Form (below stats) ── */}
+            {own&&editing&&(
+              <div className="px-4 sm:px-6 lg:px-8 py-5 border-t" style={{borderColor:C.g100,backgroundColor:C.g50}}>
+                <p className="text-xs font-black uppercase tracking-wider mb-3" style={{color:C.forest}}>Edit Profile</p>
+                <form onSubmit={saveProfile} className="space-y-3 max-w-2xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Username — locked after first change */}
+                    <div>
+                      <label className="text-xs font-bold mb-1 flex items-center gap-1" style={{color:C.g600}}>
+                        Username
+                        {user.username_changed&&<Lock size={10} style={{color:C.g400}}/>}
+                      </label>
+                      <input
+                        value={form.username}
+                        onChange={e=>setForm({...form,username:e.target.value})}
+                        placeholder="Username"
+                        disabled={!!user.username_changed}
+                        className="w-full px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none"
+                        style={{borderColor:user.username_changed?C.g200:C.sage,backgroundColor:user.username_changed?C.g100:'white',color:user.username_changed?C.g400:C.g800,cursor:user.username_changed?'not-allowed':'text'}}
+                      />
+                      {user.username_changed&&<p className="text-xs mt-0.5" style={{color:C.g400}}>Username can only be changed once.</p>}
+                    </div>
+                    {/* Full name — locked after KYC */}
+                    <div>
+                      <label className="text-xs font-bold mb-1 flex items-center gap-1" style={{color:C.g600}}>
+                        Full Name
+                        {kycOk&&<Lock size={10} style={{color:C.g400}}/>}
+                      </label>
+                      <input
+                        value={form.full_name}
+                        onChange={e=>setForm({...form,full_name:e.target.value})}
+                        placeholder="Full Name"
+                        disabled={kycOk}
+                        className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none"
+                        style={{borderColor:kycOk?C.g200:C.sage,backgroundColor:kycOk?C.g100:'white',color:kycOk?C.g400:C.g800,cursor:kycOk?'not-allowed':'text'}}
+                      />
+                      {kycOk&&<p className="text-xs mt-0.5" style={{color:C.g400}}>Locked after ID verification.</p>}
+                    </div>
+                  </div>
+                  <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location"
+                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
+                  <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} placeholder="Bio" rows={2}
+                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none resize-none" style={{borderColor:C.sage}}/>
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={saving}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs text-white"
+                      style={{backgroundColor:C.green}}>
+                      {saving?<RefreshCw size={11} className="animate-spin"/>:<Save size={11}/>}{saving?'Saving…':'Save'}
+                    </button>
+                    <button type="button" onClick={()=>setEditing(false)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs border" style={{borderColor:C.g200,color:C.g600}}>
+                      <X size={11}/>Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
           </div>
         </div>
       </div>
 
+      {/* ── REFERRAL LINK (own profile only) ─────────────────────────────── */}
+      {own && user && (
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 lg:px-8 mt-3" style={{boxSizing:'border-box',width:'100%'}}>
+          <div className="rounded-2xl border overflow-hidden" style={{backgroundColor:'#FFFBEB',borderColor:'#FDE68A'}}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b" style={{borderColor:'#FDE68A'}}>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{backgroundColor:'rgba(244,164,34,0.15)'}}>
+                  <span style={{fontSize:14}}>🔗</span>
+                </div>
+                <p className="font-black text-sm" style={{color:'#92400E'}}>Your Referral Link</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-center">
+                  <p className="font-black text-sm leading-none" style={{color:'#1B4332'}}>{user.total_referrals||0}</p>
+                  <p className="text-gray-400 leading-none mt-0.5" style={{fontSize:9}}>Referrals</p>
+                </div>
+                <div className="w-px h-6 bg-amber-200"/>
+                <div className="text-center">
+                  <p className="font-black text-sm leading-none" style={{color:'#F4A422'}}>
+                    ₿{(user.referral_earnings_btc||0).toFixed(6)}
+                  </p>
+                  <p className="text-gray-400 leading-none mt-0.5" style={{fontSize:9}}>Earned</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Link row */}
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={`https://praqen.com/ref/${user.referral_code||user.username}`}
+                  className="flex-1 min-w-0 text-xs font-medium rounded-xl border px-3 py-2 focus:outline-none truncate"
+                  style={{backgroundColor:'white',borderColor:'#FDE68A',color:'#78350F'}}
+                />
+                <button
+                  onClick={()=>{
+                    navigator.clipboard.writeText(`https://praqen.com/ref/${user.referral_code||user.username}`);
+                    toast.success('Referral link copied!');
+                  }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs text-white hover:opacity-90 active:scale-95 transition"
+                  style={{backgroundColor:'#F4A422',whiteSpace:'nowrap'}}>
+                  📋 Copy
+                </button>
+                <button
+                  onClick={()=>{
+                    const link=`https://praqen.com/ref/${user.referral_code||user.username}`;
+                    if(navigator.share){navigator.share({title:'Join PRAQEN',text:'Trade Bitcoin safely with me on PRAQEN!',url:link});}
+                    else{navigator.clipboard.writeText(link);toast.success('Link copied!');}
+                  }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-xs text-white hover:opacity-90 active:scale-95 transition"
+                  style={{backgroundColor:'#1B4332',whiteSpace:'nowrap'}}>
+                  ↑ Share
+                </button>
+              </div>
+              <p className="text-xs mt-2" style={{color:'#92400E'}}>
+                Earn <strong>0.1% BTC commission</strong> on every trade your referrals complete.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* ── TAB NAV ──────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm mt-4" style={{borderColor:C.g200}}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-0 overflow-x-auto">
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm mt-3" style={{borderColor:C.g200,width:'100%',overflowX:'hidden'}}>
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 lg:px-8 flex gap-0" style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)}
               className="px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold whitespace-nowrap border-b-2 transition"
@@ -437,7 +549,7 @@ export default function Profile({userId:propUserId}){
       </div>
 
       {/* ── CONTENT ──────────────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+      <div className="max-w-5xl mx-auto px-3 sm:px-5 lg:px-8 py-4 space-y-4" style={{boxSizing:'border-box',width:'100%'}}>
 
         {/* ── OVERVIEW ────────────────────────────────────────────────── */}
         {tab==='overview'&&(

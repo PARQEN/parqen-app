@@ -24,7 +24,6 @@ const pwChecks = [
   { label:'Uppercase letter (A–Z)',    test: p => /[A-Z]/.test(p) },
   { label:'Lowercase letter (a–z)',    test: p => /[a-z]/.test(p) },
   { label:'Number (0–9)',              test: p => /\d/.test(p) },
-  { label:'Special character (!@#$…)', test: p => /[^A-Za-z0-9]/.test(p) },
 ];
 
 function PwStrength({ password }) {
@@ -224,12 +223,19 @@ export default function Register({ onLogin }) {
     return Object.keys(e).length === 0;
   };
 
-  const validateProfile = () => {
+  const validateAll = () => {
     const e = {};
+    if (method === 'email') {
+      if (!email) e.email = 'Email is required';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email';
+    } else {
+      if (!phone) e.phone = 'Phone number is required';
+      else if (phone.length < 7) e.phone = 'Enter a valid phone number';
+    }
     if (!fullName.trim()) e.fullName = 'Full name is required';
     if (!username.trim()) e.username = 'Username is required';
     else if (username.length < 3) e.username = 'At least 3 characters';
-    else if (!/^[a-z0-9_]+$/.test(username)) e.username = 'Lowercase letters, numbers, _ only';
+    else if (!/^[a-z0-9_.@-]+$/.test(username)) e.username = 'Letters, numbers, _ . @ - only';
     if (!password) e.password = 'Password is required';
     else if (pwChecks.filter(c => c.test(password)).length < 3) e.password = 'Password is too weak';
     if (password !== confirm) e.confirm = 'Passwords do not match';
@@ -237,6 +243,8 @@ export default function Register({ onLogin }) {
     setErrs(e);
     return Object.keys(e).length === 0;
   };
+
+  const validateProfile = () => validateAll();
 
   const validateNewPassword = () => {
     const e = {};
@@ -249,26 +257,10 @@ export default function Register({ onLogin }) {
 
   const sendOTP = async () => {
     if (!validateContact()) return;
-    if (method === 'email') {
-      if (mode === 'forgot') {
-        setLoading(true); setGlobalError('');
-        try {
-          await axios.post(`${API_URL}/auth/send-otp`, { method, contact, purpose:'forgot-password' });
-          setStep('f2'); setOtpTimer(60);
-        } catch (err) { setGlobalError(err.response?.data?.error || 'Failed to send code. Try again.'); }
-        finally { setLoading(false); }
-      } else {
-        setStep(3);
-      }
-      return;
-    }
     setLoading(true); setGlobalError('');
     try {
-      await axios.post(`${API_URL}/auth/send-otp`, {
-        method, contact,
-        purpose: mode === 'register' ? 'register' : 'forgot-password',
-      });
-      setStep(2); setOtpTimer(60);
+      await axios.post(`${API_URL}/auth/send-otp`, { method, contact, purpose:'forgot-password' });
+      setStep('f2'); setOtpTimer(60);
     } catch (err) { setGlobalError(err.response?.data?.error || 'Failed to send code. Try again.'); }
     finally { setLoading(false); }
   };
@@ -288,25 +280,20 @@ export default function Register({ onLogin }) {
   };
 
   const handleRegister = async () => {
-    if (!validateProfile()) return;
+    if (!validateAll()) return;
     setLoading(true); setGlobalError('');
     try {
       const res = await axios.post(`${API_URL}/auth/register`, {
-        method, contact,
-        otp: method === 'phone' ? otp : undefined,
         email: method === 'email' ? email : undefined,
         phone: method === 'phone' ? contact : undefined,
         username: username.toLowerCase(),
         fullName, password,
       });
-      if (res.data.requiresVerification) {
-        const userEmail = res.data.email || email;
-        localStorage.setItem('pendingEmail', userEmail);
-        navigate('/verify-otp', { state: { email: userEmail, purpose:'verify' } });
-      } else if (res.data.success && res.data.token) {
+      if (res.data.success && res.data.token) {
+        localStorage.setItem('token', res.data.token);
         onLogin(res.data.user, res.data.token);
         setStep(4);
-        setTimeout(() => navigate('/buy-bitcoin'), 2000);
+        setTimeout(() => navigate('/buy-bitcoin'), 1800);
       }
     } catch (err) { setGlobalError(err.response?.data?.error || 'Registration failed. Try again.'); }
     finally { setLoading(false); }
@@ -334,10 +321,10 @@ export default function Register({ onLogin }) {
   };
 
   const STEP_LABELS = mode === 'register'
-    ? ['Contact', 'Verify', 'Profile', 'Done']
+    ? ['Details', 'Done']
     : ['Contact', 'Verify', 'New Password', 'Done'];
   const currentStepNum = mode === 'register'
-    ? (typeof step === 'number' ? step : 4)
+    ? (step === 4 ? 2 : 1)
     : ({ f1:1, f2:2, f3:3, f4:4 }[step] || 1);
 
   const heroTitle = mode === 'forgot'
@@ -441,11 +428,9 @@ export default function Register({ onLogin }) {
             {/* Card header */}
             <div className="px-5 md:px-7 py-5 border-b" style={{ borderColor:C.g100 }}>
               <div className="flex items-center justify-between mb-1">
-                {(step !== 1 && step !== 'f1') && (
+                {(step === 'f2' || step === 'f3') && (
                   <button onClick={() => {
-                    if (step === 2) setStep(1);
-                    else if (step === 3) setStep(2);
-                    else if (step === 'f2') setStep('f1');
+                    if (step === 'f2') setStep('f1');
                     else if (step === 'f3') setStep('f2');
                   }}
                     className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 transition mr-2 flex-shrink-0"
@@ -456,12 +441,12 @@ export default function Register({ onLogin }) {
                 <div className="flex-1">
                   <h1 className="font-black text-lg" style={{ color:C.forest, fontFamily:"'Syne',sans-serif" }}>
                     {mode === 'register'
-                      ? (['', 'Create Account', 'Verify Your Contact', 'Set Your Password', 'Welcome!'][step] || 'Create Account')
+                      ? (step === 4 ? 'Welcome!' : 'Create Account')
                       : ({ f1:'Forgot Password', f2:'Verify Your Contact', f3:'Set New Password', f4:'Password Reset!' }[step])}
                   </h1>
                   <p className="text-xs mt-0.5" style={{ color:C.g500 }}>
                     {mode === 'register'
-                      ? (['', "Choose how you'd like to sign up", `Code sent to ${contact}`, 'Almost there — one last step', 'Your account is ready'][step] || '')
+                      ? (step === 4 ? 'Your account is ready' : 'Fill in your details to get started')
                       : ({ f1:"We'll send a reset code to your contact", f2:`Check your ${method} for the code`, f3:'Choose a new secure password', f4:'You can now log in with your new password' }[step])}
                   </p>
                 </div>
@@ -480,8 +465,138 @@ export default function Register({ onLogin }) {
             {/* Card body */}
             <div className="px-5 md:px-7 py-5 space-y-4 slide" key={String(step)}>
 
-              {/* STEP 1 / f1 — Contact */}
-              {(step === 1 || step === 'f1') && (
+              {/* STEP 1 — Register: all fields in one go */}
+              {step === 1 && mode === 'register' && (
+                <>
+                  {globalError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
+                      <AlertCircle size={13}/>{globalError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl" style={{ backgroundColor:C.g100 }}>
+                    {[
+                      { val:'email', Icon:AtSign,     label:'Email' },
+                      { val:'phone', Icon:Smartphone, label:'Phone' },
+                    ].map(({ val, Icon, label }) => (
+                      <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
+                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition"
+                        style={{
+                          backgroundColor: method===val ? C.white : 'transparent',
+                          color: method===val ? C.green : C.g500,
+                          boxShadow: method===val ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
+                        }}>
+                        <Icon size={13}/>{label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {method === 'email' ? (
+                    <Field label="Email Address" error={errs.email}>
+                      <Input icon={Mail} type="email" placeholder="you@example.com"
+                        value={email} onChange={e => setEmail(e.target.value)} error={errs.email}/>
+                    </Field>
+                  ) : (
+                    <Field label="Phone Number" error={errs.phone}>
+                      <div className="flex gap-2">
+                        <div className="relative flex-shrink-0">
+                          <button onClick={() => setShowCodes(!showCodes)}
+                            className="flex items-center gap-1 px-3 py-3 border-2 rounded-xl text-sm font-bold transition"
+                            style={{ borderColor:C.g200, color:C.g700 }}>
+                            <span>{phoneCode.flag}</span>
+                            <span>{phoneCode.code}</span>
+                            <span className="text-xs" style={{ color:C.g400 }}>▼</span>
+                          </button>
+                          {showCodes && (
+                            <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-2xl z-50 border max-h-48 overflow-y-auto"
+                              style={{ borderColor:C.g100 }}>
+                              {PHONE_CODES.map(pc => (
+                                <button key={pc.code} onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left text-xs border-b last:border-0"
+                                  style={{ borderColor:C.g50 }}>
+                                  <span className="text-base">{pc.flag}</span>
+                                  <span className="font-bold" style={{ color:C.g700 }}>{pc.name}</span>
+                                  <span className="ml-auto" style={{ color:C.g400 }}>{pc.code}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <Input icon={Phone} type="tel" placeholder="24 XXX XXXX"
+                            value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,''))}
+                            error={errs.phone}/>
+                        </div>
+                      </div>
+                    </Field>
+                  )}
+
+                  <Field label="Full Name" error={errs.fullName}>
+                    <Input icon={User} placeholder="John Doe"
+                      value={fullName} onChange={e => setFullName(e.target.value)} error={errs.fullName}/>
+                  </Field>
+
+                  <Field label="Username" error={errs.username}>
+                    <Input icon={AtSign} placeholder="john_doe"
+                      value={username} onChange={e => setUsername(e.target.value.toLowerCase())} error={errs.username}/>
+                  </Field>
+
+                  <Field label="Password" error={errs.password}>
+                    <Input icon={Lock} type={showPw ? 'text' : 'password'} placeholder="Create a strong password"
+                      value={password} onChange={e => setPassword(e.target.value)} error={errs.password}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowPw(!showPw)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
+                          {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                        </button>
+                      }/>
+                    <PwStrength password={password}/>
+                  </Field>
+
+                  <Field label="Confirm Password" error={errs.confirm}>
+                    <Input icon={Lock} type={showConfirm ? 'text' : 'password'} placeholder="Repeat your password"
+                      value={confirm} onChange={e => setConfirm(e.target.value)} error={errs.confirm}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
+                          {showConfirm ? <EyeOff size={16}/> : <Eye size={16}/>}
+                        </button>
+                      }/>
+                  </Field>
+
+                  <div>
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <div onClick={() => setAgreed(!agreed)}
+                        className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition"
+                        style={{ borderColor: agreed ? C.green : errs.agreed ? C.danger : C.g300, backgroundColor: agreed ? C.green : 'transparent' }}>
+                        {agreed && <Check size={11} className="text-white"/>}
+                      </div>
+                      <p className="text-xs leading-relaxed" style={{ color:C.g600 }}>
+                        I agree to the{' '}
+                        <a href="/terms" className="font-bold hover:underline" style={{ color:C.green }}>Terms of Service</a>
+                        {' '}and{' '}
+                        <a href="/privacy" className="font-bold hover:underline" style={{ color:C.green }}>Privacy Policy</a>.
+                        I understand that all trades are escrow-protected.
+                      </p>
+                    </label>
+                    {errs.agreed && <p className="text-xs mt-1" style={{ color:C.danger }}>{errs.agreed}</p>}
+                  </div>
+
+                  <button onClick={handleRegister} disabled={loading}
+                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
+                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
+                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Creating Account…</> : <>Create Account <ArrowRight size={15}/></>}
+                  </button>
+
+                  <p className="text-center text-xs" style={{ color:C.g500 }}>
+                    Already have an account?{' '}
+                    <Link to="/login" className="font-bold hover:underline" style={{ color:C.green }}>Log In</Link>
+                  </p>
+                </>
+              )}
+
+              {/* f1 — Forgot password: contact only */}
+              {step === 'f1' && (
                 <>
                   {globalError && (
                     <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
@@ -549,25 +664,17 @@ export default function Register({ onLogin }) {
                   <button onClick={sendOTP} disabled={loading}
                     className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
                     style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Sending code…</> : <>Send Verification Code <ArrowRight size={15}/></>}
+                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Sending code…</> : <>Send Reset Code <ArrowRight size={15}/></>}
                   </button>
 
-                  {mode === 'register' && (
-                    <p className="text-center text-xs" style={{ color:C.g500 }}>
-                      Already have an account?{' '}
-                      <Link to="/login" className="font-bold hover:underline" style={{ color:C.green }}>Log In</Link>
-                    </p>
-                  )}
-                  {mode === 'forgot' && (
-                    <button onClick={backToRegister} className="w-full text-center text-xs font-semibold hover:underline" style={{ color:C.g500 }}>
-                      ← Back to Register
-                    </button>
-                  )}
+                  <button onClick={backToRegister} className="w-full text-center text-xs font-semibold hover:underline" style={{ color:C.g500 }}>
+                    ← Back to Register
+                  </button>
                 </>
               )}
 
-              {/* STEP 2 / f2 — OTP */}
-              {(step === 2 || step === 'f2') && (
+              {/* f2 — Forgot password OTP */}
+              {step === 'f2' && (
                 <>
                   <div className="text-center py-2">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
@@ -620,73 +727,6 @@ export default function Register({ onLogin }) {
                 </>
               )}
 
-              {/* STEP 3 — Profile & Password */}
-              {step === 3 && (
-                <>
-                  {globalError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
-                      <AlertCircle size={13}/>{globalError}
-                    </div>
-                  )}
-
-                  <Field label="Full Name" error={errs.fullName}>
-                    <Input icon={User} placeholder="John Doe"
-                      value={fullName} onChange={e => setFullName(e.target.value)} error={errs.fullName}/>
-                  </Field>
-
-                  <Field label="Username" error={errs.username} hint="Only lowercase letters, numbers and underscores">
-                    <Input icon={AtSign} placeholder="john_doe"
-                      value={username} onChange={e => setUsername(e.target.value.toLowerCase())} error={errs.username}/>
-                  </Field>
-
-                  <Field label="Password" error={errs.password}>
-                    <Input icon={Lock} type={showPw ? 'text' : 'password'} placeholder="Create a strong password"
-                      value={password} onChange={e => setPassword(e.target.value)} error={errs.password}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
-                        </button>
-                      }/>
-                    <PwStrength password={password}/>
-                  </Field>
-
-                  <Field label="Confirm Password" error={errs.confirm}>
-                    <Input icon={Lock} type={showConfirm ? 'text' : 'password'} placeholder="Repeat your password"
-                      value={confirm} onChange={e => setConfirm(e.target.value)} error={errs.confirm}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showConfirm ? <EyeOff size={16}/> : <Eye size={16}/>}
-                        </button>
-                      }/>
-                  </Field>
-
-                  <div>
-                    <label className="flex items-start gap-2.5 cursor-pointer">
-                      <div onClick={() => setAgreed(!agreed)}
-                        className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition"
-                        style={{ borderColor: agreed ? C.green : errs.agreed ? C.danger : C.g300, backgroundColor: agreed ? C.green : 'transparent' }}>
-                        {agreed && <Check size={11} className="text-white"/>}
-                      </div>
-                      <p className="text-xs leading-relaxed" style={{ color:C.g600 }}>
-                        I agree to the{' '}
-                        <a href="/terms" className="font-bold hover:underline" style={{ color:C.green }}>Terms of Service</a>
-                        {' '}and{' '}
-                        <a href="/privacy" className="font-bold hover:underline" style={{ color:C.green }}>Privacy Policy</a>.
-                        I understand that all trades are escrow-protected.
-                      </p>
-                    </label>
-                    {errs.agreed && <p className="text-xs mt-1" style={{ color:C.danger }}>{errs.agreed}</p>}
-                  </div>
-
-                  <button onClick={handleRegister} disabled={loading}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Creating Account…</> : <>Create My Account <ArrowRight size={15}/></>}
-                  </button>
-                </>
-              )}
 
               {/* STEP 4 — Success */}
               {step === 4 && (

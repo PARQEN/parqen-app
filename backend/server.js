@@ -467,7 +467,9 @@ app.post('/api/auth/register', async (req, res) => {
     const { email, password, username, fullName, referralCode } = req.body;
     if (!email || !password || !username) return res.status(400).json({ error: 'Missing required fields' });
     const { data: existingUser } = await supabaseAdmin.from('users').select('email').eq('email', email).single();
-    if (existingUser) return res.status(400).json({ error: 'User already exists' });
+    if (existingUser) return res.status(400).json({ error: 'An account with this email already exists.' });
+    const { data: existingUsername } = await supabaseAdmin.from('users').select('id').eq('username', username).single();
+    if (existingUsername) return res.status(400).json({ error: 'That username is already taken. Please choose a different one.' });
     let referrerId = null;
     if (referralCode) {
       const { data: referrer } = await supabaseAdmin.from('users').select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle();
@@ -511,11 +513,17 @@ app.post('/api/auth/register', async (req, res) => {
         verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
       })
       .eq('id', data[0].id);
+    const token = jwt.sign({ userId: data[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
       success: true,
-      requiresVerification: true,
-      email,
-      message: 'Account created! Please check your email for a verification code.',
+      token,
+      user: {
+        id: data[0].id, email: data[0].email, username: data[0].username,
+        full_name: data[0].full_name, average_rating: 0, total_trades: 0,
+        avatar_url: null, is_admin: false, is_moderator: false,
+        referral_code: referralCodeValue, bitcoin_wallet_address: walletAddress,
+      },
+      message: 'Account created successfully!',
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -537,9 +545,6 @@ app.post('/api/auth/login', async (req, res) => {
     if (error || !data) return res.status(401).json({ error: 'Invalid credentials' });
     const validPassword = await bcrypt.compare(password, data.password_hash);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
-    if (!data.is_email_verified) {
-      return res.status(403).json({ error: 'Please verify your email before logging in.', requiresVerification: true, email });
-    }
     const token = jwt.sign({ userId: data.id, email }, JWT_SECRET, { expiresIn: '7d' });
     await supabaseAdmin.from('users').update({ last_login: new Date() }).eq('id', data.id);
 
@@ -584,18 +589,22 @@ app.post('/api/auth/change-password', verifyToken, async (req, res) => {
 
 // ── OTP ──────────────────────────────────────────────────────────────────────
 
-app.post('/api/auth/send-otp', async (req, res) => {
+const handleSendOtp = async (req, res) => {
   try {
-    const { method, contact } = req.body;
-    if (!method || !contact) return res.status(400).json({ error: 'Method and contact required' });
+    const { method, contact, phone } = req.body;
+    const target = contact || phone;
+    if (!target) return res.status(400).json({ error: 'Contact/phone is required' });
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(contact, { otp, expires: Date.now() + 5 * 60 * 1000 });
-    console.log(`[OTP] Code for ${contact}: ${otp}`);
+    otpStore.set(target, { otp, expires: Date.now() + 5 * 60 * 1000 });
+    console.log(`[OTP] Code for ${target}: ${otp}`);
     res.json({ success: true, message: 'OTP sent successfully', devCode: process.env.NODE_ENV === 'development' ? otp : undefined });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
+};
+
+app.post('/api/auth/send-otp',       handleSendOtp);
+app.post('/api/auth/send-phone-otp', handleSendOtp);
 
 app.post('/api/auth/verify-otp', async (req, res) => {
   try {
@@ -766,7 +775,7 @@ app.post('/api/users/heartbeat', verifyToken, async (req, res) => {
 app.get('/api/users/profile', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('users')
-      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
+      .select('id, username, full_name, bio, location, website, phone, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
       .eq('id', req.userId).single();
     if (error) return res.status(400).json({ error: error.message });
     const { data: wallet } = await supabaseAdmin.from('mock_wallets').select('*').eq('user_id', req.userId).single();
@@ -797,16 +806,44 @@ app.get('/api/users/:userId', async (req, res) => {
 
 app.put('/api/users/profile', verifyToken, async (req, res) => {
   try {
-    const { username, full_name, fullName, bio, location, website, phone } = req.body;
+    const { username, full_name, fullName, bio, location, website, phone, hide_full_name } = req.body;
+
+    // Fetch current user to enforce rules
+    const { data: current } = await supabaseAdmin.from('users').select('username, full_name, username_changed_at, is_id_verified, full_name_changed_at').eq('id', req.userId).single();
+
     const updateData = {};
-    if (username !== undefined)              updateData.username  = username.trim();
-    if (full_name !== undefined)             updateData.full_name = full_name;
-    if (fullName !== undefined)              updateData.full_name = fullName;
-    if (bio !== undefined)                   updateData.bio       = bio;
-    if (location !== undefined)              updateData.location  = location;
-    if (website !== undefined)               updateData.website   = website;
-    if (phone !== undefined)                 updateData.phone     = phone;
+
+    // Username: allowed only if never changed before
+    if (username !== undefined && username.trim() !== current?.username) {
+      if (current?.username_changed_at) {
+        return res.status(403).json({ error: 'Username can only be changed once.' });
+      }
+      updateData.username            = username.trim();
+      updateData.username_changed_at = new Date().toISOString();
+    }
+
+    // Full name: locked after first change OR after ID verification
+    if (full_name !== undefined || fullName !== undefined) {
+      const newName = full_name ?? fullName;
+      if (current?.is_id_verified) {
+        return res.status(403).json({ error: 'Full name cannot be changed after ID verification.' });
+      }
+      if (current?.full_name_changed_at && newName !== current?.full_name) {
+        return res.status(403).json({ error: 'Full name can only be changed once.' });
+      }
+      if (newName !== current?.full_name) {
+        updateData.full_name_changed_at = new Date().toISOString();
+      }
+      updateData.full_name = newName;
+    }
+
+    if (bio            !== undefined) updateData.bio            = bio;
+    if (location       !== undefined) updateData.location       = location;
+    if (website        !== undefined) updateData.website        = website;
+    if (phone          !== undefined) updateData.phone          = phone;
+    if (hide_full_name !== undefined) updateData.hide_full_name = hide_full_name;
     updateData.updated_at = new Date().toISOString();
+
     const { data, error } = await supabaseAdmin.from('users').update(updateData).eq('id', req.userId).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true, user: data });
@@ -916,6 +953,25 @@ app.post('/api/listings', verifyToken, async (req, res) => {
     const maxUSD      = parseFloat(b.max_limit_usd || b.maxAmount || b.amountUsd) || 0;
     const minLocal    = parseFloat(b.min_limit_local) || 0;
     const maxLocal    = parseFloat(b.max_limit_local) || 0;
+
+    // ── Verification level checks ──────────────────────────────────────────────
+    const { data: listingUser } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified, is_id_verified')
+      .eq('id', req.userId).single();
+
+    const isSellListing = listingType === 'SELL' || listingType === 'SELL_BITCOIN';
+    if (isSellListing && !listingUser?.is_email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email to create sell offers.',
+        requireVerification: 'email'
+      });
+    }
+    if (maxUSD >= 10000 && (!listingUser?.is_email_verified || !listingUser?.is_phone_verified || !listingUser?.is_id_verified)) {
+      return res.status(403).json({
+        error: 'Trades of $10,000 or more require email, phone, and ID verification.',
+        requireVerification: 'all'
+      });
+    }
 
     // ── One active listing per payment method per seller ─────────────────────
     if (payMethod && (listingType === 'SELL' || listingType === 'SELL_BITCOIN')) {
@@ -1250,6 +1306,19 @@ app.post('/api/trades', verifyToken, async (req, res) => {
 
     console.log(`[Trade] type:${listingTypeUpper} → buyer:${buyerId.slice(0,8)} seller:${sellerId.slice(0,8)} btcProvider:${btcProviderId.slice(0,8)}`);
 
+    // ── Fetch trade opener verification status for permission checks ───────────
+    const { data: tradeOpener } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified, is_id_verified')
+      .eq('id', req.userId).single();
+
+    // Level 1: Email required to sell Bitcoin
+    if (sellerId === req.userId && !tradeOpener?.is_email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email to sell Bitcoin.',
+        requireVerification: 'email'
+      });
+    }
+
     // Resolve trade currency + local amount
     const tradeLocalAmt       = parseFloat(amountLocal) || 0;
     const frontendRateLocal   = parseFloat(req.body.sellerRateLocal) || 0; // rate buyer saw on listing page
@@ -1318,6 +1387,14 @@ app.post('/api/trades', verifyToken, async (req, res) => {
 
     const verifiedFee = parseFloat(calculateFee(verifiedAmountBtc));
     const tradeRef = 'PRAQ-' + require('crypto').randomBytes(4).toString('hex').toUpperCase();
+
+    // Level 2+: Large trades ($10k+) require email + phone + ID
+    if (tradeAmountUsd >= 10000 && (!tradeOpener?.is_email_verified || !tradeOpener?.is_phone_verified || !tradeOpener?.is_id_verified)) {
+      return res.status(403).json({
+        error: 'Trades of $10,000 or more require email, phone, and ID verification.',
+        requireVerification: 'all'
+      });
+    }
 
     const { data: trade, error } = await supabaseAdmin.from('trades').insert([{
       listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, trade_type: resolvedType,
@@ -2043,6 +2120,17 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
   try {
     const { address, amountBtc } = req.body;
     if (!address || !amountBtc || amountBtc <= 0) return res.status(400).json({ error: 'Invalid withdrawal request' });
+
+    // Level 2: Email + phone required to withdraw
+    const { data: withdrawUser } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified')
+      .eq('id', req.userId).single();
+    if (!withdrawUser?.is_email_verified || !withdrawUser?.is_phone_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email and phone to withdraw Bitcoin.',
+        requireVerification: 'both'
+      });
+    }
     const { data: bal } = await supabaseAdmin.from('user_balances').select('balance_btc').eq('user_id', req.userId).single();
     const current = parseFloat(bal?.balance_btc || 0);
     const amount  = parseFloat(amountBtc);

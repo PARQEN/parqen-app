@@ -7,7 +7,8 @@ import {
   BadgeCheck, Timer, X, Info, Shield,
   ArrowRight, PlusCircle, Filter,
   Home, Wallet, User, Gift, Bitcoin,
-  ChevronDown, CreditCard, ThumbsUp, ThumbsDown, Repeat2
+  ChevronDown, CreditCard, ThumbsUp, ThumbsDown, Repeat2,
+  Phone, Mail, Ban
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
@@ -448,14 +449,6 @@ function SellerModal({seller, listing, onClose, onTrade}) {
               </div>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
-                  style={{backgroundColor:'rgba(134,239,172,0.2)', color:'#86EFAC'}}>
-                  <ThumbsUp size={9} strokeWidth={2.5}/>{fmt(u.positive_feedback||0)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
-                  style={{backgroundColor:'rgba(252,165,165,0.2)', color:'#FCA5A5'}}>
-                  <ThumbsDown size={9} strokeWidth={2.5}/>{fmt(u.negative_feedback||0)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
                   style={{backgroundColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.85)'}}>
                   <Repeat2 size={9} strokeWidth={2.5}/>{fmt(trades)} Trades
                 </span>
@@ -463,19 +456,35 @@ function SellerModal({seller, listing, onClose, onTrade}) {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/20 text-center">
-            {[
-              {label:'Trades',  value:fmt(trades)},
-              {label:'Rating',  value:`${rating.toFixed(1)}★`},
-              {label:'Reviews', value:fmt(fb)},
-              {label:'Done',    value:`${u.completion_rate||98}%`},
-            ].map(s=>(
-              <div key={s.label}>
-                <p className="text-white font-black text-sm">{s.value}</p>
-                <p className="text-white/50 text-xs">{s.label}</p>
+          {(()=>{
+            const phoneOk = !!(u.is_phone_verified||u.phone_verified||u.phone);
+            const emailOk = !!(u.is_email_verified||u.email_verified||u.email);
+            const pos = parseInt(u.positive_feedback||0);
+            const neg = parseInt(u.negative_feedback||0);
+            const total = pos + neg;
+            const trust = total > 0 ? Math.round(pos/total*100) : trades > 0 ? 100 : 0;
+            const blocks = parseInt(u.blocks_count||u.blocked_count||0);
+            const trustColor = trust>=80?'#86EFAC':trust>=50?'#FDE68A':'#FCA5A5';
+            const items = [
+              {icon:Phone,  value:phoneOk?'✓ Verified':'✗ Not set', label:'Phone',       color:phoneOk?'#86EFAC':'#FCA5A5'},
+              {icon:Mail,   value:emailOk?'✓ Verified':'✗ Not set', label:'Email',       color:emailOk?'#86EFAC':'#FCA5A5'},
+              {icon:Shield, value:`${trust}%`,                       label:'Trust Score', color:trustColor},
+              {icon:Ban,    value:fmt(blocks),                       label:'Blocks',      color:blocks>0?'#FCA5A5':'rgba(255,255,255,0.65)'},
+            ];
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/20">
+                {items.map(({icon:Icon,value,label,color})=>(
+                  <div key={label} className="flex items-center gap-2 bg-white/10 rounded-xl px-2.5 py-2.5 min-w-0 overflow-hidden">
+                    <Icon size={13} style={{color,flexShrink:0}}/>
+                    <div className="min-w-0">
+                      <p className="text-white font-black text-xs leading-tight truncate">{value}</p>
+                      <p className="text-white/50 text-xs mt-0.5 leading-tight truncate">{label}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Tabs */}
@@ -549,6 +558,20 @@ function SellerModal({seller, listing, onClose, onTrade}) {
   );
 }
 
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border animate-pulse w-full" style={{borderColor:C.g200}}>
+      <div className="h-16 rounded-t-2xl" style={{backgroundColor:C.g200}}/>
+      <div className="px-4 pt-3 pb-4 space-y-2.5">
+        <div className="h-3 rounded-lg w-2/3" style={{backgroundColor:C.g200}}/>
+        <div className="h-2.5 rounded-lg w-1/2" style={{backgroundColor:C.g100}}/>
+        <div className="h-9 rounded-xl mt-1" style={{backgroundColor:C.g200}}/>
+      </div>
+    </div>
+  );
+}
+
 // ── Bottom Navigation (mobile only) ──────────────────────────────────────────
 function BottomNav() {
   const navigate = useNavigate();
@@ -588,10 +611,10 @@ function BottomNav() {
 export default function GiftCards({user}) {
   const navigate = useNavigate();
   const {rates:USD_RATES, btcUsd:contextBtcUsd} = useRates();
-  const [listings,     setListings]     = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const _cache = () => { try{const c=JSON.parse(sessionStorage.getItem('praqen_gc')||'null');return c&&Date.now()-c.ts<120000?c.data:null;}catch{return null;} };
+  const [listings,     setListings]     = useState(()=>_cache()||[]);
+  const [loading,      setLoading]      = useState(()=>!_cache());
   const [btcPrice,     setBtcPrice]     = useState(68000);
-  const [loadingRates, setLoadingRates] = useState(false);
   const [selCurrency,  setSelCurrency]  = useState(CURRENCIES[0]);
   const [selBrand,     setSelBrand]     = useState('All Brands');
   const [selCountry,   setSelCountry]   = useState(COUNTRIES[0]);
@@ -606,12 +629,17 @@ export default function GiftCards({user}) {
   const [showAllTrades, setShowAllTrades] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
   const [brandSearch,    setBrandSearch]    = useState('');
+  const [countrySearch,  setCountrySearch]  = useState('');
   const currencyRef = useRef(null);
   const brandRef    = useRef(null);
   const countryRef  = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
-  useEffect(()=>{ fetchRates(); loadListings(); },[]);
+  useEffect(()=>{
+    loadListings();
+    const interval = setInterval(loadListings, 60000);
+    return () => clearInterval(interval);
+  },[]);
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -629,29 +657,20 @@ export default function GiftCards({user}) {
     const h=e=>{
       if(currencyRef.current&&!currencyRef.current.contains(e.target)) { setShowCurrency(false); setCurrencySearch(''); }
       if(brandRef.current&&!brandRef.current.contains(e.target))       { setShowBrand(false); setBrandSearch(''); }
-      if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false);
+      if(countryRef.current&&!countryRef.current.contains(e.target)) { setShowCountry(false); setCountrySearch(''); }
     };
     document.addEventListener('mousedown',h);
     return()=>document.removeEventListener('mousedown',h);
   },[]);
 
-  const fetchRates = async () => {
-    setLoadingRates(true);
-    try {
-      const r=await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-      setBtcPrice(r.data.bitcoin.usd);
-    } catch {
-      try { const r2=await axios.get('https://api.coindesk.com/v1/bpi/currentprice/USD.json'); setBtcPrice(r2.data.bpi.USD.rate_float); }
-      catch {}
-    } finally { setLoadingRates(false); }
-  };
-
   const loadListings = async () => {
     try {
       const r=await axios.get(`${API_URL}/listings`);
       const all=(r.data.listings||[]).map(l=>({...l,users:Array.isArray(l.users)?l.users[0]:l.users}));
-      setListings(all.filter(l=>l.listing_type==='BUY_GIFT_CARD'||l.listing_type==='SELL_GIFT_CARD'));
-    } catch { toast.error('Failed to load gift card marketplace'); }
+      const data=all.filter(l=>l.listing_type==='BUY_GIFT_CARD'||l.listing_type==='SELL_GIFT_CARD');
+      setListings(data);
+      try { sessionStorage.setItem('praqen_gc', JSON.stringify({data, ts:Date.now()})); } catch {}
+    } catch { if (!listings.length) toast.error('Failed to load gift card marketplace'); }
     finally { setLoading(false); }
   };
 
@@ -703,12 +722,6 @@ export default function GiftCards({user}) {
   const sellerCount = new Set(listings.map(l=>l.seller_id)).size;
   const hasFilters  = amountInput.trim()!==''||selBrand!=='All Brands'||selCountry.code!=='ALL'||traderSearch.trim()!==''||sortBy!=='rate_low';
 
-  if(loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.g100}}>
-      <div className="w-10 h-10 border-4 rounded-full animate-spin" style={{borderColor:C.mint,borderTopColor:'transparent'}}/>
-    </div>
-  );
-
   return (
     <div className="min-h-screen flex flex-col pb-16 md:pb-0 overflow-x-hidden"
       style={{backgroundColor:C.g100,fontFamily:"'DM Sans',sans-serif"}}>
@@ -719,7 +732,7 @@ export default function GiftCards({user}) {
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
         *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
-        body{overflow-x:hidden}
+        html,body{overscroll-behavior:none}
         .dropdown-panel{max-width:calc(100vw - 24px)}
       `}</style>
 
@@ -743,10 +756,10 @@ export default function GiftCards({user}) {
                 </span>
               </div>
             </div>
-            <button onClick={()=>{fetchRates();loadListings();}}
+            <button onClick={loadListings}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition hover:bg-white/20 flex-shrink-0"
               style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-              <RefreshCw size={15} className={`text-white ${loadingRates?'animate-spin':''}`}/>
+              <RefreshCw size={15} className={`text-white ${loading?'animate-spin':''}`}/>
             </button>
           </div>
         </div>
@@ -930,40 +943,65 @@ export default function GiftCards({user}) {
                     style={{color:selCountry.code!=='ALL'?C.forest:C.g400}}/>
                 </button>
                 {showCountry&&(
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden max-h-56 overflow-y-auto"
-                    style={{borderColor:C.g100}}>
-                    {COUNTRIES.map(c=>(
-                      <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);}}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
-                        style={{borderColor:C.g50}}>
-                        <span className="text-sm">{c.flag}</span>
-                        <span className="text-xs font-bold flex-1 text-left" style={{color:C.g800}}>{c.name}</span>
-                        {selCountry.code===c.code&&<CheckCircle size={13} style={{color:C.green}}/>}
-                      </button>
-                    ))}
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                    style={{borderColor:C.g100,maxWidth:'calc(100vw - 24px)'}}>
+                    <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                      <input type="text" placeholder="🔍  Search country…"
+                        value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
+                        className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                        style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
+                    </div>
+                    <div className="overflow-y-auto max-h-56">
+                    {(() => {
+                      const q = countrySearch.toLowerCase();
+                      const filtered = COUNTRIES.filter(c=>!q||c.name.toLowerCase().includes(q));
+                      let lastReg = null;
+                      return filtered.map(c=>{
+                        const regHdr = !q && c.region && c.region!==lastReg
+                          ? (lastReg=c.region, <div key={`r-${c.region}`} className="px-3 py-1" style={{backgroundColor:'#F8FAFC'}}>
+                              <span className="text-xs font-black uppercase tracking-wider" style={{color:COUNTRY_REGIONS[c.region]||C.g500}}>{c.region}</span>
+                            </div>)
+                          : (c.region&&(lastReg=c.region), null);
+                        return [regHdr,
+                          <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);setCountrySearch('');}}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
+                            style={{borderColor:C.g50,backgroundColor:selCountry.code===c.code?`${C.forest}08`:'transparent'}}>
+                            <span className="text-sm">{c.flag}</span>
+                            <span className="text-xs font-bold flex-1 text-left" style={{color:C.g800}}>{c.name}</span>
+                            {selCountry.code===c.code&&<CheckCircle size={13} style={{color:C.green}}/>}
+                          </button>
+                        ];
+                      });
+                    })()}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Sort + Trader Search row — always visible */}
+          {/* Sort + Create Offer + Trader Search row */}
           <div className="mt-2 space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
               <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 font-bold border-2 rounded-xl focus:outline-none"
+                className="flex-1 min-w-0 px-2.5 py-2 font-bold border-2 rounded-xl focus:outline-none"
                 style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200,color:C.g800,fontSize:'16px'}}>
-                <option value="rate_low">Best Rate (Low margin first)</option>
+                <option value="rate_low">Best Rate</option>
                 <option value="rate_high">Highest Rate</option>
-                <option value="rating">Top Rated Sellers</option>
+                <option value="rating">Top Rated</option>
                 <option value="trades">Most Trades</option>
               </select>
+              <button onClick={()=>navigate('/create-offer')}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
+                style={{backgroundColor:C.accent, whiteSpace:'nowrap'}}>
+                <PlusCircle size={13}/> + Create
+              </button>
               {hasFilters&&(
-                <button onClick={()=>{setAmountInput('');setSelBrand('All Brands');setSelCountry(COUNTRIES[0]);setTraderSearch('');setSortBy('rate_low');}}
-                  className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-black border-2 transition"
+                <button onClick={()=>{setAmountInput('');setSelBrand('All Brands');setSelCountry(COUNTRIES[0]);setTraderSearch('');setSortBy('rate_low');setCountrySearch('');}}
+                  className="flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-black border-2 transition"
                   style={{borderColor:C.danger,color:C.danger,backgroundColor:'#FEF2F2'}}>
-                  Clear
+                  ✕
                 </button>
               )}
             </div>
@@ -977,7 +1015,7 @@ export default function GiftCards({user}) {
                   value={traderSearch}
                   onChange={e=>setTraderSearch(e.target.value)}
                   className="flex-1 px-2.5 py-1.5 text-xs font-bold focus:outline-none bg-transparent"
-                  style={{color:C.g800}}/>
+                  style={{color:C.g800, fontSize:'16px'}}/>
                 {traderSearch.trim()&&(
                   <button onClick={()=>setTraderSearch('')}
                     className="px-2 flex-shrink-0"
@@ -1029,7 +1067,11 @@ export default function GiftCards({user}) {
           </button>
         </div>
 
-        {filtered.length===0?(
+        {loading && !listings.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+            {Array(6).fill(0).map((_,i)=><SkeletonCard key={i}/>)}
+          </div>
+        ) : filtered.length===0?(
           <div className="bg-white rounded-2xl border p-10 text-center" style={{borderColor:C.g200}}>
             <p className="text-5xl mb-4">🎁</p>
             <p className="font-black text-base mb-1" style={{color:C.g800}}>No gift card offers found</p>

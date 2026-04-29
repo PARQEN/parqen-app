@@ -6,8 +6,9 @@ import {
   Bitcoin, CheckCircle, RefreshCw,
   AlertTriangle, BadgeCheck, Timer,
   X, Info, ArrowRight, PlusCircle,
-  Filter, Home, Wallet, User, Gift,
-  ChevronDown, ThumbsUp, ThumbsDown, Repeat2
+  Filter, Home, Wallet, User, Gift, Shield,
+  ChevronDown, ThumbsUp, ThumbsDown, Repeat2,
+  Phone, Mail, Ban
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
@@ -430,14 +431,6 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
               </div>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
-                  style={{backgroundColor:'rgba(134,239,172,0.2)', color:'#86EFAC'}}>
-                  <ThumbsUp size={9} strokeWidth={2.5}/>{fmt(u.positive_feedback||0)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
-                  style={{backgroundColor:'rgba(252,165,165,0.2)', color:'#FCA5A5'}}>
-                  <ThumbsDown size={9} strokeWidth={2.5}/>{fmt(u.negative_feedback||0)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-bold"
                   style={{backgroundColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.85)'}}>
                   <Repeat2 size={9} strokeWidth={2.5}/>{fmt(trades)} Trades
                 </span>
@@ -445,37 +438,35 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
             </div>
           </div>
 
-          {/* Stats grid — Feedback first */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/20">
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <ThumbsUp size={14} style={{color:'#86EFAC', flexShrink:0}}/>
-              <div>
-                <p className="text-white font-black text-sm leading-none">{fmt(u.positive_feedback||0)}</p>
-                <p className="text-white/50 text-xs mt-0.5">Positive</p>
+          {(()=>{
+            const phoneOk = !!(u.is_phone_verified||u.phone_verified||u.phone);
+            const emailOk = !!(u.is_email_verified||u.email_verified||u.email);
+            const pos = parseInt(u.positive_feedback||0);
+            const neg = parseInt(u.negative_feedback||0);
+            const total = pos + neg;
+            const trust = total > 0 ? Math.round(pos/total*100) : trades > 0 ? 100 : 0;
+            const blocks = parseInt(u.blocks_count||u.blocked_count||0);
+            const trustColor = trust>=80?'#86EFAC':trust>=50?'#FDE68A':'#FCA5A5';
+            const items = [
+              {icon:Phone,  value:phoneOk?'✓ Verified':'✗ Not set', label:'Phone',       color:phoneOk?'#86EFAC':'#FCA5A5'},
+              {icon:Mail,   value:emailOk?'✓ Verified':'✗ Not set', label:'Email',       color:emailOk?'#86EFAC':'#FCA5A5'},
+              {icon:Shield, value:`${trust}%`,                       label:'Trust Score', color:trustColor},
+              {icon:Ban,    value:fmt(blocks),                       label:'Blocks',      color:blocks>0?'#FCA5A5':'rgba(255,255,255,0.65)'},
+            ];
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/20">
+                {items.map(({icon:Icon,value,label,color})=>(
+                  <div key={label} className="flex items-center gap-2 bg-white/10 rounded-xl px-2.5 py-2.5 min-w-0 overflow-hidden">
+                    <Icon size={13} style={{color,flexShrink:0}}/>
+                    <div className="min-w-0">
+                      <p className="text-white font-black text-xs leading-tight truncate">{value}</p>
+                      <p className="text-white/50 text-xs mt-0.5 leading-tight truncate">{label}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <ThumbsDown size={14} style={{color:'#FCA5A5', flexShrink:0}}/>
-              <div>
-                <p className="text-white font-black text-sm leading-none">{fmt(u.negative_feedback||0)}</p>
-                <p className="text-white/50 text-xs mt-0.5">Negative</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <Repeat2 size={14} style={{color:'rgba(255,255,255,0.7)', flexShrink:0}}/>
-              <div>
-                <p className="text-white font-black text-sm leading-none">{fmt(trades)}</p>
-                <p className="text-white/50 text-xs mt-0.5">Trades</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
-              <span className="text-sm flex-shrink-0">⭐</span>
-              <div>
-                <p className="text-white font-black text-sm leading-none">{rating.toFixed(1)}</p>
-                <p className="text-white/50 text-xs mt-0.5">Rating</p>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Tabs */}
@@ -552,6 +543,35 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
   );
 }
 
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border animate-pulse w-full" style={{borderColor:C.g200}}>
+      <div className="px-4 pt-4 pb-3 flex gap-3">
+        <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{backgroundColor:C.g200}}/>
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="h-3 rounded-lg w-2/3" style={{backgroundColor:C.g200}}/>
+          <div className="h-2.5 rounded-lg w-1/2" style={{backgroundColor:C.g100}}/>
+        </div>
+      </div>
+      <div style={{height:1, backgroundColor:C.g100}}/>
+      <div className="px-4 py-3 grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
+          <div className="h-2 rounded w-1/2" style={{backgroundColor:C.g100}}/>
+          <div className="h-7 rounded-lg w-3/4" style={{backgroundColor:C.g200}}/>
+        </div>
+        <div className="space-y-1.5 pl-3">
+          <div className="h-2 rounded w-1/2" style={{backgroundColor:C.g100}}/>
+          <div className="h-7 rounded-lg w-3/4" style={{backgroundColor:C.g200}}/>
+        </div>
+      </div>
+      <div className="px-4 pb-4">
+        <div className="h-11 rounded-xl" style={{backgroundColor:C.g200}}/>
+      </div>
+    </div>
+  );
+}
+
 // ── Bottom Navigation (mobile only) ──────────────────────────────────────────
 function BottomNav() {
   const navigate = useNavigate();
@@ -598,13 +618,14 @@ function BottomNav() {
 export default function SellBitcoin({user}) {
   const navigate = useNavigate();
   const { rates: USD_RATES, btcUsd: contextBtcUsd } = useRates();
-  const [offers,       setOffers]       = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const _cache = () => { try{const c=JSON.parse(sessionStorage.getItem('praqen_sell')||'null');return c&&Date.now()-c.ts<120000?c.data:null;}catch{return null;} };
+  const [offers,       setOffers]       = useState(()=>_cache()||[]);
+  const [loading,      setLoading]      = useState(()=>!_cache());
   const [btcPrice,     setBtcPrice]     = useState(68000);
-  const [loadingRates, setLoadingRates] = useState(false);
   const [selCountry,    setSelCountry]    = useState(COUNTRIES[0]);
   const [countrySearch, setCountrySearch] = useState('');
   const [selPayment,    setSelPayment]    = useState('all');
+  const [paymentSearch, setPaymentSearch] = useState('');
   const [showFilters,   setShowFilters]   = useState(false);
   const [showCountry,   setShowCountry]   = useState(false);
   const [showPayment,   setShowPayment]   = useState(false);
@@ -617,7 +638,11 @@ export default function SellBitcoin({user}) {
   const paymentRef = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
-  useEffect(()=>{ fetchRates(); loadOffers(); },[]);
+  useEffect(()=>{
+    loadOffers();
+    const interval = setInterval(loadOffers, 60000);
+    return () => clearInterval(interval);
+  },[]);
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -634,31 +659,20 @@ export default function SellBitcoin({user}) {
   useEffect(()=>{
     const h = e => {
       if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false);
-      if(paymentRef.current&&!paymentRef.current.contains(e.target)) setShowPayment(false);
+      if(paymentRef.current&&!paymentRef.current.contains(e.target)) { setShowPayment(false); setPaymentSearch(''); }
     };
     document.addEventListener('mousedown',h);
     return () => document.removeEventListener('mousedown',h);
   },[]);
 
-  const fetchRates = async () => {
-    setLoadingRates(true);
-    try {
-      const r = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
-      setBtcPrice(r.data.bitcoin.usd);
-    } catch {
-      try {
-        const r2 = await axios.get('https://api.coindesk.com/v1/bpi/currentprice/USD.json');
-        setBtcPrice(r2.data.bpi.USD.rate_float);
-      } catch {}
-    } finally { setLoadingRates(false); }
-  };
-
   const loadOffers = async () => {
     try {
       const res = await axios.get(`${API_URL}/listings`);
       const all = (res.data.listings||[]).map(l=>({...l, users:Array.isArray(l.users)?l.users[0]:l.users}));
-      setOffers(all.filter(l=>l.listing_type==='BUY'||l.listing_type==='BUY_BITCOIN'));
-    } catch { toast.error('Failed to load marketplace'); }
+      const data = all.filter(l=>l.listing_type==='BUY'||l.listing_type==='BUY_BITCOIN');
+      setOffers(data);
+      try { sessionStorage.setItem('praqen_sell', JSON.stringify({data, ts:Date.now()})); } catch {}
+    } catch { if (!offers.length) toast.error('Failed to load marketplace'); }
     finally { setLoading(false); }
   };
 
@@ -701,13 +715,6 @@ export default function SellBitcoin({user}) {
   const buyerCount  = new Set(offers.map(l=>l.seller_id)).size;
   const hasFilters  = selPayment!=='all' || sellAmt || selCountry.code!=='ALL';
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.g100}}>
-      <div className="w-10 h-10 border-4 rounded-full animate-spin"
-        style={{borderColor:C.sell, borderTopColor:'transparent'}}/>
-    </div>
-  );
-
   return (
     <div className="min-h-screen flex flex-col pb-16 md:pb-0 overflow-x-hidden"
       style={{backgroundColor:C.g100, fontFamily:"'DM Sans',sans-serif"}}>
@@ -717,7 +724,7 @@ export default function SellBitcoin({user}) {
         @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
-        * { -webkit-tap-highlight-color: transparent; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         html, body { overscroll-behavior: none; }
       `}</style>
 
@@ -742,10 +749,10 @@ export default function SellBitcoin({user}) {
                 </span>
               </div>
             </div>
-            <button onClick={()=>{fetchRates();loadOffers();}}
+            <button onClick={loadOffers}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition hover:bg-white/20 flex-shrink-0"
               style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-              <RefreshCw size={15} className={`text-white ${loadingRates?'animate-spin':''}`}/>
+              <RefreshCw size={15} className={`text-white ${loading?'animate-spin':''}`}/>
             </button>
           </div>
         </div>
@@ -887,18 +894,26 @@ export default function SellBitcoin({user}) {
                     style={{color:selPayment!=='all' ? C.sell : C.g400}}/>
                 </button>
                 {showPayment && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden max-h-64 overflow-y-auto"
-                    style={{borderColor:C.g100,minWidth:'220px'}}>
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                    style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
+                    <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                      <input type="text" placeholder="🔍  Search payment…"
+                        value={paymentSearch} onChange={e=>setPaymentSearch(e.target.value)}
+                        className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                        style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
+                    </div>
+                    <div className="overflow-y-auto max-h-56">
                     {(() => {
+                      const q = paymentSearch.toLowerCase();
                       let lastCat = null;
-                      return PAYMENT_OPTIONS.map(p => {
-                        const catHeader = p.cat && p.cat !== lastCat ? (lastCat = p.cat, (
+                      return PAYMENT_OPTIONS.filter(p=>!q||p.label.toLowerCase().includes(q)||p.value.toLowerCase().includes(q)).map(p => {
+                        const catHeader = !q && p.cat && p.cat !== lastCat ? (lastCat = p.cat, (
                           <div key={`h-${p.cat}`} className="px-3 py-1 sticky top-0" style={{backgroundColor:'#F8FAFC'}}>
                             <span className="text-xs font-black uppercase tracking-wider" style={{color:PM_CAT_COLORS[p.cat]||C.g500}}>{p.cat}</span>
                           </div>
                         )) : (lastCat = p.cat || lastCat, null);
                         return [catHeader, (
-                          <button key={p.value} onClick={()=>{setSelPayment(p.value);setShowPayment(false);}}
+                          <button key={p.value} onClick={()=>{setSelPayment(p.value);setShowPayment(false);setPaymentSearch('');}}
                             className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
                             style={{backgroundColor:selPayment===p.value?`${C.sell}08`:'transparent'}}>
                             <span className="text-sm flex-shrink-0">{p.icon}</span>
@@ -908,27 +923,33 @@ export default function SellBitcoin({user}) {
                         )];
                       });
                     })()}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Sort always visible */}
+          {/* Sort + Create Offer row */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
             <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 font-bold border-2 rounded-xl focus:outline-none"
+              className="flex-1 min-w-0 px-2.5 py-2 font-bold border-2 rounded-xl focus:outline-none"
               style={{borderColor:sortBy!=='rate_high'?C.sell:C.g200, color:C.g800, fontSize:'16px'}}>
-              <option value="rate_high">Best Rate (Highest)</option>
+              <option value="rate_high">Best Rate</option>
               <option value="rating">Top Rated</option>
               <option value="trades">Most Trades</option>
             </select>
+            <button onClick={()=>navigate('/create-offer')}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
+              style={{backgroundColor:C.sell, whiteSpace:'nowrap'}}>
+              <PlusCircle size={13}/> + Create
+            </button>
             {hasFilters && (
-              <button onClick={()=>{setSellAmt('');setSelPayment('all');setSelCountry(COUNTRIES[0]);setSortBy('rate_high');}}
-                className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-black border-2 transition"
+              <button onClick={()=>{setSellAmt('');setSelPayment('all');setSelCountry(COUNTRIES[0]);setSortBy('rate_high');setPaymentSearch('');}}
+                className="flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-black border-2 transition"
                 style={{borderColor:C.danger, color:C.danger, backgroundColor:'#FEF2F2'}}>
-                Clear
+                ✕
               </button>
             )}
           </div>
@@ -967,7 +988,11 @@ export default function SellBitcoin({user}) {
           </button>
         </div>
 
-        {filtered.length===0 ? (
+        {loading && !offers.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 w-full">
+            {Array(6).fill(0).map((_,i)=><SkeletonCard key={i}/>)}
+          </div>
+        ) : filtered.length===0 ? (
           <div className="bg-white rounded-2xl border p-6 sm:p-10 text-center" style={{borderColor:C.g200}}>
             <p className="text-5xl mb-4">🔍</p>
             <p className="font-black text-base mb-1" style={{color:C.g800}}>No buyers found</p>

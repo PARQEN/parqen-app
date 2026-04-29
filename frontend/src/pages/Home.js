@@ -15,10 +15,10 @@ const C = {
 };
 
 const QUICK_ACTIONS = [
-  { icon: Bitcoin,    label: 'Buy BTC',      sub: 'Best rates',      to: '/buy-bitcoin',   color: C.gold    },
-  { icon: TrendingUp, label: 'Sell BTC',     sub: 'Get paid fast',   to: '/sell-bitcoin',  color: C.green   },
-  { icon: Gift,       label: 'Gift Cards',   sub: '100+ brands',     to: '/gift-cards',    color: '#8B5CF6' },
-  { icon: Plus,       label: 'Create Offer', sub: 'Set your terms',  to: '/create-offer',  color: C.mint    },
+  { icon: Bitcoin,    label: 'Buy BTC',      sub: 'Best rates',     to: '/buy-bitcoin',  color: C.gold    },
+  { icon: TrendingUp, label: 'Sell BTC',     sub: 'Get paid fast',  to: '/sell-bitcoin', color: C.green   },
+  { icon: Gift,       label: 'Gift Cards',   sub: '100+ brands',    to: '/gift-cards',   color: '#8B5CF6' },
+  { icon: Plus,       label: 'Create Offer', sub: 'Set your terms', to: '/create-offer', color: C.mint    },
 ];
 
 export default function Home({ user }) {
@@ -28,55 +28,56 @@ export default function Home({ user }) {
   const name = user?.username || user?.name || 'Trader';
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8"
+    <div className="min-h-screen pb-24 md:pb-8 overflow-x-hidden"
       style={{ fontFamily: "'DM Sans', sans-serif", backgroundColor: C.g50 }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
       <style>{`
         @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         .slide { animation: slideUp .35s ease both; }
         .d1 { animation-delay:.05s } .d2 { animation-delay:.1s } .d3 { animation-delay:.15s }
-        .card-tap { transition: transform .15s, box-shadow .15s; }
-        .card-tap:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.1); }
-        .card-tap:active { transform: scale(.98); }
+        .card-tap { transition: transform .15s, box-shadow .15s; -webkit-tap-highlight-color: transparent; }
+        .card-tap:active { transform: scale(.96); }
+        * { box-sizing: border-box; }
+        html, body { overscroll-behavior-y: none; }
       `}</style>
 
       {/* ── WELCOME BANNER ── */}
-      <div className="px-4 pt-4 pb-3 max-w-2xl mx-auto slide">
+      <div className="px-3 pt-4 pb-3 max-w-2xl mx-auto w-full slide">
         <div className="rounded-2xl p-4 text-white relative overflow-hidden"
           style={{ background: `linear-gradient(135deg,${C.forest},${C.green})` }}>
-          {/* bg dots */}
           <div className="absolute inset-0 pointer-events-none"
             style={{ backgroundImage: 'radial-gradient(circle at 2px 2px,rgba(255,255,255,0.06) 1px,transparent 0)', backgroundSize: '22px 22px' }} />
           <div className="relative">
-            <p className="text-white/60 text-xs mb-1">Welcome back 👋</p>
-            <h1 className="text-xl font-black mb-3" style={{ fontFamily: "'Syne',sans-serif" }}>
+            <p className="text-white/60 text-xs mb-0.5">Welcome back 👋</p>
+            <h1 className="text-lg font-black mb-3 truncate" style={{ fontFamily: "'Syne',sans-serif" }}>
               {name}
             </h1>
-            {/* Balance row */}
-            <div className="flex items-center justify-between">
-              <div>
+
+            {/* Balance row — stacks cleanly on all widths */}
+            <div className="flex items-end justify-between gap-2 flex-wrap">
+              <div className="min-w-0">
                 <p className="text-white/50 text-xs mb-0.5">Wallet Balance</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-2xl font-black">
-                    {showBal ? '₵0.00' : '••••••'}
+                  <p className="text-2xl font-black leading-none">
+                    {showBal ? '₵0.00' : '••••'}
                   </p>
                   <button onClick={() => setShowBal(v => !v)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/20 transition"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}>
                     {showBal
                       ? <EyeOff size={13} className="text-white/70" />
                       : <Eye size={13} className="text-white/70" />}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <Link to="/wallet"
-                  className="px-4 py-2 rounded-xl font-bold text-xs bg-white hover:opacity-90 transition"
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs bg-white hover:opacity-90 transition"
                   style={{ color: C.forest }}>
                   Top Up
                 </Link>
                 <Link to="/wallet"
-                  className="px-4 py-2 rounded-xl font-bold text-xs border border-white/30 hover:bg-white/10 transition text-white">
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs border border-white/30 hover:bg-white/10 transition text-white">
                   Withdraw
                 </Link>
               </div>
@@ -85,50 +86,49 @@ export default function Home({ user }) {
         </div>
       </div>
 
-      {/* ── QUICK ACTIONS ── */}
-      <div className="px-4 mb-4 max-w-2xl mx-auto slide d1">
-        <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: C.g500 }}>Quick Actions</p>
-        <div className="grid grid-cols-4 gap-3">
+      {/* ── QUICK ACTIONS — 2×2 on mobile, 1×4 on sm+ ── */}
+      <div className="px-3 mb-4 max-w-2xl mx-auto w-full slide d1">
+        <p className="text-xs font-black uppercase tracking-widest mb-2.5" style={{ color: C.g500 }}>Quick Actions</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {QUICK_ACTIONS.map(({ icon: Icon, label, sub, to, color }) => (
             <Link key={label} to={to}
-              className="card-tap bg-white rounded-2xl p-3 border flex flex-col items-center gap-1.5 text-center"
-              style={{ borderColor: C.g200 }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="card-tap bg-white rounded-2xl border flex flex-col items-center gap-1.5 text-center"
+              style={{ borderColor: C.g200, padding: '12px 8px' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: `${color}15` }}>
                 <Icon size={18} style={{ color }} />
               </div>
               <span className="text-xs font-black leading-tight" style={{ color: C.forest }}>{label}</span>
-              <span className="text-xs hidden sm:block" style={{ color: C.g400 }}>{sub}</span>
+              <span className="text-xs" style={{ color: C.g400 }}>{sub}</span>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* ── STATS ROW ── */}
-      <div className="px-4 mb-4 max-w-2xl mx-auto slide d2">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* ── STATS ROW — 2 cols on mobile, 4 on sm+ ── */}
+      <div className="px-3 mb-4 max-w-2xl mx-auto w-full slide d2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {[
-            { label: 'Active Trades', value: '2',      icon: '⚡', color: C.gold    },
-            { label: 'Completed',     value: '47',     icon: '✅', color: C.success },
-            { label: 'Volume',        value: '₵125K',  icon: '💰', color: C.paid    },
-            { label: 'Rating',        value: '4.9 ★',  icon: '⭐', color: C.gold    },
+            { label: 'Active Trades', value: '2',     icon: '⚡', color: C.gold    },
+            { label: 'Completed',     value: '47',    icon: '✅', color: C.success },
+            { label: 'Volume',        value: '₵125K', icon: '💰', color: C.paid    },
+            { label: 'Rating',        value: '4.9 ★', icon: '⭐', color: C.gold    },
           ].map(({ label, value, icon, color }) => (
             <div key={label} className="bg-white rounded-xl p-3 border" style={{ borderColor: C.g200 }}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-base">{icon}</span>
-                <p className="text-xs" style={{ color: C.g400 }}>{label}</p>
+                <p className="text-xs truncate ml-1" style={{ color: C.g400 }}>{label}</p>
               </div>
-              <p className="text-xl font-black" style={{ color: C.forest }}>{value}</p>
+              <p className="text-lg font-black" style={{ color: C.forest }}>{value}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── RECENT & ACCOUNT ── */}
-      <div className="px-4 mb-4 max-w-2xl mx-auto slide d3">
-        <div className="grid sm:grid-cols-2 gap-3">
+      <div className="px-3 mb-4 max-w-2xl mx-auto w-full slide d3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
 
-          {/* Last trade */}
           <div className="bg-white rounded-2xl p-4 border" style={{ borderColor: C.g200 }}>
             <div className="flex items-center gap-2 mb-3">
               <Clock size={14} style={{ color: C.gold }} />
@@ -143,7 +143,6 @@ export default function Home({ user }) {
             </Link>
           </div>
 
-          {/* Account status */}
           <div className="bg-white rounded-2xl p-4 border" style={{ borderColor: C.g200 }}>
             <div className="flex items-center gap-2 mb-3">
               <Shield size={14} style={{ color: C.green }} />
@@ -165,17 +164,17 @@ export default function Home({ user }) {
       </div>
 
       {/* ── SHORTCUT LINKS ── */}
-      <div className="px-4 mb-4 max-w-2xl mx-auto">
-        <p className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: C.g500 }}>My Account</p>
+      <div className="px-3 mb-4 max-w-2xl mx-auto w-full">
+        <p className="text-xs font-black uppercase tracking-widest mb-2.5" style={{ color: C.g500 }}>My Account</p>
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: C.g200 }}>
           {[
-            { icon: BarChart2, label: 'My Trades',    sub: 'View all trade history',   to: '/my-trades'    },
-            { icon: Wallet,    label: 'My Wallet',    sub: 'Balance & transactions',   to: '/wallet'       },
-            { icon: Star,      label: 'My Listings',  sub: 'Manage your offers',       to: '/my-listings'  },
-            { icon: Bell,      label: 'Notifications',sub: 'Alerts & updates',         to: '/settings'     },
+            { icon: BarChart2, label: 'My Trades',     sub: 'View all trade history',  to: '/my-trades'   },
+            { icon: Wallet,    label: 'My Wallet',     sub: 'Balance & transactions',  to: '/wallet'      },
+            { icon: Star,      label: 'My Listings',   sub: 'Manage your offers',      to: '/my-listings' },
+            { icon: Bell,      label: 'Notifications', sub: 'Alerts & updates',        to: '/settings'    },
           ].map(({ icon: Icon, label, sub, to }, i, arr) => (
             <Link key={label} to={to}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition"
               style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.g100}` : 'none' }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: C.mist }}>
@@ -192,7 +191,7 @@ export default function Home({ user }) {
       </div>
 
       {/* ── FOOTER ── */}
-      <div className="px-4 pb-2 max-w-2xl mx-auto text-center">
+      <div className="px-3 pb-2 max-w-2xl mx-auto text-center">
         <p className="text-xs font-black mb-1">
           <span style={{ color: C.forest }}>PRA</span><span style={{ color: C.gold }}>QEN</span>
           <span className="ml-1.5 px-1.5 py-0.5 rounded-full font-black text-xs"

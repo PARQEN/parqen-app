@@ -54,17 +54,17 @@ function Ticker() {
   }, []);
   const t = LIVE[i];
   return (
-    <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs max-w-full overflow-hidden"
+    <div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl text-xs w-full"
       style={{background:'rgba(255,255,255,0.09)',border:'1px solid rgba(255,255,255,0.15)'}}>
       <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{background:C.online}}/>
       <span className="font-bold flex-shrink-0" style={{color:'rgba(255,255,255,0.45)'}}>Live</span>
       <div className="w-6 h-6 rounded-full flex items-center justify-center font-black text-xs text-white flex-shrink-0"
         style={{background:C.green}}>{t.user[0]}</div>
-      <span className="font-black text-white flex-shrink-0">{t.user}</span>
-      <span className="hidden sm:inline truncate" style={{color:'rgba(255,255,255,0.45)'}}>
+      <span className="font-black text-white truncate flex-1 min-w-0">{t.user}</span>
+      <span className="hidden sm:inline truncate flex-shrink-0" style={{color:'rgba(255,255,255,0.45)'}}>
         {t.flag} {t.type==='buy'?'bought':'sold'} via {t.method}
       </span>
-      <span className="font-black ml-auto flex-shrink-0"
+      <span className="font-black flex-shrink-0"
         style={{color:t.type==='buy'?C.gold:C.sage}}>{t.amount}</span>
     </div>
   );
@@ -109,19 +109,22 @@ export default function LandingPage({ user }) {
   const goTo = path => navigate(path);
 
   return (
-    <div className="overflow-x-hidden" style={{fontFamily:"'DM Sans',sans-serif",background:'#fff'}}>
+    <div className="overflow-x-hidden" style={{fontFamily:"'DM Sans',sans-serif",background:'#fff',maxWidth:'100vw'}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
       <style>{`
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { overscroll-behavior-y: none; }
         @keyframes slideUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
         @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.6}}
         .anim-up{animation:slideUp .6s ease both}
         .anim-fade{animation:fadeIn .7s ease both}
         .float{animation:float 5s ease-in-out infinite}
         .float2{animation:float 7s ease-in-out infinite;animation-delay:1.5s}
-        .card-up{transition:transform .22s,box-shadow .22s}
-        .card-up:hover{transform:translateY(-5px);box-shadow:0 18px 45px rgba(0,0,0,.11)}
+        .card-up{transition:transform .22s,box-shadow .22s;-webkit-tap-highlight-color:transparent}
+        @media(hover:hover){.card-up:hover{transform:translateY(-5px);box-shadow:0 18px 45px rgba(0,0,0,.11)}}
+        .card-up:active{transform:scale(.97)}
         .grad-text{background:linear-gradient(90deg,${C.gold},${C.amber});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .green-text{background:linear-gradient(90deg,${C.sage},${C.mint});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .step-line{position:absolute;top:32px;left:calc(50% + 38px);width:calc(100% - 76px);height:2px;background:linear-gradient(90deg,${C.gold}60,transparent);z-index:0}
@@ -136,11 +139,11 @@ export default function LandingPage({ user }) {
         {/* grid bg */}
         <div className="absolute inset-0 pointer-events-none"
           style={{backgroundImage:'linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px)',backgroundSize:'52px 52px'}}/>
-        {/* glow orbs */}
+        {/* glow orbs — capped so they don't exceed viewport width */}
         <div className="absolute top-0 right-0 rounded-full blur-3xl pointer-events-none"
-          style={{width:480,height:480,background:C.gold,opacity:.07}}/>
+          style={{width:'min(480px,60vw)',height:'min(480px,60vw)',background:C.gold,opacity:.07}}/>
         <div className="absolute bottom-0 left-0 rounded-full blur-3xl pointer-events-none"
-          style={{width:340,height:340,background:C.mint,opacity:.09}}/>
+          style={{width:'min(340px,50vw)',height:'min(340px,50vw)',background:C.mint,opacity:.09}}/>
 
         <div className="relative max-w-7xl mx-auto px-4 pt-6 pb-10 md:py-24 w-full">
           <div className="grid md:grid-cols-2 gap-8 lg:gap-20 items-center">
@@ -155,20 +158,20 @@ export default function LandingPage({ user }) {
               </div>
 
               {/* headline */}
-              <h1 className={`text-[1.75rem] sm:text-5xl lg:text-6xl font-black leading-[1.08] mb-4 text-white ${heroOn?'anim-up':''}`}
+              <h1 className={`text-[1.6rem] sm:text-5xl lg:text-6xl font-black leading-[1.1] mb-4 text-white ${heroOn?'anim-up':''}`}
                 style={{opacity:heroOn?1:0,fontFamily:"'Syne',sans-serif",animationDelay:'.1s'}}>
                 The Safest Way to<br/>
                 <span className="grad-text">Buy &amp; Sell Bitcoin</span><br/>
-                <span style={{fontSize:'60%',fontWeight:700,color:'rgba(255,255,255,.65)'}}>
+                <span className="text-sm sm:text-xl font-bold" style={{color:'rgba(255,255,255,.65)'}}>
                   Peer-to-Peer · Africa &amp; Beyond
                 </span>
               </h1>
 
               {/* sub */}
-              <p className={`text-base md:text-lg mb-8 leading-relaxed max-w-lg ${heroOn?'anim-up':''}`}
+              <p className={`text-sm md:text-base mb-7 leading-relaxed max-w-lg ${heroOn?'anim-up':''}`}
                 style={{opacity:heroOn?1:0,color:'rgba(255,255,255,.62)',animationDelay:'.18s'}}>
                 Trade Bitcoin directly with verified sellers using MTN MoMo, M-Pesa, Bank Transfer
-                and 50+ local payment methods. Every trade is escrow-protected — your money is never at risk.
+                and 50+ local payment methods. Every trade is escrow-protected.
               </p>
 
               {/* CTAs */}
@@ -204,10 +207,10 @@ export default function LandingPage({ user }) {
               </div>
 
               {/* trust row */}
-              <div className={`flex flex-wrap gap-3 mb-6 ${heroOn?'anim-up':''}`}
+              <div className={`flex flex-wrap gap-2 mb-5 ${heroOn?'anim-up':''}`}
                 style={{opacity:heroOn?1:0,animationDelay:'.34s'}}>
-                {['🔒 Escrow','⚡ Under 15 min','💸 0.5% fee','🌍 180+ countries'].map(t=>(
-                  <span key={t} className="text-xs px-2.5 py-1 rounded-full" style={{color:'rgba(255,255,255,.7)',background:'rgba(255,255,255,.08)'}}>{t}</span>
+                {['🔒 Escrow','⚡ 15 min','💸 0.5%','🌍 180+ countries'].map(t=>(
+                  <span key={t} className="text-xs px-2.5 py-1 rounded-full flex-shrink-0" style={{color:'rgba(255,255,255,.75)',background:'rgba(255,255,255,.1)'}}>{t}</span>
                 ))}
               </div>
 
@@ -429,7 +432,7 @@ export default function LandingPage({ user }) {
               Trade Bitcoin in 4 Easy Steps
             </h2>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative">
             {[
               {n:'01',icon:'🔐',title:'Create Account',  desc:'Sign up free in 30 seconds. Email verified. No bank account needed to get started.'},
               {n:'02',icon:'🔍',title:'Browse Offers',   desc:'Filter by payment method, country, currency and rate. Thousands of verified sellers live.'},
@@ -635,7 +638,7 @@ export default function LandingPage({ user }) {
             </p>
           </div>
 
-          <div className={`grid grid-cols-4 sm:grid-cols-6 gap-3 md:gap-4 mb-8 md:mb-10 ${countriesOn?'anim-up':''}`}
+          <div className={`grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-8 md:mb-10 ${countriesOn?'anim-up':''}`}
             style={{opacity:countriesOn?1:0,animationDelay:'.1s'}}>
             {[
               {flag:'🇬🇭',name:'Ghana'},    {flag:'🇳🇬',name:'Nigeria'},
@@ -732,7 +735,7 @@ export default function LandingPage({ user }) {
         <div className="absolute inset-0 pointer-events-none"
           style={{backgroundImage:'radial-gradient(circle at 2px 2px,rgba(255,255,255,.05) 1px,transparent 0)',backgroundSize:'26px 26px'}}/>
         <div className="absolute right-0 top-0 rounded-full blur-3xl pointer-events-none"
-          style={{width:400,height:400,background:C.gold,opacity:.07}}/>
+          style={{width:'min(400px,60vw)',height:'min(400px,60vw)',background:C.gold,opacity:.07}}/>
         <div className="relative max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-6"
             style={{background:`${C.gold}20`,color:C.gold,border:`1px solid ${C.gold}30`}}>

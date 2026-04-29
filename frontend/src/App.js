@@ -1,41 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { RatesProvider } from './contexts/RatesContext';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-// Pages
-import GiftCardMarketplace from './pages/GiftCardMarketplace';
-import Home from './pages/Home';
-import LandingPage from './pages/LandingPage';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import CreateListing from './pages/CreateListing';
-import CreateOffer from './pages/CreateOffer';
-import ListingDetail from './pages/ListingDetail';
-import MyTrades from './pages/MyTrades';
-import TradeDetail from './pages/TradeDetail';
-import Profile from './pages/Profile';
-import AdminDashboard from './pages/AdminDashboard';
-import ModeratorDashboard from './pages/ModeratorDashboard';
-import EscrowVerification from './pages/EscrowVerification';
-import WalletPage from './pages/Wallet';
-import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
-import MyListings from './pages/MyListings';
-import EditListing from './pages/EditListing';
-import ForgotPassword from './pages/ForgotPassword';
-import Feedback from './pages/Feedback';
-import TradeChat from './pages/TradeChat';
-import BuyBitcoin from './pages/BuyBitcoin';
-import SellBitcoin from './pages/SellBitcoin';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
-import SellGiftCardMarketplace from './pages/SellGiftCardMarketplace';
-import VerifyOTP from './pages/VerifyOTP';  // ✅ ADDED OTP PAGE
-import ResetPassword from './pages/ResetPassword';  // ✅ ADDED RESET PASSWORD PAGE
-import EmailConfirmation from './pages/EmailConfirmation';  // ✅ EMAIL CONFIRMATION PAGE
+
+// Lazy-loaded pages — each becomes its own JS chunk
+const GiftCardMarketplace   = lazy(() => import('./pages/GiftCardMarketplace'));
+const Home                  = lazy(() => import('./pages/Home'));
+const LandingPage           = lazy(() => import('./pages/LandingPage'));
+const Register              = lazy(() => import('./pages/Register'));
+const Login                 = lazy(() => import('./pages/Login'));
+const CreateListing         = lazy(() => import('./pages/CreateListing'));
+const CreateOffer           = lazy(() => import('./pages/CreateOffer'));
+const ListingDetail         = lazy(() => import('./pages/ListingDetail'));
+const MyTrades              = lazy(() => import('./pages/MyTrades'));
+const TradeDetail           = lazy(() => import('./pages/TradeDetail'));
+const Profile               = lazy(() => import('./pages/Profile'));
+const AdminDashboard        = lazy(() => import('./pages/AdminDashboard'));
+const ModeratorDashboard    = lazy(() => import('./pages/ModeratorDashboard'));
+const EscrowVerification    = lazy(() => import('./pages/EscrowVerification'));
+const WalletPage            = lazy(() => import('./pages/Wallet'));
+const Dashboard             = lazy(() => import('./pages/Dashboard'));
+const Settings              = lazy(() => import('./pages/Settings'));
+const MyListings            = lazy(() => import('./pages/MyListings'));
+const EditListing           = lazy(() => import('./pages/EditListing'));
+const ForgotPassword        = lazy(() => import('./pages/ForgotPassword'));
+const Feedback              = lazy(() => import('./pages/Feedback'));
+const TradeChat             = lazy(() => import('./pages/TradeChat'));
+const BuyBitcoin            = lazy(() => import('./pages/BuyBitcoin'));
+const SellBitcoin           = lazy(() => import('./pages/SellBitcoin'));
+const SellGiftCardMarketplace = lazy(() => import('./pages/SellGiftCardMarketplace'));
+const VerifyOTP             = lazy(() => import('./pages/VerifyOTP'));
+const ResetPassword         = lazy(() => import('./pages/ResetPassword'));
+const EmailConfirmation     = lazy(() => import('./pages/EmailConfirmation'));
+
+function PageLoader() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(145deg,#1B4332 0%,#0c2418 50%,#2D6A4F 100%)',
+      zIndex: 9998,
+    }}>
+      <div style={{
+        width: 56, height: 56, background: '#F4A422', borderRadius: 18,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 28, fontWeight: 900, color: '#1B4332',
+        fontFamily: 'Georgia,serif', marginBottom: 14,
+        animation: 'prq-pulse 1.6s ease-in-out infinite',
+        boxShadow: '0 0 30px rgba(244,164,34,0.4)',
+      }}>P</div>
+      <p style={{ color: '#fff', fontSize: 15, fontWeight: 800, letterSpacing: 3, fontFamily: 'Georgia,serif', margin: 0 }}>
+        PRAQEN
+      </p>
+      <style>{`@keyframes prq-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}`}</style>
+    </div>
+  );
+}
 
 
 // API Base URL
@@ -82,17 +106,18 @@ function App() {
     try {
       const response = await axios.get(`${API_URL}/users/profile`);
       const userData = response.data.user;
-      
       setUser(userData);
-      
-      // Keep localStorage in sync
       localStorage.setItem('user', JSON.stringify(userData));
-      
-      // Fire event so all components (Navbar, etc) sync
       window.dispatchEvent(new Event('userUpdated'));
     } catch (error) {
-      console.error('Failed to load profile:', error);
-      logout();
+      if (error.response?.status === 401) {
+        // Token is invalid or expired — log out
+        logout();
+      } else {
+        // Network/server error — stay logged in using cached data
+        const cached = JSON.parse(localStorage.getItem('user') || 'null');
+        if (cached) setUser(cached);
+      }
     } finally {
       setLoading(false);
     }
@@ -154,23 +179,15 @@ function App() {
     toast.info('Logged out');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading PRAQEN...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
     <RatesProvider>
     <Router>
       <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
         <Navbar user={user} onLogout={logout} />
-        
+
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* HOME ROUTE */}
           <Route path="/" element={<LandingPage user={user} />} />
@@ -228,6 +245,7 @@ function App() {
           {/* Catch all - redirect to home */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+        </Suspense>
 
         <BottomNav user={user} />
         <ToastContainer position="bottom-right" autoClose={3000} />

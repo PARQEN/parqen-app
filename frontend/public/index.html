@@ -3,15 +3,109 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="PRAQEN - Honest P2P Gift Card to Bitcoin Trading Platform"
-    />
-    <title>🎁 PRAQEN - Honest P2P Trading</title>
+    <meta name="theme-color" content="#1B4332" />
+    <meta name="description" content="PRAQEN - Africa's #1 P2P Bitcoin & Gift Card Trading Platform. Escrow-protected, 0.5% flat fee, 180+ countries." />
+    <title>PRAQEN - Buy & Sell Bitcoin P2P</title>
+    <style>
+      #praqen-loader {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(145deg, #1B4332 0%, #0c2418 50%, #2D6A4F 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.45s ease-out;
+      }
+      #praqen-loader .logo-box {
+        width: 84px; height: 84px;
+        background: #F4A422;
+        border-radius: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 42px;
+        font-weight: 900;
+        color: #1B4332;
+        font-family: Georgia, serif;
+        margin-bottom: 18px;
+        animation: prq-pulse 1.6s ease-in-out infinite;
+        box-shadow: 0 0 40px rgba(244,164,34,0.4);
+      }
+      #praqen-loader .logo-name {
+        color: #fff;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 4px;
+        font-family: Georgia, serif;
+        margin-bottom: 6px;
+      }
+      #praqen-loader .logo-sub {
+        color: rgba(255,255,255,0.45);
+        font-size: 11px;
+        letter-spacing: 1px;
+        font-family: Arial, sans-serif;
+        margin-bottom: 28px;
+      }
+      #praqen-loader .bar-track {
+        width: 48px; height: 3px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      #praqen-loader .bar-fill {
+        height: 100%;
+        background: #F4A422;
+        border-radius: 99px;
+        animation: prq-slide 1.3s ease-in-out infinite;
+      }
+      @keyframes prq-pulse {
+        0%,100% { transform: scale(1);   box-shadow: 0 0 30px rgba(244,164,34,0.35); }
+        50%      { transform: scale(1.06); box-shadow: 0 0 50px rgba(244,164,34,0.55); }
+      }
+      @keyframes prq-slide {
+        0%   { width: 0%;   margin-left: 0%; }
+        50%  { width: 60%;  margin-left: 20%; }
+        100% { width: 0%;   margin-left: 100%; }
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <!-- PRAQEN Splash Loader — hidden once React mounts -->
+    <div id="praqen-loader">
+      <div class="logo-box">P</div>
+      <p class="logo-name">PRAQEN</p>
+      <p class="logo-sub">P2P BITCOIN TRADING</p>
+      <div class="bar-track">
+        <div class="bar-fill"></div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        function hideLoader() {
+          var el = document.getElementById('praqen-loader');
+          if (!el) return;
+          el.style.opacity = '0';
+          el.style.pointerEvents = 'none';
+          setTimeout(function () { el.style.display = 'none'; }, 460);
+        }
+        // Hide after React renders (observed via MutationObserver on #root)
+        var observer = new MutationObserver(function () {
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            observer.disconnect();
+            setTimeout(hideLoader, 300);
+          }
+        });
+        observer.observe(document.getElementById('root'), { childList: true });
+        // Fallback: hide after 4 s no matter what
+        setTimeout(hideLoader, 4000);
+      })();
+    </script>
   </body>
 </html>

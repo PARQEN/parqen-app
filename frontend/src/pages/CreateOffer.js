@@ -408,74 +408,89 @@ export default function CreateOffer() {
     } finally { setSubmitting(false); }
   };
 
-  // ── Payment method dropdown ───────────────────────────────────────────────
+  // ── Payment method dropdown — fixed bottom sheet on mobile ───────────────
   const PayDropdown = () => {
     const cats = [...new Set(localMethods.map(m => m.cat))];
     return (
-      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-        style={{ borderColor: C.g200, maxHeight: 340 }}>
-        {/* Search */}
-        <div className="p-2.5 border-b sticky top-0 bg-white" style={{ borderColor: C.g100 }}>
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: C.g400 }} />
-            <input autoFocus type="text" value={paySearch} onChange={e => setPaySearch(e.target.value)}
-              placeholder="Search payment method…"
-              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border focus:outline-none"
-              style={{ borderColor: C.g200 }} />
+      <>
+        {/* Backdrop */}
+        <div className="fixed inset-0 z-40" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          onClick={() => { setShowPayMenu(false); setPaySearch(''); }} />
+        {/* Bottom sheet */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col"
+          style={{ maxHeight: '72vh', animation: 'slideUp .22s ease' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+            <p className="font-black text-sm" style={{ color: C.g800 }}>Select Payment Method</p>
+            <button onClick={() => { setShowPayMenu(false); setPaySearch(''); }}
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: C.g100 }}>
+              <X size={15} style={{ color: C.g500 }} />
+            </button>
+          </div>
+          {/* Search — 16px font, no autoFocus */}
+          <div className="px-3 pb-2 border-b flex-shrink-0" style={{ borderColor: C.g100 }}>
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: C.g400 }} />
+              <input type="text" value={paySearch} onChange={e => setPaySearch(e.target.value)}
+                placeholder="Search payment method…"
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl border focus:outline-none font-semibold"
+                style={{ borderColor: C.g200, fontSize: '16px' }} />
+            </div>
+          </div>
+          {/* Scrollable list */}
+          <div className="overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {localMethods.length > 0 && (
+              <div>
+                <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
+                  style={{ color: C.g400 }}>
+                  {curr?.flag} Available in {curr?.name}
+                </p>
+                {cats.map(cat => {
+                  const items = localMethods.filter(m => m.cat === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat}>
+                      <p className="px-3 py-1 text-xs font-bold uppercase"
+                        style={{ color: CAT_COLORS[cat] || C.g500 }}>{cat}</p>
+                      {items.map(m => (
+                        <button key={m.id}
+                          onClick={() => { setPayMethod(m.id); setShowPayMenu(false); setPaySearch(''); }}
+                          className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-100 transition"
+                          style={{ backgroundColor: payMethod === m.id ? `${C.green}08` : undefined }}>
+                          <span className="text-xl w-7 text-center flex-shrink-0">{m.icon}</span>
+                          <span className="text-sm font-semibold flex-1" style={{ color: C.g800 }}>{m.name}</span>
+                          {payMethod === m.id && <Check size={14} style={{ color: C.green }} />}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {otherMethods.length > 0 && (
+              <div>
+                <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
+                  style={{ color: C.g400 }}>Other Methods</p>
+                {otherMethods.map(m => (
+                  <button key={m.id}
+                    onClick={() => { setPayMethod(m.id); setShowPayMenu(false); setPaySearch(''); }}
+                    className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-100 transition">
+                    <span className="text-xl w-7 text-center flex-shrink-0">{m.icon}</span>
+                    <span className="text-sm font-semibold flex-1" style={{ color: C.g800 }}>{m.name}</span>
+                    <span className="text-xs" style={{ color: C.g400 }}>{m.cat}</span>
+                    {payMethod === m.id && <Check size={14} style={{ color: C.green }} />}
+                  </button>
+                ))}
+              </div>
+            )}
+            {localMethods.length === 0 && otherMethods.length === 0 && (
+              <p className="text-center text-sm py-8" style={{ color: C.g400 }}>No methods found</p>
+            )}
+            <div style={{ height: 'max(env(safe-area-inset-bottom), 20px)' }} />
           </div>
         </div>
-        <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
-          {/* Country-specific methods */}
-          {localMethods.length > 0 && (
-            <div>
-              <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
-                style={{ color: C.g400 }}>
-                {curr?.flag} Available in {curr?.name}
-              </p>
-              {cats.map(cat => {
-                const items = localMethods.filter(m => m.cat === cat);
-                if (!items.length) return null;
-                return (
-                  <div key={cat}>
-                    <p className="px-3 py-1 text-xs font-bold uppercase"
-                      style={{ color: CAT_COLORS[cat] || C.g500 }}>
-                      {cat}
-                    </p>
-                    {items.map(m => (
-                      <button key={m.id} onClick={() => { setPayMethod(m.id); setShowPayMenu(false); setPaySearch(''); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition"
-                        style={{ backgroundColor: payMethod === m.id ? `${C.green}08` : undefined }}>
-                        <span className="text-base w-5 text-center flex-shrink-0">{m.icon}</span>
-                        <span className="text-xs font-semibold flex-1" style={{ color: C.g800 }}>{m.name}</span>
-                        {payMethod === m.id && <Check size={12} style={{ color: C.green }} />}
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {/* Other / global methods shown when searching */}
-          {otherMethods.length > 0 && (
-            <div>
-              <p className="px-3 pt-2 pb-1 text-xs font-black uppercase tracking-widest"
-                style={{ color: C.g400 }}>Other Methods</p>
-              {otherMethods.map(m => (
-                <button key={m.id} onClick={() => { setPayMethod(m.id); setShowPayMenu(false); setPaySearch(''); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-50 transition">
-                  <span className="text-base w-5 text-center flex-shrink-0">{m.icon}</span>
-                  <span className="text-xs font-semibold flex-1" style={{ color: C.g800 }}>{m.name}</span>
-                  <span className="text-xs" style={{ color: C.g400 }}>{m.cat}</span>
-                  {payMethod === m.id && <Check size={12} style={{ color: C.green }} />}
-                </button>
-              ))}
-            </div>
-          )}
-          {localMethods.length === 0 && otherMethods.length === 0 && (
-            <p className="text-center text-xs py-6" style={{ color: C.g400 }}>No methods found</p>
-          )}
-        </div>
-      </div>
+      </>
     );
   };
 
@@ -611,6 +626,11 @@ export default function CreateOffer() {
   return (
     <div className="min-h-screen py-4 px-3" style={{ backgroundColor: C.mist, fontFamily: "'DM Sans',sans-serif", overflowX:'hidden', width:'100%', boxSizing:'border-box' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+        * { -webkit-tap-highlight-color: transparent; }
+        input, select, textarea { font-size: 16px !important; }
+      `}</style>
 
       <div className="max-w-2xl mx-auto" style={{ width:'100%', boxSizing:'border-box' }}>
 
@@ -649,8 +669,8 @@ export default function CreateOffer() {
                     }}>
                     {done ? <Check size={15} /> : <Icon size={15} />}
                   </div>
-                  <p className="text-xs mt-0.5 font-black hidden sm:block text-center"
-                    style={{ color: active ? C.green : done ? C.success : C.g400 }}>
+                  <p className="mt-0.5 font-black text-center"
+                    style={{ color: active ? C.green : done ? C.success : C.g400, fontSize: '9px' }}>
                     {s.label}
                   </p>
                 </div>
@@ -1030,43 +1050,45 @@ export default function CreateOffer() {
                     </p>
 
                     <button onClick={() => setShowPayMenu(!showPayMenu)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition"
+                      className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border-2 text-left transition"
                       style={{
                         borderColor: payMethod ? C.green : C.g200,
                         backgroundColor: payMethod ? `${C.green}05` : C.white,
+                        minHeight: 60,
                       }}>
                       {selectedPay ? (
                         <>
-                          <span className="text-xl">{selectedPay.icon}</span>
+                          <span className="text-2xl flex-shrink-0">{selectedPay.icon}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold" style={{ color: C.g800 }}>{selectedPay.name}</p>
-                            <p className="text-xs" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
+                            <p className="text-base font-bold" style={{ color: C.g800 }}>{selectedPay.name}</p>
+                            <p className="text-xs mt-0.5" style={{ color: CAT_COLORS[selectedPay.cat] || C.g400 }}>
                               {selectedPay.cat}
                             </p>
                           </div>
                           <button onClick={e => { e.stopPropagation(); setPayMethod(''); }}
-                            className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-gray-100 flex-shrink-0">
-                            <X size={11} style={{ color: C.g400 }} />
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: C.g100 }}>
+                            <X size={13} style={{ color: C.g400 }} />
                           </button>
                         </>
                       ) : (
                         <>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                             style={{ backgroundColor: C.g100 }}>
-                            <DollarSign size={15} style={{ color: C.g400 }} />
+                            <DollarSign size={18} style={{ color: C.g400 }} />
                           </div>
-                          <span className="flex-1 text-sm" style={{ color: C.g400 }}>Select payment method…</span>
-                          <ChevronDown size={15} style={{ color: C.g400 }} />
+                          <span className="flex-1 text-sm font-semibold" style={{ color: C.g400 }}>Tap to select payment method…</span>
+                          <ChevronDown size={18} style={{ color: C.g400 }} />
                         </>
                       )}
                     </button>
                     {showPayMenu && <PayDropdown />}
 
                     {/* Category legend */}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    <div className="flex flex-wrap gap-1.5 mt-2" style={{ rowGap: 6 }}>
                       {Object.entries(CAT_COLORS).map(([cat, color]) => (
-                        <span key={cat} className="text-xs font-bold px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: `${color}15`, color }}>
+                        <span key={cat} className="font-bold px-2 py-1 rounded-full"
+                          style={{ backgroundColor: `${color}15`, color, fontSize: '10px' }}>
                           {cat}
                         </span>
                       ))}

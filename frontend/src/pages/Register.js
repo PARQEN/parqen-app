@@ -121,10 +121,11 @@ function Input({ icon:Icon, rightIcon, type='text', error, ...props }) {
     <div className="relative">
       {Icon && <Icon size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}/>}
       <input type={type} {...props}
-        className="w-full py-3 text-sm border-2 rounded-xl focus:outline-none transition-all"
+        className="w-full py-3 border-2 rounded-xl focus:outline-none transition-all"
         style={{
           paddingLeft: Icon ? 40 : 16,
           paddingRight: rightIcon ? 44 : 16,
+          fontSize: 16,
           borderColor: error ? C.danger : props.value ? C.green : C.g200,
           color: C.g800,
           backgroundColor: C.white,
@@ -357,6 +358,10 @@ export default function Register({ onLogin }) {
         .fade{animation:fadeIn .3s ease}
         input:focus{outline:none;}
         button:focus{outline:none;}
+        * { -webkit-tap-highlight-color: transparent; }
+        button, a { touch-action: manipulation; }
+        input, select, textarea { font-size: 16px !important; }
+        html, body { overscroll-behavior: none; }
       `}</style>
 
       {/* ── Desktop left branding panel (lg+ only) ── */}
@@ -412,15 +417,18 @@ export default function Register({ onLogin }) {
           <div className="absolute top-0 right-0 w-44 h-44 rounded-full opacity-20 blur-3xl pointer-events-none"
             style={{ backgroundColor:C.gold }}/>
           <div className="relative">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-base"
-                style={{ backgroundColor:C.gold, color:C.forest }}>P</div>
-              <span className="text-white font-black text-xl" style={{ fontFamily:"'Syne',sans-serif" }}>PRAQEN</span>
-            </div>
             <h1 className="text-2xl font-black text-white mb-1" style={{ fontFamily:"'Syne',sans-serif" }}>
               {heroTitle}
             </h1>
-            <p className="text-white/70 text-sm">{heroSub}</p>
+            <p className="text-white/70 text-sm mb-3">{heroSub}</p>
+            <div className="flex gap-2 flex-wrap">
+              {[['🔒','Escrow'],['⚡','Fast'],['🌍','Global'],['💸','0.5% Fee']].map(([icon,label]) => (
+                <div key={label} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor:'rgba(255,255,255,0.15)' }}>
+                  <span className="text-sm">{icon}</span>{label}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -761,21 +769,28 @@ export default function Register({ onLogin }) {
 
             {/* Card footer */}
             {step !== 4 && step !== 'f4' && (
-              <div className="px-5 md:px-7 py-3.5 border-t flex items-center justify-between"
-                style={{ borderColor:C.g100, backgroundColor:C.g50 }}>
-                <div className="flex items-center gap-1.5 text-xs" style={{ color:C.g400 }}>
-                  <Shield size={11}/> 256-bit SSL encrypted
+              <div className="px-5 md:px-7 py-3.5 border-t" style={{ borderColor:C.g100, backgroundColor:C.g50 }}>
+                <p className="text-center font-bold mb-1" style={{ fontSize:11, color:C.forest }}>
+                  🏆 Africa's #1 P2P Bitcoin Platform
+                </p>
+                <p className="text-center mb-2.5" style={{ fontSize:10, color:C.g500, lineHeight:1.5 }}>
+                  Escrow on every trade · 0.5% flat fee · 180+ countries · 2.4M+ traders
+                </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1" style={{ fontSize:10, color:C.g400 }}>
+                    <Shield size={10}/> 256-bit SSL · Zero fraud guarantee
+                  </div>
+                  {mode === 'register' && step === 1 && (
+                    <button onClick={startForgot} className="text-xs font-bold hover:underline" style={{ color:C.green }}>
+                      Forgot password?
+                    </button>
+                  )}
+                  {mode === 'forgot' && (
+                    <button onClick={backToRegister} className="text-xs font-bold hover:underline" style={{ color:C.g500 }}>
+                      ← Register instead
+                    </button>
+                  )}
                 </div>
-                {mode === 'register' && step === 1 && (
-                  <button onClick={startForgot} className="text-xs font-bold hover:underline" style={{ color:C.green }}>
-                    Forgot password?
-                  </button>
-                )}
-                {mode === 'forgot' && (
-                  <button onClick={backToRegister} className="text-xs font-bold hover:underline" style={{ color:C.g500 }}>
-                    ← Register instead
-                  </button>
-                )}
               </div>
             )}
           </div>

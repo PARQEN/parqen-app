@@ -131,6 +131,10 @@ export default function Login({ onLogin }) {
         .slide{animation:slideUp .25s ease}
         input:focus{outline:none;}
         button:focus{outline:none;}
+        * { -webkit-tap-highlight-color: transparent; }
+        button, a { touch-action: manipulation; }
+        input, select, textarea { font-size: 16px !important; }
+        html, body { overscroll-behavior: none; }
 
         /* Desktop left panel — hidden on mobile, visible on lg+ */
         .login-left-panel { display: none; }
@@ -214,17 +218,20 @@ export default function Login({ onLogin }) {
               <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120,
                 borderRadius:'50%', backgroundColor:C.gold, opacity:0.25, filter:'blur(40px)' }}/>
               <div style={{ position:'relative' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
-                  <div style={{ width:36, height:36, borderRadius:10, backgroundColor:C.gold, color:C.forest,
-                    display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:16 }}>P</div>
-                  <span style={{ color:'white', fontWeight:900, fontSize:20, fontFamily:"'Syne',sans-serif" }}>PRAQEN</span>
-                </div>
                 <h1 style={{ color:'white', fontWeight:900, fontSize:26, fontFamily:"'Syne',sans-serif", margin:'0 0 4px' }}>
                   Welcome Back 👋
                 </h1>
-                <p style={{ color:'rgba(255,255,255,0.7)', fontSize:13, margin:0 }}>
+                <p style={{ color:'rgba(255,255,255,0.7)', fontSize:13, margin:'0 0 14px' }}>
                   Sign in to your P2P trading account
                 </p>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {[['🔒','Escrow'],['⚡','Fast'],['🌍','Global'],['💸','0.5% Fee']].map(([icon,label]) => (
+                    <div key={label} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px',
+                      borderRadius:20, backgroundColor:'rgba(255,255,255,0.15)', fontSize:11, fontWeight:700, color:'white' }}>
+                      <span style={{ fontSize:13 }}>{icon}</span>{label}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -295,7 +302,7 @@ export default function Login({ onLogin }) {
                         placeholder="you@example.com"
                         style={{
                           width:'100%', boxSizing:'border-box', paddingLeft:40, paddingRight:16, paddingTop:13, paddingBottom:13,
-                          fontSize:14, border:`2px solid ${error&&!email ? C.danger : email ? C.green : C.g200}`,
+                          fontSize:16, border:`2px solid ${error&&!email ? C.danger : email ? C.green : C.g200}`,
                           borderRadius:12, color:C.g800, backgroundColor:C.white, transition:'border-color 0.15s',
                         }}
                       />
@@ -316,7 +323,7 @@ export default function Login({ onLogin }) {
                         placeholder="••••••••"
                         style={{
                           width:'100%', boxSizing:'border-box', paddingLeft:40, paddingRight:44, paddingTop:13, paddingBottom:13,
-                          fontSize:14, border:`2px solid ${error&&!password ? C.danger : password ? C.green : C.g200}`,
+                          fontSize:16, border:`2px solid ${error&&!password ? C.danger : password ? C.green : C.g200}`,
                           borderRadius:12, color:C.g800, backgroundColor:C.white, transition:'border-color 0.15s',
                         }}
                       />
@@ -397,7 +404,7 @@ export default function Login({ onLogin }) {
                           placeholder="24 XXX XXXX"
                           style={{
                             width:'100%', boxSizing:'border-box', paddingLeft:40, paddingRight:16, paddingTop:13, paddingBottom:13,
-                            fontSize:14, border:`2px solid ${error&&!phone ? C.danger : phone ? C.green : C.g200}`,
+                            fontSize:16, border:`2px solid ${error&&!phone ? C.danger : phone ? C.green : C.g200}`,
                             borderRadius:12, color:C.g800, backgroundColor:C.white,
                           }}
                         />
@@ -465,35 +472,44 @@ export default function Login({ onLogin }) {
                 Create a Free Account
               </button>
 
-              {/* Trust pills */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                {[['🔒','Secure'],['⚡','Fast'],['🌍','Global']].map(([icon,label]) => (
-                  <div key={label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-                    padding:'10px 8px', borderRadius:12, backgroundColor:C.g50 }}>
-                    <span style={{ fontSize:18 }}>{icon}</span>
-                    <span style={{ fontSize:10, fontWeight:700, color:C.g600 }}>{label}</span>
-                  </div>
-                ))}
-              </div>
-
             </div>
 
             {/* Card footer */}
-            <div style={{ padding:'12px 24px', borderTop:`1px solid ${C.g100}`, backgroundColor:C.g50,
-              display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:C.g400 }}>
-                <Shield size={11}/> SSL Encrypted
+            <div style={{ padding:'14px 24px', borderTop:`1px solid ${C.g100}`, backgroundColor:C.g50 }}>
+              <p style={{ textAlign:'center', fontSize:11, fontWeight:700, color:C.forest, margin:'0 0 6px' }}>
+                🏆 Africa's #1 P2P Bitcoin Platform
+              </p>
+              <p style={{ textAlign:'center', fontSize:10, color:C.g500, margin:'0 0 10px', lineHeight:1.5 }}>
+                Escrow on every trade · 0.5% flat fee · 180+ countries · 2.4M+ traders
+              </p>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:C.g400 }}>
+                  <Shield size={10}/> 256-bit SSL · Zero fraud guarantee
+                </div>
+                <Link to="/register" style={{ fontSize:11, fontWeight:800, color:C.green, textDecoration:'none' }}>
+                  Sign up free →
+                </Link>
               </div>
-              <Link to="/register" style={{ fontSize:11, fontWeight:700, color:C.green, textDecoration:'none' }}>
-                New here? Sign up →
-              </Link>
             </div>
           </div>
 
-          <p style={{ textAlign:'center', fontSize:12, color:C.g500, marginTop:16 }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ fontWeight:900, color:C.green, textDecoration:'none' }}>Sign Up Free</Link>
-          </p>
+          <div style={{ margin:'14px 4px 0', padding:'14px 16px', borderRadius:18,
+            backgroundColor:'rgba(45,106,79,0.07)', border:'1px solid rgba(45,106,79,0.14)' }}>
+            <p style={{ textAlign:'center', fontSize:12, fontWeight:800, color:C.forest, margin:'0 0 3px' }}>
+              New to PRAQEN?
+            </p>
+            <p style={{ textAlign:'center', fontSize:11, color:C.g500, margin:'0 0 10px', lineHeight:1.5 }}>
+              Join thousands of traders buying & selling Bitcoin safely every day — no bank needed.
+            </p>
+            <Link to="/register" style={{
+              display:'block', textAlign:'center', padding:'10px', borderRadius:12,
+              background:`linear-gradient(135deg,${C.green},${C.mint})`,
+              fontSize:12, fontWeight:900, color:'white', textDecoration:'none',
+              boxShadow:'0 4px 14px rgba(45,106,79,0.3)',
+            }}>
+              Create a Free Account →
+            </Link>
+          </div>
         </div>
       </div>
 

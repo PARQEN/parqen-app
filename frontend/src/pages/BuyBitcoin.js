@@ -766,40 +766,38 @@ export default function BuyBitcoin({user}) {
 
       {/* ══ 2. TAB NAVIGATION ══════════════════════════════════ */}
       <div className="bg-white border-b sticky top-0 z-30 flex-shrink-0" style={{borderColor:C.g200}}>
-        <div className="max-w-7xl mx-auto px-3 overflow-x-auto" style={{WebkitOverflowScrolling:'touch'}}>
-          <div className="flex items-center min-w-max">
-            {[
-              {label:'Buy BTC',    path:'/buy-bitcoin',  active:true,  color:'#1B4332'},
-              {label:'Sell BTC',   path:'/sell-bitcoin', active:false, color:'#D97706'},
-              {label:'Gift Cards', path:'/gift-cards',   active:false, color:'#0D9488'},
-            ].map(tab=>(
-              <Link key={tab.path} to={tab.path}
-                className="px-3 sm:px-4 py-3 sm:py-3.5 text-sm font-black border-b-2 transition-all whitespace-nowrap"
-                style={{
-                  borderColor:     tab.active ? tab.color : 'transparent',
-                  color:           tab.active ? tab.color : C.g400,
-                  backgroundColor: tab.active ? tab.color+'18' : 'transparent',
-                }}>
-                {tab.label}
-              </Link>
-            ))}
-
-            <div className="ml-auto flex items-center gap-2 py-2 flex-shrink-0 pl-3">
-              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>
-                {sellerCount} seller{sellerCount!==1?'s':''}
-              </span>
-              <span style={{color:C.g300, fontSize:10}}>|</span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <span className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
-                          boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
-                <span className="text-xs font-semibold"
-                  style={{color: onlineCnt>0 ? C.online : C.g400}}>
-                  {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
-                </span>
-              </span>
-            </div>
-          </div>
+        {/* 3 equal tabs — always fits any phone */}
+        <div className="flex w-full">
+          {[
+            {label:'Buy BTC',    path:'/buy-bitcoin',  active:true,  color:'#1B4332'},
+            {label:'Sell BTC',   path:'/sell-bitcoin', active:false, color:'#D97706'},
+            {label:'Gift Cards', path:'/gift-cards',   active:false, color:'#0D9488'},
+          ].map(tab=>(
+            <Link key={tab.path} to={tab.path}
+              className="flex-1 text-center py-3 text-xs font-black border-b-2 transition-all"
+              style={{
+                borderColor:     tab.active ? tab.color : 'transparent',
+                color:           tab.active ? tab.color : C.g400,
+                backgroundColor: tab.active ? tab.color+'18' : 'transparent',
+              }}>
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+        {/* Stats row — always visible below tabs */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-t" style={{borderColor:C.g100, backgroundColor:C.g50}}>
+          <span className="text-xs font-semibold" style={{color:C.g400}}>
+            {sellerCount} seller{sellerCount!==1?'s':''}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
+                      boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
+            <span className="text-xs font-semibold"
+              style={{color: onlineCnt>0 ? C.online : C.g400}}>
+              {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
+            </span>
+          </span>
         </div>
       </div>
 
@@ -818,7 +816,7 @@ export default function BuyBitcoin({user}) {
                 onChange={e=>setBuyAmt(e.target.value)}
                 placeholder="e.g. 50"
                 className="flex-1 pl-3 pr-1 py-2.5 text-sm font-bold focus:outline-none bg-transparent min-w-0"
-                style={{color:C.g800, fontSize:'15px'}}/>
+                style={{color:C.g800, fontSize:'16px'}}/>
               <span className="pr-3 text-xs font-black flex-shrink-0" style={{color:C.g400}}>{cur}</span>
             </div>
           </div>
@@ -844,13 +842,13 @@ export default function BuyBitcoin({user}) {
                 </button>
                 {showCountry && (
                   <div className="absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                    style={{borderColor:C.g100,minWidth:'240px',right:'auto'}}>
+                    style={{borderColor:C.g100,minWidth:'240px',right:'auto',maxWidth:'calc(100vw - 24px)'}}>
                     {/* Search */}
                     <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
-                      <input autoFocus type="text" placeholder="🔍  Search country…"
+                      <input type="text" placeholder="🔍  Search country…"
                         value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs font-semibold rounded-xl border focus:outline-none"
-                        style={{borderColor:C.g200,color:C.g800}}/>
+                        className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                        style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
                     </div>
                     <div className="overflow-y-auto max-h-60">
                       {(() => {
@@ -934,8 +932,8 @@ export default function BuyBitcoin({user}) {
           <div className="flex items-center gap-2">
             <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
             <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-xs font-bold border-2 rounded-xl focus:outline-none"
-              style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200, color:C.g800}}>
+              className="flex-1 px-2.5 py-1.5 font-bold border-2 rounded-xl focus:outline-none"
+              style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200, color:C.g800, fontSize:'16px'}}>
               <option value="rate_low">Best Rate</option>
               <option value="rating">Top Rated</option>
               <option value="trades">Most Trades</option>

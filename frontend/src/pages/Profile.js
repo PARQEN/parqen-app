@@ -41,8 +41,17 @@ const BADGE_DEFS = [
     desc:'Account older than 1 year.', check:(u)=>u?.created_at&&(Date.now()-new Date(u.created_at))/(1000*60*60*24*365)>=1 },
 ];
 
-const FLAGS = {GH:'🇬🇭',NG:'🇳🇬',KE:'🇰🇪',ZA:'🇿🇦',UG:'🇺🇬',TZ:'🇹🇿',US:'🇺🇸',GB:'🇬🇧',EU:'🇪🇺',CM:'🇨🇲',SN:'🇸🇳'};
-const fmt    = (n,d=0)=>new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
+// FLAGS object for real country emoji flags
+const FLAGS = {
+  GH:'🇬🇭', NG:'🇳🇬', KE:'🇰🇪', ZA:'🇿🇦', UG:'🇺🇬', TZ:'🇹🇿', 
+  US:'🇺🇸', GB:'🇬🇧', EU:'🇪🇺', CM:'🇨🇲', SN:'🇸🇳', ZM:'🇿🇲', 
+  MZ:'🇲🇿', MW:'🇲🇼', RW:'🇷🇼', BI:'🇧🇮', DJ:'🇩🇯', ER:'🇪🇷',
+  ET:'🇪🇹', SO:'🇸🇴', SS:'🇸🇸', SD:'🇸🇩', TD:'🇹🇩', CF:'🇨🇫',
+  CD:'🇨🇩', CG:'🇨🇬', GA:'🇬🇦', GQ:'🇬🇶', AO:'🇦🇴', NA:'🇳🇦',
+  BW:'🇧🇼', ZW:'🇿🇼', LS:'🇱🇸', SZ:'🇸🇿'
+};
+
+const fmt = (n,d=0)=>new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:d}).format(n||0);
 const fmtAge = (d)=>{
   if(!d)return'Recently';
   const diff=Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
@@ -104,6 +113,22 @@ export default function Profile({userId:propUserId}){
   const [editing,setEditing]=useState(false); const [saving,setSaving]=useState(false);
   const [badges,setBadges]=useState([]);
   const [form,setForm]=useState({username:'',full_name:'',bio:'',location:'Ghana',website:''});
+  const [userCountry, setUserCountry] = useState('GH');
+
+  // Detect user country by IP
+  useEffect(() => {
+    const detectCountry = async () => {
+      try {
+        const response = await axios.get('https://ipapi.co/json/');
+        const countryCode = response.data.country_code || 'GH';
+        setUserCountry(countryCode.toUpperCase());
+      } catch (error) {
+        // Fallback to GH if detection fails
+        setUserCountry('GH');
+      }
+    };
+    detectCountry();
+  }, []);
 
   useEffect(()=>{
     if(!userId){const cu=JSON.parse(localStorage.getItem('user')||'{}');cu.id?navigate(`/profile/${cu.id}`):navigate('/login');return;}
@@ -124,14 +149,12 @@ export default function Profile({userId:propUserId}){
         setUser(r.data.user); setReviews(r.data.reviews||[]);
       }
 
-      // Check + fetch badges for own profile (triggers auto-award on backend)
       if (own) {
         const tk = localStorage.getItem('token');
         try {
           const badgeRes = await axios.post(`${API_URL}/users/check-badges`, {}, { headers: { Authorization: `Bearer ${tk}` } });
           setBadges(badgeRes.data.badges || []);
         } catch {
-          // Fallback: read directly from Supabase if backend call fails
           const { data: { user: currentUser } } = await supabase.auth.getUser();
           if (currentUser) {
             const { data: badgesData } = await supabase.from('user_badges').select('badge_name, is_unlocked').eq('user_id', currentUser.id);
@@ -169,7 +192,11 @@ export default function Profile({userId:propUserId}){
   if(loading)return(<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}><div className="w-12 h-12 border-4 rounded-full animate-spin" style={{borderColor:C.sage,borderTopColor:'transparent'}}/></div>);
   if(!user)return(<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}><div className="text-center"><p className="text-sm mb-4" style={{color:C.g500}}>Profile not found</p><button onClick={()=>navigate('/buy-bitcoin')} className="px-5 py-2 rounded-xl text-white font-bold" style={{backgroundColor:C.green}}>Go Home</button></div></div>);
 
-  const flag=FLAGS[user.country?.toUpperCase()]||'🌍';
+  // Country codes — uppercase for FLAGS lookup
+  const userCC  = (user.country||userCountry||'GH').toUpperCase().slice(0,2);
+  const phoneCC = (user.phone_country||user.country||userCountry||'GH').toUpperCase().slice(0,2);
+  const kycCC   = (user.kyc_country||user.country||userCountry||'GH').toUpperCase().slice(0,2);
+
   const score=calcTrust(user,reviews); const trust=trustLvl(score);
   const tierIdx=getTier(user); const tier=TIERS[tierIdx]; const nextTier=TIERS[tierIdx+1];
   const emailOk=!!(user.is_email_verified||user.email_verified);
@@ -190,124 +217,218 @@ export default function Profile({userId:propUserId}){
     ...(own?[{id:'settings',label:'Settings'}]:[]),
   ];
 
+  // Force Ghana flag for demonstration if user is from Ghana
+  const displayFlag = userCC === 'GH' ? '🇬🇭' : (FLAGS[userCC] || '🌍');
+
   return(
     <div className="min-h-screen pb-0" style={{backgroundColor:C.mist,fontFamily:"'DM Sans',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
 
-      {/* ── HERO BANNER ─────────────────────────────────────────────────── */}
-      <div className="relative" style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
-        <div className="absolute inset-0 opacity-5" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'24px 24px'}}/>
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 blur-3xl" style={{backgroundColor:C.gold}}/>
+      {/* ── PROFILE CARD ──────────────────────────────────────────────────── */}
+      <div className="pt-6 pb-0 px-4 sm:px-6 lg:px-8" style={{backgroundColor:C.mist}}>
+        <div className="max-w-5xl mx-auto">
+          <div className="rounded-3xl bg-white" style={{border:'4px solid #8B5CF6',boxShadow:'0 8px 40px rgba(139,92,246,0.18)'}}>
 
-        <div className="relative max-w-5xl mx-auto px-4 pt-8 pb-0">
-          <div className="flex flex-col md:flex-row md:items-end gap-5 pb-5">
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 rounded-2xl border-4 border-white shadow-xl overflow-hidden" style={{backgroundColor:C.gold}}>
-                {user.avatar_url
-                  ?<img src={user.avatar_url} alt="av" className="w-full h-full object-cover"/>
-                  :<div className="w-full h-full flex items-center justify-center font-black text-3xl" style={{color:C.forest}}>{user.username?.charAt(0)?.toUpperCase()||'?'}</div>}
+            {/* Row 1: Avatar + Verifications + Edit btn - Full width */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 px-5 py-5 lg:px-8 lg:py-6 border-b" style={{borderColor:C.g100}}>
+              
+              {/* Left: Avatar */}
+              <div className="flex items-center gap-4 flex-1">
+                <div className="relative flex-shrink-0">
+                  <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden shadow-lg" style={{backgroundColor:'#0f172a',border:'3px solid #E2E8F0'}}>
+                    {user.avatar_url
+                      ?<img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover"/>
+                      :<div className="w-full h-full flex items-center justify-center font-black text-3xl lg:text-4xl" style={{color:'#F4A422'}}>{user.username?.charAt(0)?.toUpperCase()||'?'}</div>}
+                  </div>
+                  {own&&(
+                    <button onClick={()=>fileRef.current?.click()} disabled={uploading}
+                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full shadow-md flex items-center justify-center" style={{backgroundColor:'white',border:'1.5px solid #E2E8F0'}}>
+                      {uploading?<RefreshCw size={12} className="animate-spin" style={{color:C.green}}/>:<Camera size={12} style={{color:C.green}}/>}
+                    </button>
+                  )}
+                  <input ref={fileRef} type="file" accept="image/*" onChange={upload} className="hidden"/>
+                </div>
+
+                {/* Username and basic info */}
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h1 className="text-2xl lg:text-3xl font-black" style={{color:'#111827',fontFamily:"'Syne',sans-serif"}}>
+                      {user.username} {displayFlag}
+                    </h1>
+                    <BadgeChip user={user}/>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="font-mono font-bold flex items-center gap-1" style={{color:'#6B7280'}}>
+                      ID: #{String(user.id||'').slice(0,8).toUpperCase()}
+                      <button onClick={()=>{navigator.clipboard.writeText(user.id||'');toast.success('ID copied!');}} className="hover:opacity-70"><Copy size={11}/></button>
+                    </span>
+                    <div className="flex items-center gap-1 font-bold" style={{color:'#6B7280'}}>
+                      <span>Location:</span>
+                      <ProfileFlag/>
+                    </div>
+                    {user.bio&&<p className="text-sm mt-1 lg:mt-0" style={{color:C.g500}}>{user.bio}</p>}
+                  </div>
+                </div>
               </div>
-              {own&&<button onClick={()=>fileRef.current?.click()} disabled={uploading}
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-white shadow-md flex items-center justify-center hover:scale-110 transition">
-                {uploading?<RefreshCw size={13} className="animate-spin" style={{color:C.green}}/>:<Camera size={13} style={{color:C.green}}/>}
-              </button>}
-              <input ref={fileRef} type="file" accept="image/*" onChange={upload} className="hidden"/>
+
+              {/* Right: Verification badges */}
+              <div className="flex flex-col lg:flex-row gap-2 lg:gap-4 lg:items-center">
+                {/* Email - No icon, only checkmark */}
+                <div className="flex items-center gap-2">
+                  {emailOk
+                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
+                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
+                  <span className="text-sm font-medium" style={{color:emailOk ? '#374151' : '#9CA3AF'}}>
+                    Email {emailOk ? 'verified ✓' : 'unverified'}
+                  </span>
+                </div>
+                
+                {/* Phone - With flag */}
+                <div className="flex items-center gap-2">
+                  {phoneOk
+                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
+                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
+                  <span className="text-sm font-medium" style={{color:phoneOk ? '#374151' : '#9CA3AF'}}>
+                    {displayFlag || '🌍'} Phone {phoneOk ? 'verified ✓' : 'unverified'}
+                  </span>
+                </div>
+                
+                {/* ID - With flag */}
+                <div className="flex items-center gap-2">
+                  {kycOk
+                    ? <CheckCircle size={16} style={{color:'#10B981',flexShrink:0}} />
+                    : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{borderColor:'#D1D5DB'}} />}
+                  <span className="text-sm font-medium" style={{color:kycOk ? '#374151' : '#9CA3AF'}}>
+                    {displayFlag || '🌍'} ID {kycOk ? 'verified ✓' : 'unverified'}
+                  </span>
+                </div>
+
+                {/* Edit button */}
+                {own&&!editing&&(
+                  <button onClick={()=>setEditing(true)}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition flex-shrink-0"
+                    style={{border:'1.5px solid #E2E8F0'}}>
+                    <Edit2 size={14} style={{color:C.g500}}/>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              {editing?(
-                <form onSubmit={saveProfile} className="space-y-2 pb-2">
-                  <div className="grid grid-cols-2 gap-2">
+            {/* Edit Form (when editing) */}
+            {editing&&(
+              <div className="px-5 py-4 lg:px-8 border-b" style={{borderColor:C.g100}}>
+                <form onSubmit={saveProfile} className="space-y-3 max-w-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input value={form.username} onChange={e=>setForm({...form,username:e.target.value})} placeholder="Username"
-                      className="px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none bg-white" style={{borderColor:C.sage}}/>
+                      className="px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none" style={{borderColor:C.sage}}/>
                     <input value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="Full Name"
-                      className="px-3 py-2 rounded-xl text-sm border-2 focus:outline-none bg-white" style={{borderColor:C.sage}}/>
+                      className="px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
                   </div>
                   <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location"
-                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none bg-white" style={{borderColor:C.sage}}/>
+                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
                   <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} placeholder="Bio" rows={2}
-                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none bg-white resize-none" style={{borderColor:C.sage}}/>
+                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none resize-none" style={{borderColor:C.sage}}/>
                   <div className="flex gap-2">
                     <button type="submit" disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs"
-                      style={{backgroundColor:C.gold,color:C.forest}}>
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs text-white"
+                      style={{backgroundColor:C.green}}>
                       {saving?<RefreshCw size={11} className="animate-spin"/>:<Save size={11}/>}{saving?'Saving…':'Save'}
                     </button>
                     <button type="button" onClick={()=>setEditing(false)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs border border-white/30 text-white hover:bg-white/10">
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs border" style={{borderColor:C.g200,color:C.g600}}>
                       <X size={11}/>Cancel
                     </button>
                   </div>
                 </form>
-              ):(
-                <>
-                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-2xl md:text-3xl font-black text-white" style={{fontFamily:"'Syne',sans-serif"}}>{user.username}</h1>
-                      <CountryFlag className="w-5 h-4" />
-                    </div>
-                    <BadgeChip user={user} />
-                    {kycOk&&<BadgeCheck size={20} style={{color:'#93C5FD'}} title="KYC Verified"/>}
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-white/65 mb-2">
-                    <span className="flex items-center gap-1 font-mono">
-                      ID: #{String(user.id||'').slice(0,8).toUpperCase()}
-                      <button onClick={()=>{navigator.clipboard.writeText(user.id||'');toast.success('ID copied!');}} className="hover:text-white"><Copy size={10}/></button>
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <ProfileFlag />
-                    </div>
-                    <span className="flex items-center gap-1"><MapPin size={11}/>{user.location||'Ghana'}</span>
-                    <span className="flex items-center gap-1"><Calendar size={11}/>Joined {fmtAge(user.created_at)}</span>
-                  </div>
-                  {user.bio&&<p className="text-sm text-white/70 max-w-lg">{user.bio}</p>}
-                </>
-              )}
-            </div>
-
-            {/* Trust score + edit */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex flex-col rounded-2xl overflow-hidden" style={{border:'1.5px solid rgba(255,255,255,0.2)'}}>
-                {/* Feedback — two solid colour blocks side by side */}
-                <div className="flex">
-                  <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 gap-0.5" style={{backgroundColor:'rgba(34,197,94,0.28)'}}>
-                    <ThumbsUp size={15} style={{color:'#86EFAC'}}/>
-                    <p className="text-xl font-black leading-none text-white">{fmt(user.positive_feedback||0)}</p>
-                    <p className="text-xs font-bold" style={{color:'#86EFAC'}}>Positive</p>
-                  </div>
-                  <div className="w-px" style={{backgroundColor:'rgba(255,255,255,0.15)'}}/>
-                  <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 gap-0.5" style={{backgroundColor:'rgba(239,68,68,0.22)'}}>
-                    <ThumbsDown size={15} style={{color:'#FCA5A5'}}/>
-                    <p className="text-xl font-black leading-none text-white">{fmt(user.negative_feedback||0)}</p>
-                    <p className="text-xs font-bold" style={{color:'#FCA5A5'}}>Negative</p>
-                  </div>
-                </div>
-                {/* Score — below, darker strip */}
-                <div className="flex flex-col items-center px-4 py-2 text-center" style={{backgroundColor:'rgba(0,0,0,0.2)',borderTop:'1px solid rgba(255,255,255,0.12)'}}>
-                  <p className="text-2xl font-black text-white leading-none">{score}</p>
-                  <p className="text-xs text-white/55 uppercase tracking-wider">Trust Score</p>
-                  <span className="text-xs font-black mt-1 px-2 py-0.5 rounded-full" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
-                </div>
               </div>
-              {own&&!editing&&<button onClick={()=>setEditing(true)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/20 transition"
-                style={{backgroundColor:'rgba(255,255,255,0.1)'}}>
-                <Edit2 size={15} className="text-white"/>
-              </button>}
-            </div>
-          </div>
+            )}
 
+            {/* Row 2: Stats section - Full width */}
+            <div className="px-5 py-4 lg:px-8 lg:py-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                
+                {/* FEEDBACK Card */}
+                <div className="rounded-2xl overflow-hidden" style={{backgroundColor:'#FEFCE8',border:'2px solid #FDE68A'}}>
+                  <p className="text-xs font-black text-center pt-2 uppercase tracking-wider" style={{color:'#78350F'}}>FEEDBACK</p>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{backgroundColor:'rgba(22,163,74,0.12)'}}>
+                        <ThumbsUp size={18} style={{color:'#166534'}}/>
+                      </div>
+                      <div>
+                        <p className="text-2xl lg:text-3xl font-black leading-none" style={{color:'#16A34A'}}>{fmt(user.positive_feedback||0)}</p>
+                        <p className="text-xs font-bold" style={{color:'#166534'}}>Positive</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{backgroundColor:'rgba(239,68,68,0.1)'}}>
+                        <ThumbsDown size={18} style={{color:'#991B1B'}}/>
+                      </div>
+                      <div>
+                        <p className="text-2xl lg:text-3xl font-black leading-none" style={{color:'#EF4444'}}>{fmt(user.negative_feedback||0)}</p>
+                        <p className="text-xs font-bold" style={{color:'#991B1B'}}>Negative</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Green Stats Card */}
+                <div className="rounded-2xl overflow-hidden" style={{backgroundColor:'#16A34A'}}>
+                  <div className="grid grid-cols-3 divide-x divide-white/20">
+                    {[
+                      ['Trades', fmt(user.total_trades||0)],
+                      ['Rating', parseFloat(user.average_rating||0).toFixed(1)],
+                      ['Trust Score', String(score)],
+                    ].map(([label,value],i)=>(
+                      <div key={i} className="text-center px-3 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wide leading-none mb-1" style={{color:'rgba(255,255,255,0.72)'}}>{label}</p>
+                        <p className="text-xl lg:text-2xl font-black leading-none text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-white/20 border-t border-white/20">
+                    {[
+                      ['Trusted By', fmt(user.trusted_by_count||user.trust_count||0)],
+                      ['Blocked By', fmt(user.blocked_by_count||0)],
+                    ].map(([label,value],i)=>(
+                      <div key={i} className="text-center px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide leading-none mb-0.5" style={{color:'rgba(255,255,255,0.72)'}}>{label}</p>
+                        <p className="text-lg font-black leading-none text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Joined section - Below stats */}
+              <div className="flex flex-wrap items-center justify-between text-sm mt-4 pt-3 border-t" style={{borderColor:C.g100}}>
+                <div className="flex items-center gap-2">
+                  <Clock size={14} style={{color:C.g400}}/>
+                  <span className="font-bold" style={{color:C.g600}}>Joined:</span>
+                  <span style={{color:C.g700}}>{fmtAge(user.created_at)}</span>
+                </div>
+                {user.created_at&&(
+                  <span className="text-xs" style={{color:C.g400}}>
+                    {new Date(user.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                  </span>
+                )}
+                <span className="text-xs font-bold" style={{color:C.g500}}>
+                  Has blocked: {fmt(user.blocked_count||user.blocks_count||0)}
+                </span>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
 
       {/* ── TAB NAV ──────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm" style={{borderColor:C.g200}}>
-        <div className="max-w-5xl mx-auto px-4 flex gap-0 overflow-x-auto">
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm mt-4" style={{borderColor:C.g200}}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-0 overflow-x-auto">
           {TABS.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)}
-              className="px-4 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition"
+              className="px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold whitespace-nowrap border-b-2 transition"
               style={{color:tab===t.id?C.green:C.g500,borderColor:tab===t.id?C.green:'transparent',backgroundColor:tab===t.id?`${C.green}06`:'transparent'}}>
               {t.label}
             </button>
@@ -315,22 +436,22 @@ export default function Profile({userId:propUserId}){
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-5 space-y-5">
+      {/* ── CONTENT ──────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
 
         {/* ── OVERVIEW ────────────────────────────────────────────────── */}
         {tab==='overview'&&(
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="space-y-5 lg:col-span-1">
               {/* Trust score card */}
-              <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
-                <div className="flex items-center gap-2 mb-3"><Shield size={13} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trust Score</p></div>
+              <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
+                <div className="flex items-center gap-2 mb-3"><Shield size={14} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trust Score</p></div>
 
-                {/* Feedback — hero numbers at the very top */}
                 <div className="flex items-center gap-3 mb-3 p-3 rounded-2xl" style={{background:'linear-gradient(135deg,rgba(134,239,172,0.12),rgba(252,165,165,0.08))',border:`1.5px solid ${C.g100}`}}>
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 mb-0.5">
                       <ThumbsUp size={16} style={{color:C.success}}/>
-                      <p className="text-3xl font-black leading-none" style={{color:C.success}}>{fmt(user.positive_feedback||0)}</p>
+                      <p className="text-2xl lg:text-3xl font-black leading-none" style={{color:C.success}}>{fmt(user.positive_feedback||0)}</p>
                     </div>
                     <p className="text-xs font-semibold" style={{color:C.g500}}>Positive</p>
                   </div>
@@ -338,22 +459,20 @@ export default function Profile({userId:propUserId}){
                   <div className="flex-1 text-center">
                     <div className="flex items-center justify-center gap-1 mb-0.5">
                       <ThumbsDown size={16} style={{color:C.danger}}/>
-                      <p className="text-3xl font-black leading-none" style={{color:C.danger}}>{fmt(user.negative_feedback||0)}</p>
+                      <p className="text-2xl lg:text-3xl font-black leading-none" style={{color:C.danger}}>{fmt(user.negative_feedback||0)}</p>
                     </div>
                     <p className="text-xs font-semibold" style={{color:C.g500}}>Negative</p>
                   </div>
                 </div>
 
-                {/* Score + label below feedback */}
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-4xl font-black" style={{color:trust.color}}>{score}</p>
+                  <p className="text-4xl lg:text-5xl font-black" style={{color:trust.color}}>{score}</p>
                   <span className="text-xs font-black px-3 py-1.5 rounded-xl" style={{backgroundColor:trust.bg,color:trust.color}}>{trust.label}</span>
                 </div>
                 <div className="h-3 rounded-full mb-3" style={{backgroundColor:C.g200}}>
                   <div className="h-3 rounded-full" style={{width:`${score}%`,backgroundColor:trust.color}}/>
                 </div>
 
-                {/* Trades + Rating row */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="rounded-xl px-3 py-2 text-center" style={{backgroundColor:C.g50,border:`1px solid ${C.g100}`}}>
                     <p className="font-black text-lg leading-none" style={{color:C.forest}}>{fmt(user.total_trades||0)}</p>
@@ -389,20 +508,18 @@ export default function Profile({userId:propUserId}){
               </div>
 
               {/* Badges preview */}
-              <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
+              <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2"><Award size={13} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badge Collection</p></div>
+                  <div className="flex items-center gap-2"><Award size={14} style={{color:C.gold}}/><p className="font-black text-sm" style={{color:C.forest}}>Badge Collection</p></div>
                   <button onClick={()=>setTab('badges')} className="text-xs font-bold" style={{color:C.green}}>View all →</button>
                 </div>
-                {/* Progress bar */}
                 <div className="flex items-center gap-2 mb-3">
                   <div className="flex-1 h-2 rounded-full" style={{backgroundColor:C.g100}}>
                     <div className="h-2 rounded-full transition-all" style={{width:`${(earned.length/BADGE_DEFS.length)*100}%`,background:`linear-gradient(90deg,${C.gold},${C.amber})`}}/>
                   </div>
                   <span className="text-xs font-black" style={{color:C.gold}}>{earned.length}/{BADGE_DEFS.length}</span>
                 </div>
-                {/* Badge icons grid */}
-                <div className="grid grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {BADGE_DEFS.map(b=>{
                     const unlocked=badges.some(ba=>ba.badge_name===b.label&&ba.is_unlocked)||b.check(user);
                     return(
@@ -426,16 +543,16 @@ export default function Profile({userId:propUserId}){
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-5">
               {/* Trade limit */}
               <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2"><Lock size={13} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trade Limits</p></div>
+                  <div className="flex items-center gap-2"><Lock size={14} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Trade Limits</p></div>
                   <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{backgroundColor:tier.color}}>{tier.label} Tier</span>
                 </div>
                 <div className="flex items-end justify-between mb-4">
                   <div>
-                    <p className="text-3xl font-black" style={{color:tier.color}}>${fmt(tier.limit)}</p>
+                    <p className="text-3xl lg:text-4xl font-black" style={{color:tier.color}}>${fmt(tier.limit)}</p>
                     <p className="text-xs" style={{color:C.g400}}>Per transaction limit</p>
                   </div>
                   {nextTier&&<div className="text-right"><p className="text-sm font-black" style={{color:C.g600}}>${fmt(nextTier.limit)}</p><p className="text-xs" style={{color:C.g400}}>Next tier</p></div>}
@@ -466,31 +583,44 @@ export default function Profile({userId:propUserId}){
                 )}
               </div>
 
-              {/* Last 3 reviews */}
-              {reviews.slice(0,3).map(r=>(
-                <div key={r.id} className="bg-white rounded-2xl border shadow-sm p-4 flex gap-3" style={{borderColor:C.g200}}>
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white flex-shrink-0" style={{backgroundColor:C.green}}>
-                    {r.reviewer?.username?.charAt(0)?.toUpperCase()||'?'}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-black text-xs" style={{color:C.forest}}>{r.reviewer?.username||'Trader'}</span>
-                      <div className="flex gap-0.5">{[1,2,3,4,5].map(i=><Star key={i} size={9} className={i<=r.rating?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>)}</div>
-                      {r.is_verified_trade&&<span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified</span>}
-                    </div>
-                    {r.comment&&<p className="text-xs" style={{color:C.g600}}>{r.comment}</p>}
-                    <p className="text-xs mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
-                  </div>
+              {/* Recent Reviews */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-black text-sm" style={{color:C.forest}}>Recent Reviews</p>
+                  {reviews.length>3&&<button onClick={()=>setTab('reputation')} className="text-xs font-bold" style={{color:C.green}}>View all →</button>}
                 </div>
-              ))}
-              {reviews.length>3&&<button onClick={()=>setTab('reputation')} className="w-full py-2.5 rounded-xl border text-xs font-bold hover:bg-gray-50 transition" style={{borderColor:C.g200,color:C.green}}>View all {reviews.length} reviews →</button>}
+                <div className="space-y-3">
+                  {reviews.slice(0,3).map(r=>(
+                    <div key={r.id} className="bg-white rounded-2xl border shadow-sm p-4 flex gap-3" style={{borderColor:C.g200}}>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white flex-shrink-0" style={{backgroundColor:C.green}}>
+                        {r.reviewer?.username?.charAt(0)?.toUpperCase()||'?'}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-black text-xs" style={{color:C.forest}}>{r.reviewer?.username||'Trader'}</span>
+                          <div className="flex gap-0.5">{[1,2,3,4,5].map(i=><Star key={i} size={9} className={i<=r.rating?'fill-yellow-400 text-yellow-400':'text-gray-200'}/>)}</div>
+                          {r.is_verified_trade&&<span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{backgroundColor:`${C.success}15`,color:C.success}}>✓ Verified</span>}
+                        </div>
+                        {r.comment&&<p className="text-xs" style={{color:C.g600}}>{r.comment}</p>}
+                        <p className="text-xs mt-1" style={{color:C.g400}}>{fmtAge(r.created_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {reviews.length===0&&(
+                    <div className="bg-white rounded-2xl border shadow-sm p-8 text-center" style={{borderColor:C.g200}}>
+                      <MessageCircle size={32} className="mx-auto mb-2 opacity-20" style={{color:C.g400}}/>
+                      <p className="text-xs" style={{color:C.g400}}>No reviews yet. Complete trades to get feedback.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* ── VERIFICATION ────────────────────────────────────────────── */}
         {tab==='verification'&&(
-          <div className="space-y-4 max-w-2xl">
+          <div className="space-y-4 max-w-3xl">
             <div className="rounded-2xl p-5 text-white"
               style={{background:verifPct===100?`linear-gradient(135deg,${C.success},${C.mint})`:`linear-gradient(135deg,${C.forest},${C.green})`}}>
               <div className="flex items-center justify-between mb-3">
@@ -520,10 +650,10 @@ export default function Profile({userId:propUserId}){
               <div className="flex items-center gap-2 mb-3"><Shield size={13} style={{color:C.green}}/><p className="font-black text-sm" style={{color:C.forest}}>Account Security</p></div>
               <div className="space-y-2.5">
                 {[
-                  {icon:MapPin,     label:'Registered Country', value:`${flag} ${user.country||'Ghana'}`,          color:C.paid},
-                  {icon:Clock,      label:'Last Login',          value:fmtAge(user.last_login||user.updated_at),    color:C.success},
-                  {icon:Smartphone, label:'Device Access',       value:'Mobile & Web Browser',                      color:C.purple},
-                  {icon:Globe,      label:'Language',            value:'English',                                    color:C.g500},
+                  {icon:MapPin,     label:'Registered Country', value:`${displayFlag} ${user.country||'Ghana'}`, color:C.paid},
+                  {icon:Clock,      label:'Last Login',          value:fmtAge(user.last_login||user.updated_at),            color:C.success},
+                  {icon:Smartphone, label:'Device Access',       value:'Mobile & Web Browser',                              color:C.purple},
+                  {icon:Globe,      label:'Language',            value:'English',                                            color:C.g500},
                 ].map(({icon:Icon,label,value,color})=>(
                   <div key={label} className="flex items-center justify-between py-2 border-b last:border-0 text-xs" style={{borderColor:C.g100}}>
                     <div className="flex items-center gap-2"><Icon size={12} style={{color}}/><span style={{color:C.g500}}>{label}</span></div>
@@ -549,7 +679,7 @@ export default function Profile({userId:propUserId}){
 
         {/* ── REPUTATION ──────────────────────────────────────────────── */}
         {tab==='reputation'&&(
-          <div className="space-y-4 max-w-2xl">
+          <div className="space-y-4 max-w-3xl">
             <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
               <p className="font-black text-sm mb-4" style={{color:C.forest}}>Reputation Summary</p>
               <div className="grid grid-cols-3 gap-3 mb-5">
@@ -615,9 +745,7 @@ export default function Profile({userId:propUserId}){
 
         {/* ── BADGES ──────────────────────────────────────────────────── */}
         {tab==='badges'&&(
-          <div className="space-y-5">
-
-            {/* ── Progress Banner ── */}
+          <div className="space-y-5 max-w-3xl">
             <div className="rounded-2xl p-5 text-white relative overflow-hidden"
               style={{background:`linear-gradient(135deg,${C.forest} 0%,${C.mint} 100%)`}}>
               <div className="absolute inset-0 opacity-5" style={{backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)',backgroundSize:'20px 20px'}}/>
@@ -653,8 +781,7 @@ export default function Profile({userId:propUserId}){
               </div>
             </div>
 
-            {/* ── Badge Cards Grid ── */}
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {BADGE_DEFS.map(b=>{
                 const has=badges.some(ba=>ba.badge_name===b.label&&ba.is_unlocked)||b.check(user);
                 const daysOld=user?.created_at?Math.floor((Date.now()-new Date(user.created_at))/(1000*60*60*24)):0;
@@ -666,8 +793,6 @@ export default function Profile({userId:propUserId}){
                       backgroundColor:has?b.bg:'#FAFAFA',
                       boxShadow:has?`0 4px 24px ${b.color}20`:'none',
                     }}>
-
-                    {/* Card Body */}
                     <div className="p-5">
                       <div className="flex items-start gap-4">
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
@@ -690,7 +815,6 @@ export default function Profile({userId:propUserId}){
                         </div>
                       </div>
 
-                      {/* Progress bars — only for quantifiable locked badges */}
                       {!has&&b.id==='top_trader'&&(
                         <div className="mt-4 p-3 rounded-xl" style={{backgroundColor:'rgba(244,164,34,0.08)'}}>
                           <div className="flex justify-between text-xs mb-2">
@@ -741,7 +865,6 @@ export default function Profile({userId:propUserId}){
                       )}
                     </div>
 
-                    {/* How to earn / Earned footer */}
                     <div className="px-5 py-3 border-t flex items-start gap-2.5"
                       style={{borderColor:has?`${b.color}25`:C.g100,backgroundColor:has?`${b.color}06`:'rgba(0,0,0,0.02)'}}>
                       {has?(
@@ -768,7 +891,6 @@ export default function Profile({userId:propUserId}){
               })}
             </div>
 
-            {/* ── Tips Section ── */}
             {earned.length<BADGE_DEFS.length&&own&&(
               <div className="rounded-2xl p-5 border" style={{borderColor:`${C.gold}50`,background:'linear-gradient(135deg,#FFFBEB,#FFF7ED)'}}>
                 <div className="flex items-start gap-3">
@@ -794,7 +916,6 @@ export default function Profile({userId:propUserId}){
               </div>
             )}
 
-            {/* ── All Earned Celebration ── */}
             {earned.length===BADGE_DEFS.length&&(
               <div className="rounded-2xl p-6 text-center relative overflow-hidden"
                 style={{background:`linear-gradient(135deg,${C.forest},${C.gold})`}}>
@@ -804,7 +925,6 @@ export default function Profile({userId:propUserId}){
                 <p className="text-white/70 text-sm">You've earned all 6 badges. You're among the most trusted traders on PRAQEN.</p>
               </div>
             )}
-
           </div>
         )}
 
@@ -850,8 +970,8 @@ export default function Profile({userId:propUserId}){
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer className="mt-10" style={{backgroundColor:C.forest}}>
-        <div className="max-w-5xl mx-auto px-4 pt-10 pb-6">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <div>
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xl" style={{backgroundColor:C.gold,color:C.forest}}>P</div>
@@ -886,6 +1006,14 @@ export default function Profile({userId:propUserId}){
                   ['📧 support@praqen.com','mailto:support@praqen.com'],
                 ].map(([l,h])=>(
                   <a key={l} href={h} target="_blank" rel="noopener noreferrer" className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.45)'}}>{l}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-white font-black text-sm mb-3">Legal</p>
+              <div className="space-y-2">
+                {[['Terms of Service','/terms'],['Privacy Policy','/privacy'],['Cookie Policy','/cookies'],['Contact','mailto:support@praqen.com']].map(([l,h])=>(
+                  <a key={l} href={h} className="block text-xs hover:text-white transition" style={{color:'rgba(255,255,255,0.45)'}}>{l}</a>
                 ))}
               </div>
             </div>

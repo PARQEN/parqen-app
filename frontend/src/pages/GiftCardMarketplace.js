@@ -755,42 +755,39 @@ export default function GiftCards({user}) {
       {/* ══════════════════════════════════════════════════
           2. TAB NAVIGATION
       ══════════════════════════════════════════════════ */}
-      <div className="bg-white border-b sticky top-0 z-30" style={{borderColor:C.g200}}>
-        <div className="max-w-7xl mx-auto px-3">
-          <div className="flex items-center">
-            <div className="flex items-center">
-              {[
-                {label:'Buy BTC',    path:'/buy-bitcoin',  active:false, color:'#1B4332'},
-                {label:'Sell BTC',   path:'/sell-bitcoin', active:false, color:'#D97706'},
-                {label:'Gift Cards', path:'/gift-cards',   active:true,  color:'#0D9488'},
-              ].map(tab=>(
-                <Link key={tab.path} to={tab.path}
-                  className="px-3 sm:px-4 py-3.5 text-xs sm:text-sm font-black border-b-2 transition-all whitespace-nowrap"
-                  style={{
-                    borderColor:     tab.active ? tab.color : 'transparent',
-                    color:           tab.active ? tab.color : C.g400,
-                    backgroundColor: tab.active ? tab.color+'18' : 'transparent',
-                  }}>
-                  {tab.label}
-                </Link>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-2 py-2 pl-4 flex-shrink-0">
-              <span className="text-xs font-semibold whitespace-nowrap" style={{color:C.g400}}>
-                {sellerCount} seller{sellerCount!==1?'s':''}
-              </span>
-              <span style={{color:C.g300, fontSize:10}}>|</span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <span className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
-                          boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
-                <span className="text-xs font-semibold"
-                  style={{color: onlineCnt>0 ? C.online : C.g400}}>
-                  {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
-                </span>
-              </span>
-            </div>
-          </div>
+      <div className="bg-white border-b sticky top-0 z-30 flex-shrink-0" style={{borderColor:C.g200}}>
+        {/* 3 equal tabs — always fits any phone */}
+        <div className="flex w-full">
+          {[
+            {label:'Buy BTC',    path:'/buy-bitcoin',  active:false, color:'#1B4332'},
+            {label:'Sell BTC',   path:'/sell-bitcoin', active:false, color:'#D97706'},
+            {label:'Gift Cards', path:'/gift-cards',   active:true,  color:'#0D9488'},
+          ].map(tab=>(
+            <Link key={tab.path} to={tab.path}
+              className="flex-1 text-center py-3 text-xs font-black border-b-2 transition-all"
+              style={{
+                borderColor:     tab.active ? tab.color : 'transparent',
+                color:           tab.active ? tab.color : C.g400,
+                backgroundColor: tab.active ? tab.color+'18' : 'transparent',
+              }}>
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+        {/* Stats row — always visible below tabs */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-t" style={{borderColor:C.g100, backgroundColor:C.g50}}>
+          <span className="text-xs font-semibold" style={{color:C.g400}}>
+            {sellerCount} seller{sellerCount!==1?'s':''}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
+                      boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
+            <span className="text-xs font-semibold"
+              style={{color: onlineCnt>0 ? C.online : C.g400}}>
+              {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
+            </span>
+          </span>
         </div>
       </div>
 
@@ -813,11 +810,12 @@ export default function GiftCards({user}) {
                   type="number" min="0" placeholder="e.g. 50"
                   value={amountInput}
                   onChange={e=>setAmountInput(e.target.value)}
-                  className="w-full pl-6 pr-7 py-2.5 rounded-xl border-2 text-xs font-black focus:outline-none"
+                  className="w-full pl-6 pr-7 py-2.5 rounded-xl border-2 font-black focus:outline-none"
                   style={{
                     borderColor:amountInput?C.forest:C.g200,
                     color:C.g800,
                     backgroundColor:amountInput?`${C.forest}08`:'transparent',
+                    fontSize:'16px',
                   }}
                 />
                 {amountInput&&(
@@ -851,9 +849,9 @@ export default function GiftCards({user}) {
                     style={{borderColor:C.g100,minWidth:'200px',width:'max-content'}}>
                     <div className="px-2 py-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="Search currency..." value={currencySearch}
-                        onChange={e=>setCurrencySearch(e.target.value)} onClick={e=>e.stopPropagation()} autoFocus
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-                        style={{border:`1.5px solid ${C.g200}`,color:C.g800,backgroundColor:C.g50}}/>
+                        onChange={e=>setCurrencySearch(e.target.value)} onClick={e=>e.stopPropagation()}
+                        className="w-full px-2.5 py-1.5 rounded-lg focus:outline-none"
+                        style={{border:`1.5px solid ${C.g200}`,color:C.g800,backgroundColor:C.g50,fontSize:'16px'}}/>
                     </div>
                     <div style={{maxHeight:240,overflowY:'auto'}}>
                       {CURRENCIES.filter(c=>c.name.toLowerCase().includes(currencySearch.toLowerCase())||c.code.toLowerCase().includes(currencySearch.toLowerCase())).map(c=>(
@@ -896,9 +894,9 @@ export default function GiftCards({user}) {
                     style={{borderColor:C.g100}}>
                     <div className="px-2 py-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="Search card brand..." value={brandSearch}
-                        onChange={e=>setBrandSearch(e.target.value)} onClick={e=>e.stopPropagation()} autoFocus
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg focus:outline-none"
-                        style={{border:`1.5px solid ${C.g200}`,color:C.g800,backgroundColor:C.g50}}/>
+                        onChange={e=>setBrandSearch(e.target.value)} onClick={e=>e.stopPropagation()}
+                        className="w-full px-2.5 py-1.5 rounded-lg focus:outline-none"
+                        style={{border:`1.5px solid ${C.g200}`,color:C.g800,backgroundColor:C.g50,fontSize:'16px'}}/>
                     </div>
                     <div style={{maxHeight:220,overflowY:'auto'}}>
                       {GC_BRANDS.filter(b=>b.toLowerCase().includes(brandSearch.toLowerCase())).map(b=>(
@@ -954,8 +952,8 @@ export default function GiftCards({user}) {
             <div className="flex items-center gap-2">
               <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
               <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 text-xs font-bold border-2 rounded-xl focus:outline-none"
-                style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200,color:C.g800}}>
+                className="flex-1 px-2.5 py-1.5 font-bold border-2 rounded-xl focus:outline-none"
+                style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200,color:C.g800,fontSize:'16px'}}>
                 <option value="rate_low">Best Rate (Low margin first)</option>
                 <option value="rate_high">Highest Rate</option>
                 <option value="rating">Top Rated Sellers</option>

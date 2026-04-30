@@ -1,15 +1,6 @@
 // PRAQEN Backend Server - COMPLETE FIXED VERSION
-const express    = require('express');
-const cors       = require('cors');
-const dotenv     = require('dotenv');
-const { createClient } = require('@supabase/supabase-js');
-const bcrypt     = require('bcryptjs');
-const jwt        = require('jsonwebtoken');
-const crypto     = require('crypto');
-const path       = require('path');
-const nodemailer = require('nodemailer');
-const CoinbaseWalletService = require('./services/coinbaseWallet');
-const quoteService          = require('./services/quoteService');
+const path   = require('path');
+const dotenv = require('dotenv');
 
 // ── 1. Load .env FIRST — before anything else ──────────────────────────────
 const envResult = dotenv.config();
@@ -17,6 +8,19 @@ if (envResult.error) {
   console.warn('⚠️  No .env in backend folder, trying parent...');
   dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 }
+
+const express    = require('express');
+const cors       = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+const bcrypt     = require('bcryptjs');
+const jwt        = require('jsonwebtoken');
+const crypto     = require('crypto');
+const nodemailer = require('nodemailer');
+const twilio = require('twilio');
+const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+const twilioVerifySid = process.env.TWILIO_VERIFY_SID || 'VAddba23c45841679ed249d49be8a90bbe';
+const CoinbaseWalletService = require('./services/coinbaseWallet');
+const quoteService          = require('./services/quoteService');
 
 // ── 2. Read & validate env vars immediately after loading ──────────────────
 const SUPABASE_URL              = process.env.SUPABASE_URL;
@@ -67,6 +71,148 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
+
+// ── Trade Notification Helpers ───────────────────────────────────────────────
+
+function tradeEmailTemplate(subject, title, message, tradeRef, amount, actionUrl) {
+  const year = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F0F4F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0F4F1;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(27,67,50,0.10);">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1B4332 0%,#2D6A4F 60%,#40916C 100%);padding:36px 32px 28px;text-align:center;">
+              <div style="display:inline-block;background:#F4A422;border-radius:18px;width:60px;height:60px;line-height:60px;text-align:center;margin-bottom:14px;">
+                <span style="font-size:32px;font-weight:900;color:#1B4332;font-family:Georgia,serif;line-height:60px;">P</span>
+              </div>
+              <h1 style="color:#FFFFFF;font-size:26px;font-weight:900;margin:0 0 4px 0;letter-spacing:-0.5px;">PRAQEN</h1>
+              <p style="color:#95C4AE;font-size:12px;margin:0;letter-spacing:1px;text-transform:uppercase;">Africa's Trusted P2P Platform</p>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="padding:36px 32px 28px;">
+              <h2 style="color:#1B4332;font-size:20px;font-weight:800;margin:0 0 10px 0;">${title}</h2>
+              <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 24px 0;">${message}</p>
+
+              ${(tradeRef || amount) ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F1;border-radius:14px;margin-bottom:24px;overflow:hidden;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    ${tradeRef ? `
+                    <table width="100%" style="margin-bottom:10px;">
+                      <tr>
+                        <td style="color:#64748B;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Trade Reference</td>
+                        <td style="text-align:right;">
+                          <span style="background:#1B4332;color:#FFFFFF;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;">#${tradeRef}</span>
+                        </td>
+                      </tr>
+                    </table>` : ''}
+                    ${amount ? `
+                    <table width="100%">
+                      <tr>
+                        <td style="color:#64748B;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Amount</td>
+                        <td style="text-align:right;color:#1B4332;font-size:18px;font-weight:900;">₿ ${amount}</td>
+                      </tr>
+                    </table>` : ''}
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              ${actionUrl ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                <tr>
+                  <td align="center">
+                    <a href="${actionUrl}" style="display:inline-block;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#FFFFFF;text-align:center;padding:15px 40px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.2px;">View on PRAQEN →</a>
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-top:1px solid #E8F0EB;padding-top:20px;">
+                    <p style="color:#94A3B8;font-size:11px;margin:0;line-height:1.6;">
+                      🔒 This is an automated message from PRAQEN. Your funds are always protected by our escrow system. Never share your login credentials with anyone.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background:#F0F4F1;padding:18px 32px;text-align:center;">
+              <p style="color:#64748B;font-size:11px;font-weight:700;margin:0 0 4px 0;letter-spacing:0.5px;">PRAQEN — SECURE P2P BITCOIN TRADING</p>
+              <p style="color:#94A3B8;font-size:10px;margin:0;">Escrow Protected · 0.5% Fee · Trusted by traders across Africa</p>
+              <p style="color:#CBD5E1;font-size:10px;margin:8px 0 0 0;">© ${year} PRAQEN. All rights reserved. Do not reply to this email.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function notifyUserSMS(userId, message) {
+  try {
+    const { data: user, error: dbErr } = await supabaseAdmin.from('users').select('phone').eq('id', userId).single();
+    if (dbErr) { console.error(`[SMS] DB lookup failed for ${userId}:`, dbErr.message); return; }
+    if (!user?.phone) { console.warn(`[SMS] No phone on file for user ${userId} — skipping`); return; }
+    if (!twilioClient) { console.error('[SMS] twilioClient not initialized'); return; }
+    const phone = user.phone.startsWith('+') ? user.phone : `+${user.phone}`;
+    await twilioClient.messages.create({
+      body: `[PRAQEN ⚡] ${message}`,
+      from: process.env.TWILIO_PHONE,
+      to: phone
+    });
+    console.log(`📱 SMS sent to user ${userId} (${phone})`);
+  } catch (err) {
+    console.error(`[SMS] Failed for user ${userId}:`, err.message, err.code || '');
+  }
+}
+
+async function notifyUserEmail(userId, subject, htmlContent) {
+  try {
+    const { data: user, error: dbErr } = await supabaseAdmin.from('users').select('email').eq('id', userId).single();
+    if (dbErr) { console.error(`[Email] DB lookup failed for ${userId}:`, dbErr.message); return; }
+    if (!user?.email) { console.warn(`[Email] No email on file for user ${userId} — skipping`); return; }
+    if (!transporter) { console.error('[Email] transporter not initialized'); return; }
+    await transporter.sendMail({
+      from: '"PRAQEN" <kendevdash@gmail.com>',
+      to: user.email,
+      subject,
+      html: htmlContent
+    });
+    console.log(`📧 Email sent to user ${userId} (${user.email})`);
+  } catch (err) {
+    console.error(`[Email] Failed for user ${userId}:`, err.message);
+  }
+}
+
+async function notifyTradeParties(trade, subject, smsMessage, htmlContent) {
+  const ids = [trade.buyer_id, trade.seller_id].filter(Boolean);
+  await Promise.allSettled([
+    ...ids.map(id => notifyUserSMS(id, smsMessage)),
+    ...ids.map(id => notifyUserEmail(id, subject, htmlContent))
+  ]);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 async function sendVerificationEmail(email, code) {
     const year = new Date().getFullYear();
@@ -458,6 +604,45 @@ function verifyToken(req, res, next) {
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', time: new Date() }));
 
+app.post('/api/test-notify', async (req, res) => {
+  const { userId, phone } = req.body;
+  const results = {};
+
+  // 1. Check Twilio config
+  results.twilio_sid    = process.env.TWILIO_SID    ? '✅ set' : '❌ missing';
+  results.twilio_token  = process.env.TWILIO_TOKEN  ? '✅ set' : '❌ missing';
+  results.twilio_phone  = process.env.TWILIO_PHONE  || '❌ missing';
+  results.twilio_client = twilioClient              ? '✅ initialized' : '❌ null';
+
+  // 2. Check user phone in DB
+  if (userId) {
+    const { data: user, error } = await supabaseAdmin.from('users').select('phone, email').eq('id', userId).single();
+    results.db_phone = user?.phone || '❌ null — user has no phone saved';
+    results.db_email = user?.email || '❌ null';
+    results.db_error = error?.message || null;
+  }
+
+  // 3. Try sending a real test SMS
+  const testTo = phone || (userId && (await supabaseAdmin.from('users').select('phone').eq('id', userId).single()).data?.phone);
+  if (testTo) {
+    try {
+      const to = testTo.startsWith('+') ? testTo : `+${testTo}`;
+      await twilioClient.messages.create({
+        body: '[PRAQEN] Test notification — SMS is working!',
+        from: process.env.TWILIO_PHONE,
+        to
+      });
+      results.sms_test = `✅ SMS sent to ${to}`;
+    } catch (err) {
+      results.sms_test = `❌ ${err.message} (code: ${err.code})`;
+    }
+  } else {
+    results.sms_test = '⚠️ No phone provided — pass userId or phone in body';
+  }
+
+  res.json(results);
+});
+
 // ============================================================
 // AUTH ROUTES
 // ============================================================
@@ -539,7 +724,45 @@ app.post('/api/auth/register-with-referral', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, phone, method } = req.body;
+
+    // ── Phone login (OTP already verified before this call) ──────────────────
+    if (method === 'phone' || (phone && !email)) {
+      if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+
+      // Try every common storage format so we find the user regardless of how
+      // they registered (with +, without +, with leading 0, etc.)
+      const stripped   = String(phone).replace(/^\+/, '');           // '233595367270'
+      const withPlus   = `+${stripped}`;                             // '+233595367270'
+      const localZero  = stripped.replace(/^233/, '0');              // '0595367270' (Ghana eg)
+      const candidates = [...new Set([phone, withPlus, stripped, localZero])];
+
+      console.log(`[phone login] trying formats:`, candidates);
+
+      let data = null;
+      for (const candidate of candidates) {
+        const { data: row } = await supabaseAdmin.from('users').select('*').eq('phone', candidate).single();
+        if (row) { data = row; break; }
+      }
+      if (!data) return res.status(404).json({ error: 'No account found for this phone number. Please register first.' });
+      const token = jwt.sign({ userId: data.id, email: data.email }, JWT_SECRET, { expiresIn: '7d' });
+      await supabaseAdmin.from('users').update({ last_login: new Date() }).eq('id', data.id);
+      let btcAddress = data.bitcoin_wallet_address;
+      if (!isRealBtcAddress(btcAddress)) {
+        btcAddress = await upgradeToHDAddress(data.id, data.username) || btcAddress;
+      }
+      return res.json({
+        success: true,
+        user: { id: data.id, email: data.email, username: data.username, full_name: data.full_name,
+          average_rating: data.average_rating || 0, total_trades: data.total_trades || 0,
+          avatar_url: data.avatar_url || null, is_admin: data.is_admin || false,
+          is_moderator: data.is_moderator || false, referral_code: data.referral_code || null,
+          bitcoin_wallet_address: btcAddress },
+        token,
+      });
+    }
+
+    // ── Email + password login ────────────────────────────────────────────────
     if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
     const { data, error } = await supabaseAdmin.from('users').select('*').eq('email', email).single();
     if (error || !data) return res.status(401).json({ error: 'Invalid credentials' });
@@ -587,35 +810,120 @@ app.post('/api/auth/change-password', verifyToken, async (req, res) => {
   }
 });
 
-// ── OTP ──────────────────────────────────────────────────────────────────────
+// ── OTP (Twilio Verify) ───────────────────────────────────────────────────────
 
-const handleSendOtp = async (req, res) => {
-  try {
-    const { method, contact, phone } = req.body;
-    const target = contact || phone;
-    if (!target) return res.status(400).json({ error: 'Contact/phone is required' });
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(target, { otp, expires: Date.now() + 5 * 60 * 1000 });
-    console.log(`[OTP] Code for ${target}: ${otp}`);
-    res.json({ success: true, message: 'OTP sent successfully', devCode: process.env.NODE_ENV === 'development' ? otp : undefined });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+const toE164 = raw => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  return s.startsWith('+') ? s : `+${s}`;
 };
 
-app.post('/api/auth/send-otp',       handleSendOtp);
-app.post('/api/auth/send-phone-otp', handleSendOtp);
+// Diagnostic endpoint — remove after debugging
+app.get('/api/auth/twilio-check', async (req, res) => {
+  try {
+    const sid = process.env.TWILIO_SID;
+    const token = process.env.TWILIO_TOKEN;
+    const verifySid = process.env.TWILIO_VERIFY_SID || 'VAddba23c45841679ed249d49be8a90bbe';
+    res.json({
+      twilio_sid_set: !!sid,
+      twilio_token_set: !!token,
+      verify_sid: verifySid,
+      sid_prefix: sid ? sid.slice(0, 6) : 'MISSING',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/auth/send-otp', async (req, res) => {
+  try {
+    const { phone, email, channel } = req.body;
+    const ch = channel || 'sms';
+    const to = ch === 'email' ? email : toE164(phone);
+    if (!to) return res.status(400).json({ error: 'Phone or email required' });
+
+    console.log(`[OTP send] channel=${ch} to=${to}`);
+    await twilioClient.verify.v2
+      .services(twilioVerifySid)
+      .verifications.create({ to, channel: ch });
+
+    res.json({ success: true, message: 'Code sent!' });
+  } catch (error) {
+    console.error('[OTP send error]', error.status, error.code, error.message);
+    res.status(500).json({ error: 'Failed to send code. Please try again.' });
+  }
+});
+
+app.post('/api/auth/send-phone-otp', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone required' });
+    const to = toE164(phone);
+
+    console.log(`[OTP send-phone] to=${to}`);
+    await twilioClient.verify.v2
+      .services(twilioVerifySid)
+      .verifications.create({ to, channel: 'sms' });
+
+    res.json({ success: true, message: 'Code sent!' });
+  } catch (error) {
+    console.error('[OTP send-phone error]', error.status, error.code, error.message);
+    res.status(500).json({ error: 'Failed to send code. Please try again.' });
+  }
+});
 
 app.post('/api/auth/verify-otp', async (req, res) => {
   try {
-    const { contact, otp } = req.body;
-    if (!otp || !contact) return res.status(400).json({ error: 'OTP and contact required' });
-    const stored = otpStore.get(contact);
-    if (!stored || stored.otp !== otp || Date.now() > stored.expires) return res.status(400).json({ error: 'Invalid or expired OTP' });
-    otpStore.delete(contact);
-    res.json({ success: true, message: 'OTP verified successfully' });
+    const { phone, email, code, channel, contact, otp } = req.body;
+    const ch = channel || 'sms';
+    const rawTo = ch === 'email' ? email : (phone || contact);
+    const to = ch === 'email' ? rawTo : toE164(rawTo);
+    const token = (code || otp || '').trim();
+
+    if (!to || !token) return res.status(400).json({ error: 'Phone/email and code are required' });
+    if (token.length !== 6) return res.status(400).json({ error: 'Enter the full 6-digit code' });
+
+    console.log(`[OTP verify] channel=${ch} to=${to} token=${token}`);
+
+    let result;
+    try {
+      result = await twilioClient.verify.v2
+        .services(twilioVerifySid)
+        .verificationChecks.create({ to, code: token });
+    } catch (twilioErr) {
+      const status = twilioErr.status || twilioErr.statusCode;
+      const tcode  = twilioErr.code;
+      const tmsg   = twilioErr.message || '';
+      console.error('[OTP verify Twilio error]', status, tcode, tmsg);
+
+      // 404 / 20404 = expired, already used, or number mismatch
+      if (status === 404 || tcode === 20404 || tmsg.includes('was not found')) {
+        return res.status(400).json({ error: 'Code expired or already used. Tap "Resend code" to get a new one.' });
+      }
+      // 60202 = max send attempts; 60203 = max check attempts
+      if (tcode === 60202 || tcode === 60203) {
+        return res.status(400).json({ error: 'Too many attempts. Please wait a few minutes and request a new code.' });
+      }
+      // any other Twilio error — return friendly message, never expose raw error
+      return res.status(400).json({ error: `Could not verify code (${tcode || status}). Please request a new code.` });
+    }
+
+    console.log(`[OTP verify result] status=${result.status}`);
+
+    if (result.status === 'approved') {
+      if (to && ch !== 'email') {
+        try {
+          await supabaseAdmin.from('users')
+            .update({ phone_verified: true, phone: to })
+            .eq('phone', to);
+        } catch (_) {}
+      }
+      return res.json({ success: true, message: 'Verified!' });
+    }
+    return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[OTP verify unexpected error]', error.message, error.stack);
+    res.status(500).json({ error: `Verification failed: ${error.message}` });
   }
 });
 
@@ -1443,6 +1751,19 @@ app.post('/api/trades', verifyToken, async (req, res) => {
     await createNotification(sellerId, 'trade', '💰 New Trade Request',
       `${buyerName} wants to buy ${assetLabel} · ${localDisp} via ${pmDisp}`,
       `/trade/${trade[0].id}`);
+    await notifyTradeParties(
+      trade[0],
+      '⚡ New Trade Opened on PRAQEN!',
+      `Trade #${trade[0].trade_ref} opened! ${trade[0].amount_btc} BTC secured in escrow. Log in to proceed: https://praqen.com/trade/${trade[0].id}`,
+      tradeEmailTemplate(
+        '⚡ New Trade Opened on PRAQEN!',
+        '⚡ Your Trade Is Live!',
+        `A new trade has been successfully created and <strong>${trade[0].amount_btc} BTC</strong> is now locked safely in escrow. Buyer — complete your payment to proceed. Seller — you'll be notified once payment is sent.`,
+        trade[0].trade_ref,
+        trade[0].amount_btc,
+        `https://praqen.com/trade/${trade[0].id}`
+      )
+    );
     res.json({ success: true, trade: trade[0], escrowAddress: escrowResult.escrowAddress, fee });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1510,6 +1831,19 @@ app.post('/api/trades/:id/mark-paid', verifyToken, async (req, res) => {
       ? `${actorName} sent the gift card code · Verify and release Bitcoin`
       : `${actorName} sent ${paidDisp} via ${paidPM} · Verify and release Bitcoin`;
     await createNotification(notifyId, 'payment', '💳 Payment Sent', notifyMsg, `/trade/${req.params.id}`);
+    await notifyTradeParties(
+      trade,
+      '💰 Payment Sent — Release BTC Now',
+      `Trade #${trade.trade_ref}: buyer has marked payment as sent. Seller — verify and release BTC: https://praqen.com/trade/${trade.id}`,
+      tradeEmailTemplate(
+        '💰 Payment Sent — Release BTC Now',
+        '💰 Buyer Has Sent Payment!',
+        `The buyer has confirmed their payment for this trade. <strong>Seller — please verify the payment in your account and release the BTC</strong> to complete the trade. Only release after confirming funds are received.`,
+        trade.trade_ref,
+        trade.amount_btc,
+        `https://praqen.com/trade/${trade.id}`
+      )
+    );
     res.json({ success: true, trade: data });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1518,15 +1852,25 @@ app.post('/api/trades/:id/mark-paid', verifyToken, async (req, res) => {
 
 app.post('/api/trades/:id/release', verifyToken, async (req, res) => {
   try {
+    const { data: releasedTrade } = await supabaseAdmin.from('trades').select('*').eq('id', req.params.id).single();
     const result = await tradeEscrowService.releaseBitcoinToBuyer(req.params.id, req.userId);
-    // Fire-and-forget: update stats + check badges for both parties
-    supabaseAdmin.from('trades').select('seller_id,buyer_id').eq('id', req.params.id).single()
-      .then(({ data: t }) => {
-        if (t) {
-          updateUserTradeStats(t.seller_id).catch(() => {});
-          updateUserTradeStats(t.buyer_id).catch(() => {});
-        }
-      }).catch(() => {});
+    if (releasedTrade) {
+      updateUserTradeStats(releasedTrade.seller_id).catch(() => {});
+      updateUserTradeStats(releasedTrade.buyer_id).catch(() => {});
+      await notifyTradeParties(
+        releasedTrade,
+        '✅ Trade Complete — BTC Released!',
+        `Trade #${releasedTrade.trade_ref} complete! ${releasedTrade.amount_btc} BTC released. Check your PRAQEN wallet: https://praqen.com/trade/${releasedTrade.id}`,
+        tradeEmailTemplate(
+          '✅ Trade Complete — BTC Released!',
+          '✅ Trade Successfully Completed!',
+          `Congratulations! The trade has been completed and <strong>${releasedTrade.amount_btc} BTC has been released</strong>. Buyer — check your PRAQEN wallet. Seller — your payment is confirmed. Thank you for trading safely on PRAQEN!`,
+          releasedTrade.trade_ref,
+          releasedTrade.amount_btc,
+          `https://praqen.com/trade/${releasedTrade.id}`
+        )
+      );
+    }
     res.json(result);
   } catch (error) {
     console.error('❌ /api/trades/:id/release error:', error.message);
@@ -1573,7 +1917,19 @@ app.post('/api/trades/:id/cancel', verifyToken, async (req, res) => {
     // Confirm to the canceller
     await createNotification(req.userId, 'cancelled', '❌ Trade Cancelled',
       `You cancelled the trade · ${cDisp} via ${cPM}`, `/trade/${req.params.id}`);
-
+    await notifyTradeParties(
+      trade,
+      '❌ Trade Cancelled',
+      `Trade #${trade.trade_ref} has been cancelled. ${reason ? `Reason: ${reason}. ` : ''}Any locked BTC has been returned to your wallet.`,
+      tradeEmailTemplate(
+        '❌ Trade Cancelled',
+        '❌ Your Trade Has Been Cancelled',
+        `Trade <strong>#${trade.trade_ref}</strong> has been cancelled${reason ? ` — Reason: <em>${reason}</em>` : ''}. Any BTC that was locked in escrow has been returned to your PRAQEN wallet. If you have concerns, please contact our support team.`,
+        trade.trade_ref,
+        trade.amount_btc,
+        null
+      )
+    );
     res.json({ success: true, trade: data });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1725,6 +2081,19 @@ app.post('/api/trades/:id/dispute', verifyToken, async (req, res) => {
     await createNotification(trade.buyer_id, 'support', '⚠️ Dispute Opened', `Dispute opened for trade #${req.params.id.slice(0, 8)}. Please provide evidence.`, `/trade/${req.params.id}`);
     await notifyModerators(req.params.id, trade, reason || 'User opened a dispute');
     await supabaseAdmin.from('messages').insert([{ trade_id: req.params.id, sender_id: null, recipient_id: null, message_text: `🚨 DISPUTE OPENED — Reason: ${reason || 'User opened a dispute'}. Moderators notified.`, message_type: 'SYSTEM', sender_role: 'system', created_at: new Date() }]);
+    await notifyTradeParties(
+      trade,
+      '🚨 Dispute Opened — Moderator Notified',
+      `Dispute filed on trade #${trade.trade_ref}. Do NOT release funds. A moderator will contact you shortly: https://praqen.com/trade/${trade.id}`,
+      tradeEmailTemplate(
+        '🚨 Dispute Opened — Moderator Notified',
+        '🚨 A Dispute Has Been Filed',
+        `A dispute has been opened on trade <strong>#${trade.trade_ref}</strong>${reason ? ` — Reason: <em>${reason}</em>` : ''}. A PRAQEN moderator has been notified and will review all evidence. <strong>Do not release or transfer any funds until the dispute is fully resolved.</strong>`,
+        trade.trade_ref,
+        trade.amount_btc,
+        `https://praqen.com/trade/${trade.id}`
+      )
+    );
     res.json({ success: true, trade: data });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -1,50 +1,69 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../App';
 import {
-  Mail, Lock, User, Phone, Eye, EyeOff, Shield,
-  CheckCircle, ArrowRight, ArrowLeft, RefreshCw,
-  AlertCircle, Smartphone, AtSign,
-  Check, X, Home, Gift, LogIn,
+  Mail, Lock, User, Eye, EyeOff, Shield, CheckCircle,
+  ArrowRight, ArrowLeft, RefreshCw, AlertCircle, Smartphone,
+  AtSign, Check, X, Home, Gift, LogIn, Phone, ChevronDown,
 } from 'lucide-react';
 
 const C = {
-  forest:'#1B4332', green:'#2D6A4F', mint:'#40916C', sage:'#52B788',
-  gold:'#F4A422', amber:'#F59E0B', mist:'#F0FAF5', white:'#FFFFFF',
-  g50:'#F8FAFC', g100:'#F1F5F9', g200:'#E2E8F0',
-  g300:'#CBD5E1', g400:'#94A3B8', g500:'#64748B', g600:'#475569', g700:'#334155',
-  g800:'#1E293B',
-  success:'#10B981', danger:'#EF4444',
+  forest: '#1B4332', green: '#2D6A4F', mint: '#40916C',
+  gold: '#F4A422', white: '#FFFFFF', mist: '#F0F9F4',
+  g50: '#F8FAFC', g100: '#F1F5F9', g200: '#E2E8F0',
+  g300: '#CBD5E1', g400: '#94A3B8', g500: '#64748B',
+  g600: '#475569', g700: '#334155', g800: '#1E293B',
+  success: '#10B981', danger: '#EF4444', amber: '#F59E0B',
 };
 
-// ── Password strength checker ─────────────────────────────────────────────────
-const pwChecks = [
-  { label:'At least 8 characters',    test: p => p.length >= 8 },
-  { label:'Uppercase letter (A–Z)',    test: p => /[A-Z]/.test(p) },
-  { label:'Lowercase letter (a–z)',    test: p => /[a-z]/.test(p) },
-  { label:'Number (0–9)',              test: p => /\d/.test(p) },
+const PHONE_CODES = [
+  { flag: '🇬🇭', code: '+233', name: 'Ghana' },
+  { flag: '🇳🇬', code: '+234', name: 'Nigeria' },
+  { flag: '🇰🇪', code: '+254', name: 'Kenya' },
+  { flag: '🇿🇦', code: '+27',  name: 'South Africa' },
+  { flag: '🇺🇬', code: '+256', name: 'Uganda' },
+  { flag: '🇹🇿', code: '+255', name: 'Tanzania' },
+  { flag: '🇷🇼', code: '+250', name: 'Rwanda' },
+  { flag: '🇺🇸', code: '+1',   name: 'United States' },
+  { flag: '🇬🇧', code: '+44',  name: 'United Kingdom' },
+  { flag: '🇩🇪', code: '+49',  name: 'Germany' },
+  { flag: '🇫🇷', code: '+33',  name: 'France' },
+  { flag: '🇸🇦', code: '+966', name: 'Saudi Arabia' },
+  { flag: '🇦🇪', code: '+971', name: 'UAE' },
+  { flag: '🇮🇳', code: '+91',  name: 'India' },
+  { flag: '🇦🇺', code: '+61',  name: 'Australia' },
+  { flag: '🇨🇲', code: '+237', name: 'Cameroon' },
+  { flag: '🇸🇳', code: '+221', name: 'Senegal' },
+];
+
+const PW_CHECKS = [
+  { label: 'At least 8 characters', test: p => p.length >= 8 },
+  { label: 'Uppercase letter (A–Z)', test: p => /[A-Z]/.test(p) },
+  { label: 'Lowercase letter (a–z)', test: p => /[a-z]/.test(p) },
+  { label: 'Number (0–9)',           test: p => /\d/.test(p) },
 ];
 
 function PwStrength({ password }) {
-  const passed = pwChecks.filter(c => c.test(password)).length;
+  const passed = PW_CHECKS.filter(c => c.test(password)).length;
   const colors = ['', C.danger, '#F97316', C.amber, C.success, C.success];
   const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
   if (!password) return null;
   return (
-    <div className="mt-2 space-y-1.5">
-      <div className="flex gap-1">
-        {[1,2,3,4,5].map(i => (
-          <div key={i} className="h-1 flex-1 rounded-full transition-all"
-            style={{ backgroundColor: i <= passed ? colors[passed] : C.g200 }}/>
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 5 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{ height: 4, flex: 1, borderRadius: 99, background: i <= passed ? colors[passed] : C.g200, transition: 'background 0.3s' }}/>
         ))}
       </div>
-      <p className="text-xs font-bold" style={{ color: colors[passed] }}>{labels[passed]}</p>
-      <div className="grid grid-cols-1 gap-0.5">
-        {pwChecks.map(({ label, test }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            {test(password) ? <Check size={10} style={{ color:C.success }}/> : <X size={10} style={{ color:C.g300 }}/>}
-            <span className="text-xs" style={{ color: test(password) ? C.g600 : C.g400 }}>{label}</span>
+      <p style={{ fontSize: 11, fontWeight: 700, color: colors[passed], margin: '0 0 6px' }}>{labels[passed]}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+        {PW_CHECKS.map(({ label, test }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            {test(password)
+              ? <Check size={10} style={{ color: C.success, flexShrink: 0 }}/>
+              : <X size={10} style={{ color: C.g300, flexShrink: 0 }}/>}
+            <span style={{ fontSize: 11, color: test(password) ? C.g600 : C.g400 }}>{label}</span>
           </div>
         ))}
       </div>
@@ -52,7 +71,6 @@ function PwStrength({ password }) {
   );
 }
 
-// ── OTP Input ─────────────────────────────────────────────────────────────────
 function OTPInput({ value, onChange, hasError }) {
   const refs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
   const digits = (value + '      ').slice(0, 6).split('');
@@ -62,121 +80,44 @@ function OTPInput({ value, onChange, hasError }) {
       onChange(value.slice(0, Math.max(0, i)));
       if (i > 0) refs[i-1].current?.focus();
     } else if (/^\d$/.test(e.key)) {
-      const arr = (value + '      ').slice(0,6).split('');
+      const arr = (value + '      ').slice(0, 6).split('');
       arr[i] = e.key;
-      onChange(arr.join('').replace(/\s/g,''));
+      onChange(arr.join('').replace(/\s/g, ''));
       if (i < 5) refs[i+1].current?.focus();
     }
     e.preventDefault();
   };
 
-  const handlePaste = (e) => {
-    const paste = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+  const handlePaste = e => {
+    const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     onChange(paste);
     refs[Math.min(paste.length, 5)].current?.focus();
     e.preventDefault();
   };
 
   return (
-    <div className="flex gap-2 justify-center">
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       {digits.map((d, i) => (
         <input key={i} ref={refs[i]} type="text" inputMode="numeric" maxLength={1}
           value={d === ' ' ? '' : d}
           onKeyDown={e => handleKey(i, e)}
           onPaste={handlePaste}
           onChange={() => {}}
-          onClick={() => refs[i].current?.focus()}
-          className="text-center text-xl font-black border-2 rounded-xl focus:outline-none transition-all"
+          className="pq-otp"
           style={{
-            width: 48, height: 52,
-            borderColor: hasError ? C.danger : d !== ' ' && d ? C.green : C.g200,
-            backgroundColor: d !== ' ' && d ? `${C.green}08` : C.white,
+            width: 38, height: 50, borderRadius: 12,
+            textAlign: 'center', fontSize: 20, fontWeight: 800,
+            border: `2.5px solid ${hasError ? C.danger : (d !== ' ' && d) ? C.green : C.g200}`,
             color: C.forest,
+            background: (d !== ' ' && d) ? `${C.green}10` : C.white,
+            outline: 'none', transition: 'all 0.15s',
+            fontFamily: "'DM Sans', sans-serif",
           }}
         />
       ))}
     </div>
   );
 }
-
-// ── Reusable Field + Input ─────────────────────────────────────────────────────
-function Field({ label, error, hint, children }) {
-  return (
-    <div>
-      {label && <label className="block text-xs font-bold mb-1.5" style={{ color:C.g700 }}>{label}</label>}
-      {children}
-      {hint && !error && <p className="text-xs mt-1" style={{ color:C.g400 }}>{hint}</p>}
-      {error && (
-        <p className="flex items-center gap-1 text-xs mt-1" style={{ color:C.danger }}>
-          <AlertCircle size={10}/>{error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Input({ icon:Icon, rightIcon, type='text', error, ...props }) {
-  return (
-    <div className="relative">
-      {Icon && <Icon size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}/>}
-      <input type={type} {...props}
-        className="w-full py-3 border-2 rounded-xl focus:outline-none transition-all"
-        style={{
-          paddingLeft: Icon ? 40 : 16,
-          paddingRight: rightIcon ? 44 : 16,
-          fontSize: 16,
-          borderColor: error ? C.danger : props.value ? C.green : C.g200,
-          color: C.g800,
-          backgroundColor: C.white,
-        }}
-      />
-      {rightIcon}
-    </div>
-  );
-}
-
-// ── Country phone codes ───────────────────────────────────────────────────────
-const PHONE_CODES = [
-  { flag:'🇬🇭', code:'+233', name:'Ghana' },
-  { flag:'🇳🇬', code:'+234', name:'Nigeria' },
-  { flag:'🇰🇪', code:'+254', name:'Kenya' },
-  { flag:'🇿🇦', code:'+27',  name:'South Africa' },
-  { flag:'🇺🇬', code:'+256', name:'Uganda' },
-  { flag:'🇹🇿', code:'+255', name:'Tanzania' },
-  { flag:'🇺🇸', code:'+1',   name:'United States' },
-  { flag:'🇬🇧', code:'+44',  name:'United Kingdom' },
-  { flag:'🇪🇺', code:'+32',  name:'Europe' },
-  { flag:'🇨🇲', code:'+237', name:'Cameroon' },
-  { flag:'🇸🇳', code:'+221', name:'Senegal' },
-];
-
-// ── Mobile bottom nav (lg:hidden — never shown on desktop) ───────────────────
-function BottomNav() {
-  const navigate = useNavigate();
-  return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40 shadow-2xl"
-      style={{ borderColor:C.g200, paddingBottom:'env(safe-area-inset-bottom)' }}>
-      <div className="flex items-center justify-around px-2 py-2">
-        {[
-          { Icon:Home,  label:'Home',    path:'/' },
-          { Icon:Gift,  label:'Gifts',   path:'/gift-cards' },
-          { Icon:LogIn, label:'Sign In', path:'/login' },
-        ].map(({ Icon, label, path }) => (
-          <button key={label} onClick={() => navigate(path)}
-            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition"
-            style={{ color: C.g400 }}>
-            <Icon size={20} strokeWidth={1.8}/>
-            <span className="text-xs font-bold">{label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── STEPS ─────────────────────────────────────────────────────────────────────
-// register: 1 = contact, 2 = verify OTP, 3 = profile + password, 4 = success
-// forgot:  f1 = contact, f2 = OTP, f3 = new password, f4 = success
 
 export default function Register({ onLogin }) {
   const navigate = useNavigate();
@@ -237,19 +178,17 @@ export default function Register({ onLogin }) {
     else if (username.length < 3) e.username = 'At least 3 characters';
     else if (!/^[a-z0-9_.@-]+$/.test(username)) e.username = 'Letters, numbers, _ . @ - only';
     if (!password) e.password = 'Password is required';
-    else if (pwChecks.filter(c => c.test(password)).length < 3) e.password = 'Password is too weak';
+    else if (PW_CHECKS.filter(c => c.test(password)).length < 3) e.password = 'Password is too weak';
     if (password !== confirm) e.confirm = 'Passwords do not match';
     if (!agreed) e.agreed = 'You must agree to continue';
     setErrs(e);
     return Object.keys(e).length === 0;
   };
 
-  const validateProfile = () => validateAll();
-
   const validateNewPassword = () => {
     const e = {};
     if (!password) e.password = 'Required';
-    else if (pwChecks.filter(c => c.test(password)).length < 3) e.password = 'Too weak';
+    else if (PW_CHECKS.filter(c => c.test(password)).length < 3) e.password = 'Too weak';
     if (password !== confirm) e.confirm = 'Passwords do not match';
     setErrs(e);
     return Object.keys(e).length === 0;
@@ -259,7 +198,7 @@ export default function Register({ onLogin }) {
     if (!validateContact()) return;
     setLoading(true); setGlobalError('');
     try {
-      await axios.post(`${API_URL}/auth/send-otp`, { method, contact, purpose:'forgot-password' });
+      await axios.post(`${API_URL}/auth/send-otp`, { method, contact, purpose: 'forgot-password' });
       setStep('f2'); setOtpTimer(60);
     } catch (err) { setGlobalError(err.response?.data?.error || 'Failed to send code. Try again.'); }
     finally { setLoading(false); }
@@ -320,531 +259,575 @@ export default function Register({ onLogin }) {
     setOtp(''); setErrs({}); setGlobalError('');
   };
 
-  const STEP_LABELS = mode === 'register'
-    ? ['Details', 'Done']
-    : ['Contact', 'Verify', 'New Password', 'Done'];
-  const currentStepNum = mode === 'register'
-    ? (step === 4 ? 2 : 1)
-    : ({ f1:1, f2:2, f3:3, f4:4 }[step] || 1);
+  const FEATURES = [
+    { icon: '🔒', t: 'Escrow on every trade',    s: 'Bitcoin locked until both confirm' },
+    { icon: '⚡', t: 'Complete in under 15 min', s: 'Mobile money & bank transfer' },
+    { icon: '🌍', t: '180+ countries supported', s: 'GHS, NGN, KES, EUR & more' },
+  ];
 
-  const heroTitle = mode === 'forgot'
-    ? 'Reset Password'
-    : 'Create Account';
-  const heroSub = mode === 'forgot'
-    ? "We'll help you get back in"
-    : "Join Africa's #1 P2P Bitcoin platform";
+  const heroTitle = mode === 'forgot' ? 'Reset Password' : 'Create Account';
+  const heroSub   = mode === 'forgot' ? "We'll help you get back in" : "Join Africa's #1 P2P Bitcoin platform";
+
+  const inp = (filled, err) => ({
+    width: '100%', padding: '13px 16px', fontSize: 16, borderRadius: 14,
+    border: `2px solid ${err ? C.danger : filled ? C.green : C.g200}`,
+    color: C.g800, background: C.white, outline: 'none',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    fontFamily: "'DM Sans', sans-serif",
+  });
+
+  const inpWithIcon = (filled, err) => ({ ...inp(filled, err), paddingLeft: 42 });
+  const inpIconRight = (filled, err) => ({ ...inpWithIcon(filled, err), paddingRight: 48 });
+
+  const PrimaryBtn = ({ onClick, disabled, children, style = {} }) => (
+    <button onClick={onClick} disabled={disabled}
+      className="pq-btn"
+      style={{
+        width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+        background: `linear-gradient(135deg, ${C.green}, ${C.mint})`,
+        color: 'white', fontSize: 14, fontWeight: 900,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        boxShadow: '0 6px 24px rgba(45,106,79,0.28)',
+        opacity: disabled ? 0.55 : 1, cursor: disabled ? 'not-allowed' : 'pointer',
+        ...style,
+      }}>
+      {children}
+    </button>
+  );
+
+  const ErrMsg = ({ text }) => text ? (
+    <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.danger, margin: '5px 0 0' }}>
+      <AlertCircle size={10}/>{text}
+    </p>
+  ) : null;
+
+  const Label = ({ children }) => (
+    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 7, color: C.g700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      {children}
+    </label>
+  );
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row"
-      style={{ fontFamily:"'DM Sans',sans-serif", backgroundColor:C.mist }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'DM Sans', sans-serif", background: C.mist }}>
       <style>{`
-        @keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        .slide{animation:slideUp .25s ease}
-        .fade{animation:fadeIn .3s ease}
-        input:focus{outline:none;}
-        button:focus{outline:none;}
-        * { -webkit-tap-highlight-color: transparent; }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap');
+        @keyframes pqUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pqIn  { from { opacity:0; } to { opacity:1; } }
+        @keyframes pqSpin{ to   { transform:rotate(360deg); } }
+        .pq-anim { animation: pqUp  0.3s cubic-bezier(0.22,0.68,0,1.1) both; }
+        .pq-fade { animation: pqIn  0.25s ease both; }
+        .pq-spin { animation: pqSpin 0.7s linear infinite; }
+        .pq-inp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
+        .pq-otp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
+        .pq-btn { transition: opacity 0.12s, transform 0.1s; }
+        .pq-btn:active { transform: scale(0.99); }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         button, a { touch-action: manipulation; }
-        input, select, textarea { font-size: 16px !important; }
+        input, select { font-size: 16px !important; }
         html, body { overscroll-behavior: none; }
       `}</style>
 
-      {/* ── Desktop left branding panel (lg+ only) ── */}
-      <div className="hidden lg:flex lg:w-2/5 flex-col justify-between p-10 relative overflow-hidden"
-        style={{ background:`linear-gradient(140deg,${C.forest},${C.green})` }}>
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)', backgroundSize:'28px 28px' }}/>
-        <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-10 blur-3xl"
-          style={{ backgroundColor:C.gold }}/>
-        <div className="relative">
-          <div className="flex items-center gap-2.5 mb-10">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl"
-              style={{ backgroundColor:C.gold, color:C.forest }}>P</div>
-            <span className="text-white font-black text-xl" style={{ fontFamily:"'Syne',sans-serif" }}>PRAQEN</span>
+      {/* ── Desktop left panel ─────────────────────────────────────────────── */}
+      <div style={{
+        display: 'none', width: '42%', flexShrink: 0,
+        flexDirection: 'column', justifyContent: 'space-between',
+        padding: '48px', position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 58%, ${C.mint} 100%)`,
+      }} className="pq-left-panel">
+        <style>{`.pq-left-panel { display: none; } @media(min-width:1024px){ .pq-left-panel { display: flex !important; } }`}</style>
+
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)', backgroundSize: '28px 28px' }}/>
+        <div style={{ position: 'absolute', bottom: -60, right: -60, width: 300, height: 300, borderRadius: '50%', background: C.gold, opacity: 0.10, filter: 'blur(70px)', pointerEvents: 'none' }}/>
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* praqen wordmark */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 18px', borderRadius: 10, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 36 }}>
+            <span style={{ color: 'white', fontSize: 14, fontWeight: 800, letterSpacing: '7px', fontFamily: "'DM Sans',sans-serif" }}>praqen</span>
           </div>
-          <h2 className="text-3xl font-black text-white mb-3" style={{ fontFamily:"'Syne',sans-serif" }}>
-            Trade Bitcoin<br/>Safely & Easily
+
+          <h2 style={{ color: 'white', fontWeight: 900, fontSize: 36, fontFamily: "'Syne',sans-serif", margin: '0 0 12px', lineHeight: 1.15 }}>
+            {mode === 'forgot' ? <>Reset Your<br/>Password 🔑</> : <>Start Trading<br/>Bitcoin Today ⚡</>}
           </h2>
-          <p className="text-white/60 text-sm leading-relaxed mb-8">
-            Join 2.4M+ traders using the most trusted P2P platform in Africa. Fast trades, real escrow, zero fraud.
+          <p style={{ color: 'rgba(255,255,255,0.60)', fontSize: 14, lineHeight: 1.75, margin: '0 0 32px' }}>
+            Africa's most trusted P2P Bitcoin platform.<br/>Real escrow. Real people. Zero fraud.
           </p>
-          <div className="space-y-3">
-            {[
-              { icon:'🔒', label:'Escrow on every trade',    sub:'Bitcoin locked until both confirm' },
-              { icon:'⚡', label:'Complete in under 15 min', sub:'Mobile money & bank transfer' },
-              { icon:'💸', label:'0.5% flat fee only',       sub:'No hidden charges. Ever.' },
-              { icon:'🌍', label:'180+ countries supported', sub:'GHS, NGN, KES, EUR & more' },
-            ].map(({ icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3 p-3 rounded-xl"
-                style={{ backgroundColor:'rgba(255,255,255,0.06)' }}>
-                <span className="text-xl flex-shrink-0">{icon}</span>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {FEATURES.map(({ icon, t, s }) => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
                 <div>
-                  <p className="text-white text-xs font-bold">{label}</p>
-                  <p className="text-white/45 text-xs">{sub}</p>
+                  <p style={{ color: 'white', fontSize: 13, fontWeight: 700, margin: 0 }}>{t}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>{s}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div className="relative flex items-center gap-2 text-white/30 text-xs">
-          <Shield size={12}/> All data encrypted · ISO 27001 security standards
+
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 7, color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
+          <Shield size={12}/>All data encrypted · ISO 27001 security standards
         </div>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className="flex-1 flex flex-col lg:items-center lg:justify-center" style={{ backgroundColor:C.mist }}>
+      {/* ── Right panel ─────────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: C.mist, minHeight: '100vh' }}>
 
-        {/* Mobile hero — only shown below lg, never on desktop */}
-        <div className="lg:hidden relative overflow-hidden px-5 pt-10 pb-14"
-          style={{ background:`linear-gradient(140deg,${C.forest} 0%,${C.green} 55%,${C.mint} 100%)` }}>
-          <div className="absolute inset-0 opacity-10"
-            style={{ backgroundImage:'radial-gradient(circle at 2px 2px,white 1px,transparent 0)', backgroundSize:'28px 28px' }}/>
-          <div className="absolute top-0 right-0 w-44 h-44 rounded-full opacity-20 blur-3xl pointer-events-none"
-            style={{ backgroundColor:C.gold }}/>
-          <div className="relative">
-            <h1 className="text-2xl font-black text-white mb-1" style={{ fontFamily:"'Syne',sans-serif" }}>
-              {heroTitle}
+        {/* Mobile hero — hidden on desktop via CSS */}
+        <div className="pq-mob-hero" style={{ position: 'relative', overflow: 'hidden', padding: '24px 20px 52px', flexShrink: 0, background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 55%, ${C.mint} 100%)` }}>
+          <style>{`.pq-mob-hero {} @media(min-width:1024px){ .pq-mob-hero { display:none !important; } }`}</style>
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '22px 22px' }}/>
+          <div style={{ position: 'absolute', top: -12, right: -12, width: 200, height: 200, borderRadius: '50%', background: C.gold, opacity: 0.18, filter: 'blur(60px)', pointerEvents: 'none' }}/>
+          <div style={{ position: 'absolute', bottom: -16, left: -16, width: 140, height: 140, borderRadius: '50%', background: C.mint, opacity: 0.22, filter: 'blur(40px)', pointerEvents: 'none' }}/>
+          <div style={{ position: 'relative' }}>
+            {/* praqen wordmark */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 16px', borderRadius: 9, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 14 }}>
+              <span style={{ color: 'white', fontSize: 13, fontWeight: 800, letterSpacing: '6px', fontFamily: "'DM Sans',sans-serif" }}>praqen</span>
+            </div>
+
+            <h1 style={{ color: 'white', fontWeight: 900, fontSize: 27, fontFamily: "'Syne',sans-serif", margin: '0 0 8px', lineHeight: 1.2 }}>
+              {mode === 'forgot' ? 'Reset Your Password 🔑' : <>Start Trading<br/>Bitcoin Today ⚡</>}
             </h1>
-            <p className="text-white/70 text-sm mb-3">{heroSub}</p>
-            <div className="flex gap-2 flex-wrap">
-              {[['🔒','Escrow'],['⚡','Fast'],['🌍','Global'],['💸','0.5% Fee']].map(([icon,label]) => (
-                <div key={label} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white"
-                  style={{ backgroundColor:'rgba(255,255,255,0.15)' }}>
-                  <span className="text-sm">{icon}</span>{label}
+            <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, margin: '0 0 14px', lineHeight: 1.6 }}>
+              {mode === 'forgot' ? "We'll get you back in safely." : 'Escrow-protected P2P trades — no bank needed.'}
+            </p>
+
+            {/* Trust pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[['🔒','Escrow'],['⚡','Fast'],['🌍','180+ Countries']].map(([ic, lb]) => (
+                <div key={lb} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.20)', fontSize: 11, fontWeight: 700, color: 'white' }}>
+                  <span style={{ fontSize: 11 }}>{ic}</span>{lb}
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Form card area — overlaps hero on mobile */}
-        <div className="w-full lg:max-w-md px-4 lg:px-0 -mt-6 lg:mt-0 pb-20 lg:pb-10 lg:py-10 relative z-10">
+        {/* Form area */}
+        <div style={{ flex: 1, padding: '0 12px', paddingBottom: 112 }}>
+          <div className="pq-anim pq-form-center" style={{ width: '100%', marginTop: -40 }}>
+            <style>{`@media(min-width:540px){ .pq-form-center { max-width:480px; margin-left:auto; margin-right:auto; } } @media(min-width:1024px){ .pq-form-center { max-width:480px !important; margin:40px auto !important; } }`}</style>
 
-          {/* Card */}
-          <div className="bg-white rounded-3xl shadow-xl border overflow-hidden" style={{ borderColor:C.g200 }}>
+            {/* Card */}
+            <div style={{ background: C.white, borderRadius: 28, boxShadow: '0 4px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
 
-            {/* Card header */}
-            <div className="px-5 md:px-7 py-5 border-b" style={{ borderColor:C.g100 }}>
-              <div className="flex items-center justify-between mb-1">
-                {(step === 'f2' || step === 'f3') && (
-                  <button onClick={() => {
-                    if (step === 'f2') setStep('f1');
-                    else if (step === 'f3') setStep('f2');
-                  }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 transition mr-2 flex-shrink-0"
-                    style={{ color:C.g500 }}>
-                    <ArrowLeft size={15}/>
-                  </button>
-                )}
-                <div className="flex-1">
-                  <h1 className="font-black text-lg" style={{ color:C.forest, fontFamily:"'Syne',sans-serif" }}>
-                    {mode === 'register'
-                      ? (step === 4 ? 'Welcome!' : 'Create Account')
-                      : ({ f1:'Forgot Password', f2:'Verify Your Contact', f3:'Set New Password', f4:'Password Reset!' }[step])}
-                  </h1>
-                  <p className="text-xs mt-0.5" style={{ color:C.g500 }}>
-                    {mode === 'register'
-                      ? (step === 4 ? 'Your account is ready' : 'Fill in your details to get started')
-                      : ({ f1:"We'll send a reset code to your contact", f2:`Check your ${method} for the code`, f3:'Choose a new secure password', f4:'You can now log in with your new password' }[step])}
-                  </p>
+              {/* Card header */}
+              <div style={{ padding: '18px 16px 14px', borderBottom: `1px solid ${C.g100}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  {(step === 'f2' || step === 'f3') && (
+                    <button onClick={() => { if (step === 'f2') setStep('f1'); else if (step === 'f3') setStep('f2'); }}
+                      style={{ width: 32, height: 32, borderRadius: 10, border: `1.5px solid ${C.g200}`, background: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: C.g500 }}>
+                      <ArrowLeft size={15}/>
+                    </button>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", lineHeight: 1.2 }}>
+                      {mode === 'register'
+                        ? (step === 4 ? 'Welcome!' : 'Create Account')
+                        : ({ f1:'Forgot Password', f2:'Verify Your Contact', f3:'Set New Password', f4:'Password Reset!' }[step])}
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: C.g500, lineHeight: 1.4 }}>
+                      {mode === 'register'
+                        ? (step === 4 ? 'Your account is ready' : 'Fill in your details to get started')
+                        : ({ f1:"We'll send a reset code to your contact", f2:`Check your ${method} for the code`, f3:'Choose a new secure password', f4:'You can now log in with your new password' }[step])}
+                    </p>
+                  </div>
                 </div>
+
+                {step !== 4 && step !== 'f4' && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+                    {(mode === 'register' ? [1] : ['f1','f2','f3','f4']).map((s, i) => (
+                      <div key={i} style={{ height: 4, flex: 1, borderRadius: 99, background: (mode === 'register' ? step === 4 : ['f2','f3','f4'].includes(step) && i < ['f1','f2','f3','f4'].indexOf(step)) ? C.green : C.g200, transition: 'background 0.4s' }}/>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {step !== 4 && step !== 'f4' && (
-                <div className="flex gap-1.5 mt-3">
-                  {STEP_LABELS.map((_, i) => (
-                    <div key={i} className="h-1 flex-1 rounded-full transition-all duration-500"
-                      style={{ backgroundColor: i < currentStepNum ? C.green : C.g200 }}/>
-                  ))}
-                </div>
-              )}
-            </div>
+              {/* Card body */}
+              <div className="pq-fade" key={String(step)} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Card body */}
-            <div className="px-5 md:px-7 py-5 space-y-4 slide" key={String(step)}>
-
-              {/* STEP 1 — Register: all fields in one go */}
-              {step === 1 && mode === 'register' && (
-                <>
-                  {globalError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
-                      <AlertCircle size={13}/>{globalError}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl" style={{ backgroundColor:C.g100 }}>
-                    {[
-                      { val:'email', Icon:AtSign,     label:'Email' },
-                      { val:'phone', Icon:Smartphone, label:'Phone' },
-                    ].map(({ val, Icon, label }) => (
-                      <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
-                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition"
-                        style={{
-                          backgroundColor: method===val ? C.white : 'transparent',
-                          color: method===val ? C.green : C.g500,
-                          boxShadow: method===val ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
-                        }}>
-                        <Icon size={13}/>{label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {method === 'email' ? (
-                    <Field label="Email Address" error={errs.email}>
-                      <Input icon={Mail} type="email" placeholder="you@example.com"
-                        value={email} onChange={e => setEmail(e.target.value)} error={errs.email}/>
-                    </Field>
-                  ) : (
-                    <Field label="Phone Number" error={errs.phone}>
-                      <div className="flex gap-2">
-                        <div className="relative flex-shrink-0">
-                          <button onClick={() => setShowCodes(!showCodes)}
-                            className="flex items-center gap-1 px-3 py-3 border-2 rounded-xl text-sm font-bold transition"
-                            style={{ borderColor:C.g200, color:C.g700 }}>
-                            <span>{phoneCode.flag}</span>
-                            <span>{phoneCode.code}</span>
-                            <span className="text-xs" style={{ color:C.g400 }}>▼</span>
-                          </button>
-                          {showCodes && (
-                            <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-2xl z-50 border max-h-48 overflow-y-auto"
-                              style={{ borderColor:C.g100 }}>
-                              {PHONE_CODES.map(pc => (
-                                <button key={pc.code} onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left text-xs border-b last:border-0"
-                                  style={{ borderColor:C.g50 }}>
-                                  <span className="text-base">{pc.flag}</span>
-                                  <span className="font-bold" style={{ color:C.g700 }}>{pc.name}</span>
-                                  <span className="ml-auto" style={{ color:C.g400 }}>{pc.code}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <Input icon={Phone} type="tel" placeholder="24 XXX XXXX"
-                            value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,''))}
-                            error={errs.phone}/>
-                        </div>
+                {/* ─── REGISTER STEP 1 ─── */}
+                {step === 1 && mode === 'register' && (
+                  <>
+                    {globalError && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger, border: '1.5px solid #FECACA' }}>
+                        <AlertCircle size={13} style={{ flexShrink: 0 }}/>{globalError}
                       </div>
-                    </Field>
-                  )}
+                    )}
 
-                  <Field label="Full Name" error={errs.fullName}>
-                    <Input icon={User} placeholder="John Doe"
-                      value={fullName} onChange={e => setFullName(e.target.value)} error={errs.fullName}/>
-                  </Field>
-
-                  <Field label="Username" error={errs.username}>
-                    <Input icon={AtSign} placeholder="john_doe"
-                      value={username} onChange={e => setUsername(e.target.value.toLowerCase())} error={errs.username}/>
-                  </Field>
-
-                  <Field label="Password" error={errs.password}>
-                    <Input icon={Lock} type={showPw ? 'text' : 'password'} placeholder="Create a strong password"
-                      value={password} onChange={e => setPassword(e.target.value)} error={errs.password}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    {/* Method toggle */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 5, borderRadius: 14, background: C.g100 }}>
+                      {[{ val: 'email', Icon: AtSign, label: 'Email' }, { val: 'phone', Icon: Smartphone, label: 'Phone' }].map(({ val, Icon, label }) => (
+                        <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: method === val ? C.white : 'transparent', color: method === val ? C.green : C.g500, boxShadow: method === val ? '0 1px 6px rgba(0,0,0,0.10)' : 'none' }}>
+                          <Icon size={14}/>{label}
                         </button>
-                      }/>
-                    <PwStrength password={password}/>
-                  </Field>
-
-                  <Field label="Confirm Password" error={errs.confirm}>
-                    <Input icon={Lock} type={showConfirm ? 'text' : 'password'} placeholder="Repeat your password"
-                      value={confirm} onChange={e => setConfirm(e.target.value)} error={errs.confirm}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showConfirm ? <EyeOff size={16}/> : <Eye size={16}/>}
-                        </button>
-                      }/>
-                  </Field>
-
-                  <div>
-                    <label className="flex items-start gap-2.5 cursor-pointer">
-                      <div onClick={() => setAgreed(!agreed)}
-                        className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition"
-                        style={{ borderColor: agreed ? C.green : errs.agreed ? C.danger : C.g300, backgroundColor: agreed ? C.green : 'transparent' }}>
-                        {agreed && <Check size={11} className="text-white"/>}
-                      </div>
-                      <p className="text-xs leading-relaxed" style={{ color:C.g600 }}>
-                        I agree to the{' '}
-                        <a href="/terms" className="font-bold hover:underline" style={{ color:C.green }}>Terms of Service</a>
-                        {' '}and{' '}
-                        <a href="/privacy" className="font-bold hover:underline" style={{ color:C.green }}>Privacy Policy</a>.
-                        I understand that all trades are escrow-protected.
-                      </p>
-                    </label>
-                    {errs.agreed && <p className="text-xs mt-1" style={{ color:C.danger }}>{errs.agreed}</p>}
-                  </div>
-
-                  <button onClick={handleRegister} disabled={loading}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Creating Account…</> : <>Create Account <ArrowRight size={15}/></>}
-                  </button>
-
-                  <p className="text-center text-xs" style={{ color:C.g500 }}>
-                    Already have an account?{' '}
-                    <Link to="/login" className="font-bold hover:underline" style={{ color:C.green }}>Log In</Link>
-                  </p>
-                </>
-              )}
-
-              {/* f1 — Forgot password: contact only */}
-              {step === 'f1' && (
-                <>
-                  {globalError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
-                      <AlertCircle size={13}/>{globalError}
+                      ))}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl" style={{ backgroundColor:C.g100 }}>
-                    {[
-                      { val:'email', Icon:AtSign,     label:'Email' },
-                      { val:'phone', Icon:Smartphone, label:'Phone' },
-                    ].map(({ val, Icon, label }) => (
-                      <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
-                        className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition"
-                        style={{
-                          backgroundColor: method===val ? C.white : 'transparent',
-                          color: method===val ? C.green : C.g500,
-                          boxShadow: method===val ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
-                        }}>
-                        <Icon size={13}/>{label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {method === 'email' ? (
-                    <Field label="Email Address" error={errs.email}>
-                      <Input icon={Mail} type="email" placeholder="you@example.com"
-                        value={email} onChange={e => setEmail(e.target.value)} error={errs.email}/>
-                    </Field>
-                  ) : (
-                    <Field label="Phone Number" error={errs.phone}>
-                      <div className="flex gap-2">
-                        <div className="relative flex-shrink-0">
-                          <button onClick={() => setShowCodes(!showCodes)}
-                            className="flex items-center gap-1 px-3 py-3 border-2 rounded-xl text-sm font-bold transition"
-                            style={{ borderColor:C.g200, color:C.g700 }}>
-                            <span>{phoneCode.flag}</span>
-                            <span>{phoneCode.code}</span>
-                            <span className="text-xs" style={{ color:C.g400 }}>▼</span>
-                          </button>
-                          {showCodes && (
-                            <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-2xl z-50 border max-h-48 overflow-y-auto"
-                              style={{ borderColor:C.g100 }}>
-                              {PHONE_CODES.map(pc => (
-                                <button key={pc.code} onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left text-xs border-b last:border-0"
-                                  style={{ borderColor:C.g50 }}>
-                                  <span className="text-base">{pc.flag}</span>
-                                  <span className="font-bold" style={{ color:C.g700 }}>{pc.name}</span>
-                                  <span className="ml-auto" style={{ color:C.g400 }}>{pc.code}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                    {/* Email or Phone */}
+                    {method === 'email' ? (
+                      <div>
+                        <Label>Email Address</Label>
+                        <div style={{ position: 'relative' }}>
+                          <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                          <input type="email" value={email} placeholder="you@example.com"
+                            onChange={e => setEmail(e.target.value)} className="pq-inp"
+                            style={inpWithIcon(!!email, errs.email)}/>
                         </div>
-                        <div className="flex-1">
-                          <Input icon={Phone} type="tel" placeholder="24 XXX XXXX"
-                            value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,''))}
-                            error={errs.phone}/>
-                        </div>
+                        <ErrMsg text={errs.email}/>
                       </div>
-                    </Field>
-                  )}
-
-                  <button onClick={sendOTP} disabled={loading}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Sending code…</> : <>Send Reset Code <ArrowRight size={15}/></>}
-                  </button>
-
-                  <button onClick={backToRegister} className="w-full text-center text-xs font-semibold hover:underline" style={{ color:C.g500 }}>
-                    ← Back to Register
-                  </button>
-                </>
-              )}
-
-              {/* f2 — Forgot password OTP */}
-              {step === 'f2' && (
-                <>
-                  <div className="text-center py-2">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
-                      style={{ backgroundColor:`${C.green}12` }}>
-                      {method === 'email' ? '📧' : '📱'}
-                    </div>
-                    <p className="text-xs mb-1" style={{ color:C.g500 }}>We sent a 6-digit code to</p>
-                    <p className="font-black text-sm" style={{ color:C.forest }}>{contact}</p>
-                  </div>
-
-                  {globalError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
-                      <AlertCircle size={13}/>{globalError}
-                    </div>
-                  )}
-
-                  <OTPInput value={otp} onChange={setOtp} hasError={!!otpError}/>
-
-                  {otpError && (
-                    <p className="text-center text-xs font-semibold" style={{ color:C.danger }}>
-                      <AlertCircle size={11} className="inline mr-1"/>{otpError}
-                    </p>
-                  )}
-
-                  <button onClick={verifyOTP} disabled={loading || otp.length < 6}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-40 shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Verifying…</> : <>Verify Code <ArrowRight size={15}/></>}
-                  </button>
-
-                  <div className="text-center">
-                    {otpTimer > 0 ? (
-                      <p className="text-xs" style={{ color:C.g400 }}>
-                        Resend code in <span className="font-bold" style={{ color:C.green }}>{otpTimer}s</span>
-                      </p>
                     ) : (
-                      <button onClick={() => { setOtp(''); sendOTP(); }}
-                        className="text-xs font-bold hover:underline flex items-center gap-1 mx-auto"
-                        style={{ color:C.green }}>
-                        <RefreshCw size={11}/>Resend Code
+                      <div>
+                        <Label>Phone Number</Label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <button onClick={() => setShowCodes(!showCodes)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px 12px', border: `2px solid ${C.g200}`, borderRadius: 14, background: C.white, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.g700, whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 18 }}>{phoneCode.flag}</span>
+                              <span>{phoneCode.code}</span>
+                              <ChevronDown size={13} style={{ color: C.g400 }}/>
+                            </button>
+                            {showCodes && (
+                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, width: 240, maxWidth: 'calc(100vw - 40px)', background: C.white, borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.16)', zIndex: 100, border: `1px solid ${C.g100}`, overflow: 'hidden' }}>
+                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                  {PHONE_CODES.map(pc => (
+                                    <button key={pc.code} onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
+                                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: phoneCode.code === pc.code ? `${C.green}08` : 'transparent', border: 'none', borderBottom: `1px solid ${C.g50}`, cursor: 'pointer', textAlign: 'left' }}>
+                                      <span style={{ fontSize: 20 }}>{pc.flag}</span>
+                                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.g700 }}>{pc.name}</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: phoneCode.code === pc.code ? C.green : C.g400 }}>{pc.code}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ position: 'relative' }}>
+                              <Phone size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                              <input type="tel" value={phone} placeholder="e.g. 244 123 4567"
+                                onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} className="pq-inp"
+                                style={inpWithIcon(!!phone, errs.phone)}/>
+                            </div>
+                          </div>
+                        </div>
+                        <ErrMsg text={errs.phone}/>
+                      </div>
+                    )}
+
+                    {/* Full Name */}
+                    <div>
+                      <Label>Full Name</Label>
+                      <div style={{ position: 'relative' }}>
+                        <User size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type="text" value={fullName} placeholder="John Doe"
+                          onChange={e => setFullName(e.target.value)} className="pq-inp"
+                          style={inpWithIcon(!!fullName, errs.fullName)}/>
+                      </div>
+                      <ErrMsg text={errs.fullName}/>
+                    </div>
+
+                    {/* Username */}
+                    <div>
+                      <Label>Username</Label>
+                      <div style={{ position: 'relative' }}>
+                        <AtSign size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type="text" value={username} placeholder="john_doe"
+                          onChange={e => setUsername(e.target.value.toLowerCase())} className="pq-inp"
+                          style={inpWithIcon(!!username, errs.username)}/>
+                      </div>
+                      <ErrMsg text={errs.username}/>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <Label>Password</Label>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type={showPw ? 'text' : 'password'} value={password} placeholder="Create a strong password"
+                          onChange={e => setPassword(e.target.value)} className="pq-inp"
+                          style={inpIconRight(!!password, errs.password)}/>
+                        <button type="button" onClick={() => setShowPw(!showPw)}
+                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4, display: 'flex', alignItems: 'center' }}>
+                          {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        </button>
+                      </div>
+                      <ErrMsg text={errs.password}/>
+                      <PwStrength password={password}/>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <Label>Confirm Password</Label>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type={showConfirm ? 'text' : 'password'} value={confirm} placeholder="Repeat your password"
+                          onChange={e => setConfirm(e.target.value)} className="pq-inp"
+                          style={inpIconRight(!!confirm, errs.confirm)}/>
+                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4, display: 'flex', alignItems: 'center' }}>
+                          {showConfirm ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        </button>
+                      </div>
+                      <ErrMsg text={errs.confirm}/>
+                    </div>
+
+                    {/* Terms */}
+                    <div>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+                        <div onClick={() => setAgreed(!agreed)}
+                          style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${agreed ? C.green : errs.agreed ? C.danger : C.g300}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, background: agreed ? C.green : 'transparent', transition: 'all 0.15s', cursor: 'pointer' }}>
+                          {agreed && <Check size={11} color="white"/>}
+                        </div>
+                        <p style={{ fontSize: 12, lineHeight: 1.6, color: C.g600, margin: 0 }}>
+                          I agree to the{' '}
+                          <a href="/terms" style={{ fontWeight: 700, color: C.green }}>Terms of Service</a>
+                          {' '}and{' '}
+                          <a href="/privacy" style={{ fontWeight: 700, color: C.green }}>Privacy Policy</a>.
+                          I understand all trades are escrow-protected.
+                        </p>
+                      </label>
+                      <ErrMsg text={errs.agreed}/>
+                    </div>
+
+                    <PrimaryBtn onClick={handleRegister} disabled={loading}>
+                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Creating Account…</> : <>Create Account <ArrowRight size={15}/></>}
+                    </PrimaryBtn>
+
+                    <p style={{ textAlign: 'center', fontSize: 13, color: C.g500, margin: 0 }}>
+                      Already have an account?{' '}
+                      <Link to="/login" style={{ fontWeight: 800, color: C.green }}>Log In</Link>
+                    </p>
+                  </>
+                )}
+
+                {/* ─── FORGOT f1 ─── */}
+                {step === 'f1' && (
+                  <>
+                    {globalError && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger, border: '1.5px solid #FECACA' }}>
+                        <AlertCircle size={13} style={{ flexShrink: 0 }}/>{globalError}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 5, borderRadius: 14, background: C.g100 }}>
+                      {[{ val: 'email', Icon: AtSign, label: 'Email' }, { val: 'phone', Icon: Smartphone, label: 'Phone' }].map(({ val, Icon, label }) => (
+                        <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: method === val ? C.white : 'transparent', color: method === val ? C.green : C.g500, boxShadow: method === val ? '0 1px 6px rgba(0,0,0,0.10)' : 'none' }}>
+                          <Icon size={14}/>{label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {method === 'email' ? (
+                      <div>
+                        <Label>Email Address</Label>
+                        <div style={{ position: 'relative' }}>
+                          <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                          <input type="email" value={email} placeholder="you@example.com"
+                            onChange={e => setEmail(e.target.value)} className="pq-inp"
+                            style={inpWithIcon(!!email, errs.email)}/>
+                        </div>
+                        <ErrMsg text={errs.email}/>
+                      </div>
+                    ) : (
+                      <div>
+                        <Label>Phone Number</Label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setShowCodes(!showCodes)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px 12px', border: `2px solid ${C.g200}`, borderRadius: 14, background: C.white, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.g700, flexShrink: 0 }}>
+                            <span style={{ fontSize: 18 }}>{phoneCode.flag}</span>
+                            <span>{phoneCode.code}</span>
+                          </button>
+                          <div style={{ flex: 1, position: 'relative' }}>
+                            <Phone size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                            <input type="tel" value={phone} placeholder="24 XXX XXXX"
+                              onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} className="pq-inp"
+                              style={inpWithIcon(!!phone, errs.phone)}/>
+                          </div>
+                        </div>
+                        <ErrMsg text={errs.phone}/>
+                      </div>
+                    )}
+
+                    <PrimaryBtn onClick={sendOTP} disabled={loading}>
+                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Sending code…</> : <>Send Reset Code <ArrowRight size={15}/></>}
+                    </PrimaryBtn>
+
+                    <button onClick={backToRegister} style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, color: C.g500 }}>
+                      ← Back to Register
+                    </button>
+                  </>
+                )}
+
+                {/* ─── FORGOT f2 OTP ─── */}
+                {step === 'f2' && (
+                  <>
+                    <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                      <div style={{ width: 60, height: 60, borderRadius: 20, background: `${C.green}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 12px' }}>
+                        {method === 'email' ? '📧' : '📱'}
+                      </div>
+                      <p style={{ fontSize: 12, color: C.g500, margin: '0 0 4px' }}>We sent a 6-digit code to</p>
+                      <p style={{ fontSize: 14, fontWeight: 900, color: C.forest, margin: 0 }}>{contact}</p>
+                    </div>
+
+                    {globalError && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger }}>
+                        <AlertCircle size={13}/>{globalError}
+                      </div>
+                    )}
+
+                    <OTPInput value={otp} onChange={setOtp} hasError={!!otpError}/>
+
+                    {otpError && (
+                      <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 600, color: C.danger, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, margin: 0 }}>
+                        <AlertCircle size={11}/>{otpError}
+                      </p>
+                    )}
+
+                    <PrimaryBtn onClick={verifyOTP} disabled={loading || otp.length < 6}>
+                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Verifying…</> : <>Verify Code <ArrowRight size={15}/></>}
+                    </PrimaryBtn>
+
+                    <div style={{ textAlign: 'center' }}>
+                      {otpTimer > 0
+                        ? <p style={{ fontSize: 12, color: C.g400, margin: 0 }}>Resend in <span style={{ fontWeight: 700, color: C.green }}>{otpTimer}s</span></p>
+                        : <button onClick={() => { setOtp(''); sendOTP(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.green, display: 'flex', alignItems: 'center', gap: 5, margin: '0 auto' }}>
+                            <RefreshCw size={11}/>Resend Code
+                          </button>
+                      }
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '12px 14px', borderRadius: 12, background: `${C.gold}12`, fontSize: 12, color: C.g600 }}>
+                      <span style={{ flexShrink: 0, marginTop: 1 }}>💡</span>
+                      Check your spam/junk folder if you don't see it. Codes expire in 10 minutes.
+                    </div>
+                  </>
+                )}
+
+                {/* ─── FORGOT f3 new password ─── */}
+                {step === 'f3' && (
+                  <>
+                    {globalError && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger }}>
+                        <AlertCircle size={13}/>{globalError}
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>New Password</Label>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type={showPw ? 'text' : 'password'} value={password} placeholder="Create a new strong password"
+                          onChange={e => setPassword(e.target.value)} className="pq-inp"
+                          style={inpIconRight(!!password, errs.password)}/>
+                        <button type="button" onClick={() => setShowPw(!showPw)}
+                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4 }}>
+                          {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        </button>
+                      </div>
+                      <ErrMsg text={errs.password}/>
+                      <PwStrength password={password}/>
+                    </div>
+
+                    <div>
+                      <Label>Confirm New Password</Label>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                        <input type={showConfirm ? 'text' : 'password'} value={confirm} placeholder="Repeat your password"
+                          onChange={e => setConfirm(e.target.value)} className="pq-inp"
+                          style={inpIconRight(!!confirm, errs.confirm)}/>
+                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4 }}>
+                          {showConfirm ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        </button>
+                      </div>
+                      <ErrMsg text={errs.confirm}/>
+                    </div>
+
+                    <PrimaryBtn onClick={handleResetPassword} disabled={loading}>
+                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Resetting…</> : <>Reset Password <ArrowRight size={15}/></>}
+                    </PrimaryBtn>
+                  </>
+                )}
+
+                {/* ─── REGISTER step 4 success ─── */}
+                {step === 4 && (
+                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${C.success}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                      <CheckCircle size={42} style={{ color: C.success }}/>
+                    </div>
+                    <h3 style={{ fontSize: 22, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", margin: '0 0 8px' }}>Welcome to PRAQEN! 🎉</h3>
+                    <p style={{ fontSize: 13, color: C.g500, margin: '0 0 24px' }}>Your account is ready. Redirecting to the marketplace…</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: C.g400 }}>
+                      <RefreshCw size={12} className="pq-spin"/>Taking you to live offers…
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── FORGOT f4 success ─── */}
+                {step === 'f4' && (
+                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${C.success}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                      <CheckCircle size={42} style={{ color: C.success }}/>
+                    </div>
+                    <h3 style={{ fontSize: 22, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", margin: '0 0 8px' }}>Password Reset! ✅</h3>
+                    <p style={{ fontSize: 13, color: C.g500, margin: '0 0 24px' }}>You can now log in with your new password.</p>
+                    <PrimaryBtn onClick={() => navigate('/login')}>Go to Login →</PrimaryBtn>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Card footer */}
+              {step !== 4 && step !== 'f4' && (
+                <div style={{ padding: '11px 16px', borderTop: `1px solid ${C.g100}`, background: C.g50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <Shield size={10} style={{ color: C.g400 }}/>
+                    <span style={{ fontSize: 10, color: C.g400 }}>SSL · Zero fraud</span>
+                  </div>
+                  <div style={{ flexShrink: 0 }}>
+                    {mode === 'register' && step === 1 && (
+                      <button onClick={startForgot} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.green, whiteSpace: 'nowrap' }}>
+                        Forgot password?
+                      </button>
+                    )}
+                    {mode === 'forgot' && (
+                      <button onClick={backToRegister} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.g500, whiteSpace: 'nowrap' }}>
+                        ← Register instead
                       </button>
                     )}
                   </div>
-
-                  <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
-                    style={{ backgroundColor:`${C.gold}10`, color:C.g600 }}>
-                    <span className="flex-shrink-0 mt-0.5">💡</span>
-                    Check your spam/junk folder if you don't see it. Codes expire in 10 minutes.
-                  </div>
-                </>
-              )}
-
-
-              {/* STEP 4 — Success */}
-              {step === 4 && (
-                <div className="text-center py-6 fade">
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ backgroundColor:`${C.success}15` }}>
-                    <CheckCircle size={40} style={{ color:C.success }}/>
-                  </div>
-                  <h3 className="text-xl font-black mb-2" style={{ color:C.forest, fontFamily:"'Syne',sans-serif" }}>
-                    Welcome to PRAQEN! 🎉
-                  </h3>
-                  <p className="text-sm mb-6" style={{ color:C.g500 }}>
-                    Your account is ready. Redirecting to the marketplace…
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-xs" style={{ color:C.g400 }}>
-                    <RefreshCw size={12} className="animate-spin"/>Taking you to live offers…
-                  </div>
                 </div>
               )}
-
-              {/* FORGOT f3 — New password */}
-              {step === 'f3' && (
-                <>
-                  {globalError && (
-                    <div className="flex items-center gap-2 p-3 rounded-xl text-xs" style={{ backgroundColor:'#FEF2F2', color:C.danger }}>
-                      <AlertCircle size={13}/>{globalError}
-                    </div>
-                  )}
-                  <Field label="New Password" error={errs.password}>
-                    <Input icon={Lock} type={showPw ? 'text' : 'password'} placeholder="Create a new strong password"
-                      value={password} onChange={e => setPassword(e.target.value)} error={errs.password}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
-                        </button>
-                      }/>
-                    <PwStrength password={password}/>
-                  </Field>
-                  <Field label="Confirm New Password" error={errs.confirm}>
-                    <Input icon={Lock} type={showConfirm ? 'text' : 'password'} placeholder="Repeat your password"
-                      value={confirm} onChange={e => setConfirm(e.target.value)} error={errs.confirm}
-                      rightIcon={
-                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:C.g400 }}>
-                          {showConfirm ? <EyeOff size={16}/> : <Eye size={16}/>}
-                        </button>
-                      }/>
-                  </Field>
-                  <button onClick={handleResetPassword} disabled={loading}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    {loading ? <><RefreshCw size={15} className="animate-spin"/>Resetting…</> : <>Reset Password <ArrowRight size={15}/></>}
-                  </button>
-                </>
-              )}
-
-              {/* FORGOT f4 — Success */}
-              {step === 'f4' && (
-                <div className="text-center py-6 fade">
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ backgroundColor:`${C.success}15` }}>
-                    <CheckCircle size={40} style={{ color:C.success }}/>
-                  </div>
-                  <h3 className="text-xl font-black mb-2" style={{ color:C.forest, fontFamily:"'Syne',sans-serif" }}>
-                    Password Reset! ✅
-                  </h3>
-                  <p className="text-sm mb-6" style={{ color:C.g500 }}>
-                    You can now log in with your new password.
-                  </p>
-                  <button onClick={() => navigate('/login')}
-                    className="w-full py-3.5 rounded-xl font-black text-sm text-white hover:opacity-90 transition shadow-lg"
-                    style={{ background:`linear-gradient(135deg,${C.green},${C.mint})` }}>
-                    Go to Login →
-                  </button>
-                </div>
-              )}
-
             </div>
 
-            {/* Card footer */}
-            {step !== 4 && step !== 'f4' && (
-              <div className="px-5 md:px-7 py-3.5 border-t" style={{ borderColor:C.g100, backgroundColor:C.g50 }}>
-                <p className="text-center font-bold mb-1" style={{ fontSize:11, color:C.forest }}>
-                  🏆 Africa's #1 P2P Bitcoin Platform
-                </p>
-                <p className="text-center mb-2.5" style={{ fontSize:10, color:C.g500, lineHeight:1.5 }}>
-                  Escrow on every trade · 0.5% flat fee · 180+ countries · 2.4M+ traders
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1" style={{ fontSize:10, color:C.g400 }}>
-                    <Shield size={10}/> 256-bit SSL · Zero fraud guarantee
-                  </div>
-                  {mode === 'register' && step === 1 && (
-                    <button onClick={startForgot} className="text-xs font-bold hover:underline" style={{ color:C.green }}>
-                      Forgot password?
-                    </button>
-                  )}
-                  {mode === 'forgot' && (
-                    <button onClick={backToRegister} className="text-xs font-bold hover:underline" style={{ color:C.g500 }}>
-                      ← Register instead
-                    </button>
-                  )}
-                </div>
-              </div>
+            {step === 1 && mode === 'register' && (
+              <p style={{ textAlign: 'center', fontSize: 13, color: C.g500, marginTop: 16 }}>
+                Already have an account?{' '}
+                <Link to="/login" style={{ fontWeight: 800, color: C.green }}>Sign In</Link>
+              </p>
             )}
           </div>
-
-          {step === 1 && mode === 'register' && (
-            <p className="text-center text-xs mt-4" style={{ color:C.g500 }}>
-              Already have an account?{' '}
-              <Link to="/login" className="font-black hover:underline" style={{ color:C.green }}>Sign In</Link>
-            </p>
-          )}
         </div>
       </div>
 
-      <BottomNav/>
+      {/* ── Mobile bottom nav ─────────────────────────────────────────────── */}
+      <div className="pq-bottom-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.g200}`, zIndex: 40, paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 20px rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '8px 0' }}>
+        <style>{`@media(min-width:1024px){ .pq-bottom-nav { display:none !important; } }`}</style>
+        {[
+          { Icon: Home,  label: 'Home',    path: '/' },
+          { Icon: Gift,  label: 'Gifts',   path: '/gift-cards' },
+          { Icon: LogIn, label: 'Sign In', path: '/login' },
+        ].map(({ Icon, label, path }) => (
+          <button key={label} onClick={() => navigate(path)}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 22px', borderRadius: 12, background: 'none', border: 'none', cursor: 'pointer', color: C.g400 }}>
+            <Icon size={21} strokeWidth={1.8}/>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>{label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

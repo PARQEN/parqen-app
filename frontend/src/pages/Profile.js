@@ -239,16 +239,16 @@ export default function Profile({userId:propUserId}){
             {/* ── Profile Header ── */}
             <div className="px-3 sm:px-5 lg:px-8 pt-4 pb-4 border-b" style={{borderColor:C.g100,boxSizing:'border-box',width:'100%'}}>
 
-              {/* Row 1: Username + flag (same line) */}
-              <div className="flex items-center gap-3 mb-4 flex-wrap">
+              {/* Row 1: Username */}
+              <div className="mb-4">
                 <h1 style={{
                   color:'#111827', fontFamily:"'Syne',sans-serif",
-                  fontSize:'clamp(1.4rem,5vw,2.2rem)', fontWeight:900,
-                  letterSpacing:'0.08em', textTransform:'uppercase', lineHeight:1,
+                  fontSize:'clamp(1.1rem,4vw,1.9rem)', fontWeight:900,
+                  letterSpacing:'0.04em', textTransform:'uppercase',
+                  lineHeight:1.15, wordBreak:'break-word', overflowWrap:'anywhere',
                 }}>
                   {user.username}
                 </h1>
-                <span style={{fontSize:'clamp(1.4rem,5vw,2rem)',lineHeight:1}}>{displayFlag}</span>
               </div>
 
               {/* Row 2: Avatar + Info + Verifications */}
@@ -426,7 +426,10 @@ export default function Profile({userId:propUserId}){
                         className="w-full px-3 py-2 rounded-xl text-sm font-bold border-2 focus:outline-none"
                         style={{borderColor:user.username_changed?C.g200:C.sage,backgroundColor:user.username_changed?C.g100:'white',color:user.username_changed?C.g400:C.g800,cursor:user.username_changed?'not-allowed':'text'}}
                       />
-                      {user.username_changed&&<p className="text-xs mt-0.5" style={{color:C.g400}}>Username can only be changed once.</p>}
+                      {user.username_changed
+                        ? <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}><Lock size={9}/>Username is permanently locked.</p>
+                        : <p className="text-xs mt-1 flex items-center gap-1" style={{color:'#D97706'}}>⚠ You can only change your username once. Choose carefully.</p>
+                      }
                     </div>
                     {/* Full name — locked after KYC */}
                     <div>
@@ -442,13 +445,31 @@ export default function Profile({userId:propUserId}){
                         className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none"
                         style={{borderColor:kycOk?C.g200:C.sage,backgroundColor:kycOk?C.g100:'white',color:kycOk?C.g400:C.g800,cursor:kycOk?'not-allowed':'text'}}
                       />
-                      {kycOk&&<p className="text-xs mt-0.5" style={{color:C.g400}}>Locked after ID verification.</p>}
+                      {kycOk
+                        ? <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}><Lock size={9}/>Locked after ID verification.</p>
+                        : <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g500}}>ℹ Full name cannot be changed after ID verification.</p>
+                      }
                     </div>
                   </div>
                   <input value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Location"
                     className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none" style={{borderColor:C.sage}}/>
-                  <textarea value={form.bio} onChange={e=>setForm({...form,bio:e.target.value})} placeholder="Bio" rows={2}
-                    className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none resize-none" style={{borderColor:C.sage}}/>
+                  <div>
+                    <textarea
+                      value={form.bio}
+                      onChange={e=>{
+                        const val=e.target.value;
+                        const wc=val.trim()===''?0:val.trim().split(/\s+/).length;
+                        if(wc<=100) setForm({...form,bio:val});
+                      }}
+                      placeholder="Bio (max 100 words)"
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-xl text-sm border-2 focus:outline-none resize-none"
+                      style={{borderColor:C.sage}}
+                    />
+                    <p className="text-xs mt-0.5 text-right" style={{color:(form.bio||'').trim()===''?C.g400:(form.bio||'').trim().split(/\s+/).length>=100?C.danger:C.g400}}>
+                      {(form.bio||'').trim()===''?0:(form.bio||'').trim().split(/\s+/).length}/100 words
+                    </p>
+                  </div>
                   <div className="flex gap-2">
                     <button type="submit" disabled={saving}
                       className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs text-white"
@@ -1046,24 +1067,68 @@ export default function Profile({userId:propUserId}){
             <div className="bg-white rounded-2xl border shadow-sm p-5" style={{borderColor:C.g200}}>
               <p className="font-black text-sm mb-4" style={{color:C.forest}}>Edit Profile</p>
               <form onSubmit={saveProfile} className="space-y-3">
-                {[
-                  {field:'username', label:'Username', type:'text', ph:'johndoe'},
-                  {field:'full_name',label:'Full Name', type:'text', ph:'John Doe'},
-                  {field:'location', label:'Location',  type:'text', ph:'Accra, Ghana'},
-                  {field:'website',  label:'Website',   type:'url',  ph:'https://yoursite.com'},
-                ].map(({field,label,type,ph})=>(
-                  <div key={field}>
-                    <label className="text-xs font-bold mb-1 block" style={{color:C.g600}}>{label}</label>
-                    <input type={type} value={form[field]||''} onChange={e=>setForm({...form,[field]:e.target.value})} placeholder={ph}
-                      className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none"
-                      style={{borderColor:form[field]?C.green:C.g200}}/>
-                  </div>
-                ))}
+                {/* Username */}
+                <div>
+                  <label className="text-xs font-bold mb-1 flex items-center gap-1" style={{color:C.g600}}>
+                    Username {user.username_changed&&<Lock size={10} style={{color:C.g400}}/>}
+                  </label>
+                  <input type="text" value={form.username||''} onChange={e=>setForm({...form,username:e.target.value})} placeholder="johndoe"
+                    disabled={!!user.username_changed}
+                    className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none"
+                    style={{borderColor:user.username_changed?C.g200:form.username?C.green:C.g200,backgroundColor:user.username_changed?C.g100:'white',color:user.username_changed?C.g400:C.g800,cursor:user.username_changed?'not-allowed':'text'}}/>
+                  {user.username_changed
+                    ? <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}><Lock size={9}/>Username is permanently locked.</p>
+                    : <p className="text-xs mt-1 flex items-center gap-1" style={{color:'#D97706'}}>⚠ You can only change your username once. Choose carefully.</p>
+                  }
+                </div>
+                {/* Full Name */}
+                <div>
+                  <label className="text-xs font-bold mb-1 flex items-center gap-1" style={{color:C.g600}}>
+                    Full Name {kycOk&&<Lock size={10} style={{color:C.g400}}/>}
+                  </label>
+                  <input type="text" value={form.full_name||''} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="John Doe"
+                    disabled={kycOk}
+                    className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none"
+                    style={{borderColor:kycOk?C.g200:form.full_name?C.green:C.g200,backgroundColor:kycOk?C.g100:'white',color:kycOk?C.g400:C.g800,cursor:kycOk?'not-allowed':'text'}}/>
+                  {kycOk
+                    ? <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g400}}><Lock size={9}/>Locked after ID verification.</p>
+                    : <p className="text-xs mt-1 flex items-center gap-1" style={{color:C.g500}}>ℹ Full name cannot be changed after ID verification.</p>
+                  }
+                </div>
+                {/* Location */}
+                <div>
+                  <label className="text-xs font-bold mb-1 block" style={{color:C.g600}}>Location</label>
+                  <input type="text" value={form.location||''} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Accra, Ghana"
+                    className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none"
+                    style={{borderColor:form.location?C.green:C.g200}}/>
+                </div>
+                {/* Website — disabled */}
+                <div>
+                  <label className="text-xs font-bold mb-1 flex items-center gap-1" style={{color:C.g400}}>
+                    Website <Lock size={10} style={{color:C.g300}}/>
+                  </label>
+                  <input type="url" value={form.website||''} placeholder="Coming soon" disabled
+                    className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none"
+                    style={{borderColor:C.g200,backgroundColor:C.g100,color:C.g400,cursor:'not-allowed'}}/>
+                  <p className="text-xs mt-1" style={{color:C.g400}}>Website link is currently unavailable.</p>
+                </div>
+                {/* Bio */}
                 <div>
                   <label className="text-xs font-bold mb-1 block" style={{color:C.g600}}>Bio</label>
-                  <textarea value={form.bio||''} onChange={e=>setForm({...form,bio:e.target.value})} placeholder="Tell traders about yourself…" rows={3}
+                  <textarea
+                    value={form.bio||''}
+                    onChange={e=>{
+                      const val=e.target.value;
+                      const wc=val.trim()===''?0:val.trim().split(/\s+/).length;
+                      if(wc<=100) setForm({...form,bio:val});
+                    }}
+                    placeholder="Tell traders about yourself… (max 100 words)"
+                    rows={3}
                     className="w-full px-3 py-2.5 text-sm border-2 rounded-xl focus:outline-none resize-none"
                     style={{borderColor:form.bio?C.green:C.g200}}/>
+                  <p className="text-xs mt-0.5 text-right" style={{color:(form.bio||'').trim()===''?C.g400:(form.bio||'').trim().split(/\s+/).length>=100?C.danger:C.g400}}>
+                    {(form.bio||'').trim()===''?0:(form.bio||'').trim().split(/\s+/).length}/100 words
+                  </p>
                 </div>
                 <button type="submit" disabled={saving}
                   className="w-full py-3 rounded-xl text-white font-black text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"

@@ -25,6 +25,7 @@
     "nodemailer": "^8.0.6",
     "resend": "^6.12.2",
     "tiny-secp256k1": "^2.2.4",
+    "twilio": "^6.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

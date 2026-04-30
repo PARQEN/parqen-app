@@ -23,6 +23,15 @@ const C = {
 
 const authH = () => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : {}; };
 
+const maskEmail = (email) => {
+  if (!email) return '—';
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const show = Math.min(4, local.length);
+  const masked = local.slice(0, show) + '•'.repeat(Math.max(3, local.length - show));
+  return `${masked}@${domain}`;
+};
+
 // ─── Verification Step ────────────────────────────────────────────────────────
 function VerifStep({ n, title, desc, done, active, badge }) {
   return (
@@ -273,37 +282,95 @@ export default function Settings({ user, setUser }) {
                   <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Account Information</h2>
                   <form onSubmit={handleAccountUpdate} className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
+                      {/* Username */}
                       <div>
-                        <label className={labelCls}>Username</label>
-                        <input type="text" value={accountForm.username} onChange={e => setAccountForm({ ...accountForm, username: e.target.value })}
-                          className={inputCls} style={inputStyle(accountForm.username)} required />
-                        <p className="text-xs mt-1 text-gray-400">Your public display name on trades</p>
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          Username {user?.username_changed && <Lock size={12} style={{ color: C.g400 }} />}
+                        </label>
+                        <input type="text" value={accountForm.username}
+                          onChange={e => !user?.username_changed && setAccountForm({ ...accountForm, username: e.target.value })}
+                          disabled={!!user?.username_changed}
+                          className={inputCls} required
+                          style={{ ...inputStyle(accountForm.username), backgroundColor: user?.username_changed ? C.g100 : 'white', color: user?.username_changed ? C.g400 : C.g800, cursor: user?.username_changed ? 'not-allowed' : 'text' }} />
+                        {user?.username_changed
+                          ? <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}><Lock size={9} />Username is permanently locked.</p>
+                          : <p className="text-xs mt-1 flex items-center gap-1" style={{ color: '#D97706' }}>⚠ You can only change your username once. Choose carefully.</p>
+                        }
                       </div>
+                      {/* Full Name */}
                       <div>
-                        <label className={labelCls}>Full Name</label>
-                        <input type="text" value={accountForm.fullName} onChange={e => setAccountForm({ ...accountForm, fullName: e.target.value })}
-                          className={inputCls} style={inputStyle(accountForm.fullName)} />
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          Full Name {kycVerified && <Lock size={12} style={{ color: C.g400 }} />}
+                        </label>
+                        <input type="text" value={accountForm.fullName}
+                          onChange={e => !kycVerified && setAccountForm({ ...accountForm, fullName: e.target.value })}
+                          disabled={kycVerified}
+                          className={inputCls}
+                          style={{ ...inputStyle(accountForm.fullName), backgroundColor: kycVerified ? C.g100 : 'white', color: kycVerified ? C.g400 : C.g800, cursor: kycVerified ? 'not-allowed' : 'text' }} />
+                        {kycVerified
+                          ? <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}><Lock size={9} />Locked after ID verification.</p>
+                          : <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g500 }}>ℹ Full name cannot be changed after ID verification.</p>
+                        }
                       </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
+                      {/* Email — always read-only display */}
                       <div>
-                        <label className={labelCls}>Email Address</label>
-                        <input type="email" value={accountForm.email} disabled className={inputCls} style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g400 }} />
-                        <p className="text-xs mt-1 text-gray-400">Email cannot be changed</p>
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          Email Address <Lock size={12} style={{ color: C.g400 }} />
+                        </label>
+                        <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium"
+                          style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g600 }}>
+                          {maskEmail(accountForm.email)}
+                        </div>
+                        <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}>
+                          <Lock size={9} />This is the email used to register. It cannot be changed.
+                        </p>
                       </div>
+                      {/* Phone — read-only once saved, editable if not yet set */}
                       <div>
-                        <label className={labelCls}>Phone Number</label>
-                        <input type="tel" value={accountForm.phone} onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
-                          placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(accountForm.phone)} />
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          Phone Number {accountForm.phone && <Lock size={12} style={{ color: C.g400 }} />}
+                        </label>
+                        {accountForm.phone ? (
+                          <>
+                            <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium"
+                              style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g600 }}>
+                              {accountForm.phone}
+                            </div>
+                            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}>
+                              <Lock size={9} />Phone number cannot be changed once saved.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <input type="tel" value={accountForm.phone}
+                              onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
+                              placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(accountForm.phone)} />
+                            <p className="text-xs mt-1" style={{ color: C.g400 }}>Once saved, your phone number cannot be changed.</p>
+                          </>
+                        )}
                       </div>
                     </div>
 
+                    {/* Bio with 100-word limit */}
                     <div>
                       <label className={labelCls}>Bio <span className="font-normal text-gray-400">(optional)</span></label>
-                      <textarea value={accountForm.bio} onChange={e => setAccountForm({ ...accountForm, bio: e.target.value })}
-                        placeholder="Tell traders a bit about yourself…" rows={2}
+                      <textarea
+                        value={accountForm.bio}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const wc = val.trim() === '' ? 0 : val.trim().split(/\s+/).length;
+                          if (wc <= 100) setAccountForm({ ...accountForm, bio: val });
+                        }}
+                        placeholder="Tell traders a bit about yourself… (max 100 words)"
+                        rows={2}
                         className={inputCls + " resize-none"} style={inputStyle(accountForm.bio)} />
+                      <p className="text-xs mt-0.5 text-right"
+                        style={{ color: (accountForm.bio || '').trim() === '' ? C.g400 : (accountForm.bio || '').trim().split(/\s+/).length >= 100 ? C.danger : C.g400 }}>
+                        {(accountForm.bio || '').trim() === '' ? 0 : (accountForm.bio || '').trim().split(/\s+/).length}/100 words
+                      </p>
                     </div>
 
                     <button type="submit" disabled={loading}

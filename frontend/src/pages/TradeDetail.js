@@ -987,7 +987,7 @@ export default function TradeDetail({user}) {
                   )}
                 </div>
               );
-            })}
+            })()}
 
             {/* Escrow info */}
             <div className="bg-white rounded-2xl border p-4 space-y-1.5" style={{borderColor:C.g200}}>

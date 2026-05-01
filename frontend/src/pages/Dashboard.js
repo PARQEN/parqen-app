@@ -666,41 +666,39 @@ export default function Dashboard({ user }) {
   const [showBalance, setShowBalance]     = useState(true);
   const [showWithdraw, setShowWithdraw]   = useState(false);
   const [loading, setLoading]             = useState(true);
+  const [loadError, setLoadError]         = useState(false);
   const [activeTab, setActiveTab]         = useState('overview');
   const [lastRefresh, setLastRefresh]     = useState(null);
 
-  const loadDashboardData = async () => {
+  const applyUserData = (userData) => {
+    setProfile(userData);
+    setStats({
+      totalTrades: userData.total_trades || 0,
+      positiveFeedback: userData.positive_feedback || 0,
+      negativeFeedback: userData.negative_feedback || 0,
+      averageRating: userData.average_rating || 0,
+      totalVolume: (userData.total_trades || 0) * 100,
+      completionRate: userData.completion_rate || 100,
+      rating: userData.average_rating || 0,
+      referralCode: userData.referral_code || '',
+      totalReferrals: userData.total_referrals || 0,
+      referralEarnings: userData.referral_earnings_btc || 0,
+      badge: userData.badge || 'BEGINNER'
+    });
+  };
+
+  const loadDashboardData = async (silent = false) => {
+    if (!silent) setLoadError(false);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/users/${user.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        timeout: 15000,
       });
-      
-      const userData = response.data.user;
-      console.log('🔍 Dashboard Data Loaded:', {
-        trades: userData.total_trades,
-        positive: userData.positive_feedback,
-        negative: userData.negative_feedback,
-        rating: userData.average_rating
-      });
-      
-      setProfile(userData);
-      setStats({
-        totalTrades: userData.total_trades || 0,
-        positiveFeedback: userData.positive_feedback || 0,
-        negativeFeedback: userData.negative_feedback || 0,
-        averageRating: userData.average_rating || 0,
-        totalVolume: (userData.total_trades || 0) * 100,
-        completionRate: userData.completion_rate || 100,
-        rating: userData.average_rating || 0,
-        referralCode: userData.referral_code || '',
-        totalReferrals: userData.total_referrals || 0,
-        referralEarnings: userData.referral_earnings_btc || 0,
-        badge: userData.badge || 'BEGINNER'
-      });
+      applyUserData(response.data.user);
     } catch (error) {
-      console.error('Failed to load dashboard:', error);
-      toast.error('Failed to load dashboard data');
+      console.error('Dashboard refresh error:', error);
+      if (!silent) setLoadError(true);
     }
   };
 
@@ -749,19 +747,27 @@ export default function Dashboard({ user }) {
     }
   };
 
-  useEffect(() => { loadDashboardData(); setLoading(false); }, [user]);
+  // Seed instantly from user prop (already fetched by App.js) — no API call needed
+  useEffect(() => {
+    if (user) {
+      applyUserData(user);
+      setLoading(false);
+      // Background refresh to pick up any changes since last login
+      loadDashboardData(true);
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchReferralData();
     fetchBtcPrice();
     fetchWalletBalance();
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh every 60s
+  // Auto-refresh every 60s — silent so no spinner flicker
   useEffect(() => {
-    const iv = setInterval(() => { loadDashboardData(); fetchWalletBalance(); }, 60000);
+    const iv = setInterval(() => { loadDashboardData(true); fetchWalletBalance(); }, 60000);
     return () => clearInterval(iv);
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
@@ -769,6 +775,21 @@ export default function Dashboard({ user }) {
         <div className="w-12 h-12 border-4 rounded-full animate-spin mx-auto mb-3"
           style={{borderColor:C.sage, borderTopColor:'transparent'}}/>
         <p className="text-sm font-semibold" style={{color:C.green}}>Loading dashboard…</p>
+      </div>
+    </div>
+  );
+
+  if (loadError && !profile) return (
+    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
+      <div className="text-center px-6">
+        <p className="text-4xl mb-3">📡</p>
+        <p className="font-black text-sm mb-2" style={{color:C.g800}}>Could not load dashboard</p>
+        <p className="text-xs mb-5" style={{color:C.g500}}>Check your connection and make sure the backend is running.</p>
+        <button onClick={() => loadDashboardData(false)}
+          className="px-6 py-2.5 rounded-xl text-white font-bold text-sm"
+          style={{backgroundColor:C.green}}>
+          Try Again
+        </button>
       </div>
     </div>
   );
@@ -797,7 +818,7 @@ export default function Dashboard({ user }) {
               </p>
             )}
           </div>
-          <button onClick={loadDashboardData}
+          <button onClick={() => loadDashboardData(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border hover:bg-gray-50 transition"
             style={{borderColor:C.g200, color:C.g600}}>
             <RefreshCw size={12}/> Refresh
@@ -1216,7 +1237,7 @@ export default function Dashboard({ user }) {
         <WithdrawModal
           balance={walletBalance}
           onClose={()=>setShowWithdraw(false)}
-          onSuccess={()=>{ setShowWithdraw(false); loadDashboardData(); }}
+          onSuccess={()=>{ setShowWithdraw(false); loadDashboardData(true); }}
         />
       )}
     </div>

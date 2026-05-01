@@ -24,35 +24,35 @@ class RateService {
 
     this._fetchPromise = (async () => {
       try {
-        const API_KEY = 'd51dba3e8a731b12d73e8d72';
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
 
-        let fxData;
-        try {
-          const res = await fetch('https://open.er-api.com/v6/latest/USD');
-          fxData = await res.json();
-        } catch (e) {
-          // Fallback to ExchangeRate-API if open.er-api.com is down
-          const res = await fetch(`https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`);
-          fxData = await res.json();
+        // Fetch FX rates and BTC price in parallel with 8s timeout
+        const [fxResult, btcResult] = await Promise.allSettled([
+          fetch('https://open.er-api.com/v6/latest/USD', { signal: ctrl.signal }),
+          fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', { signal: ctrl.signal }),
+        ]);
+        clearTimeout(timer);
+
+        if (fxResult.status === 'fulfilled' && fxResult.value.ok) {
+          const fxData = await fxResult.value.json().catch(() => null);
+          if (fxData?.result === 'success' && fxData.rates) {
+            Object.assign(this.rates, fxData.rates);
+          }
         }
-        const btcRes = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
 
-        if (fxData && fxData.result === 'success' && fxData.rates) {
-          Object.assign(this.rates, fxData.rates);
-          console.log('✅ Rates updated from open.er-api.com');
-        }
-
-        if (btcRes.ok) {
-          const btcData = await btcRes.json();
-          this.btcUsd = parseFloat(btcData.data.amount) || this.btcUsd;
+        if (btcResult.status === 'fulfilled' && btcResult.value.ok) {
+          const btcData = await btcResult.value.json().catch(() => null);
+          const price = parseFloat(btcData?.data?.amount);
+          if (price > 0) this.btcUsd = price;
         }
 
         this.lastUpdated = new Date();
-        this._notifyListeners();
       } catch (err) {
-        console.warn('[RateService] fetch failed, using cached/fallback rates:', err.message);
+        console.warn('[RateService] fetch failed, using fallback rates:', err.message);
       } finally {
         this._fetchPromise = null;
+        this._notifyListeners(); // always notify so loading state resolves
       }
 
       return { rates: this.rates, btcUsd: this.btcUsd };

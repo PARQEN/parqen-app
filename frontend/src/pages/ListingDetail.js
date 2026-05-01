@@ -1,9 +1,9 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useRates } from '../contexts/RatesContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowRight, BadgeCheck, RefreshCw, Lock, ChevronRight, ThumbsUp, ThumbsDown, Repeat2 } from 'lucide-react';
-import { deriveBadge, BadgeChip } from '../lib/badge';
+import { BadgeChip } from '../lib/badge';
 import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 
@@ -86,41 +86,8 @@ export default function ListingDetail({ user }) {
   const [showSellerProfile, setShowSellerProfile] = useState(false);
   const [popupOpen,         setPopupOpen]         = useState(false);
 
-  // Slide up after listing loads
-  useEffect(() => {
-    if (!loading && listing) {
-      const t = setTimeout(() => setPopupOpen(true), 80);
-      return () => clearTimeout(t);
-    }
-  }, [loading, listing]);
-
-  // Lock body scroll while sheet is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  const isOwner = user && listing && user.id === listing.seller_id;
-
-  useEffect(() => { if (contextBtcUsd > 0) setBtcPrice(contextBtcUsd); }, [contextBtcUsd]);
-  useEffect(() => { loadAll(); }, [id]);
-
-  // Debounce quote fetch whenever the user changes the amount
-  useEffect(() => {
-    const num = parseFloat(payAmt) || 0;
-    if (!listing || num <= 0) { setQuote(null); return; }
-    const t = setTimeout(async () => {
-      setQuoteFetching(true);
-      try {
-        const r = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id });
-        setQuote({ quoteId: r.data.quoteId, executableRate: r.data.executableRate, expiresAt: Date.now() + r.data.expiresIn * 1000 });
-      } catch { setQuote(null); }
-      finally { setQuoteFetching(false); }
-    }, 500);
-    return () => clearTimeout(t);
-  }, [payAmt, listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadAll = async () => {
+  // Must be declared before the useEffect that depends on it
+  const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
@@ -142,7 +109,41 @@ export default function ListingDetail({ user }) {
       toast.error('Could not load listing — check your connection and try again.');
     }
     finally { setLoading(false); }
-  };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Slide up after listing loads
+  useEffect(() => {
+    if (!loading && listing) {
+      const t = setTimeout(() => setPopupOpen(true), 80);
+      return () => clearTimeout(t);
+    }
+  }, [loading, listing]);
+
+  // Lock body scroll while sheet is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const isOwner = user && listing && user.id === listing.seller_id;
+
+  useEffect(() => { if (contextBtcUsd > 0) setBtcPrice(contextBtcUsd); }, [contextBtcUsd]);
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Debounce quote fetch whenever the user changes the amount
+  useEffect(() => {
+    const num = parseFloat(payAmt) || 0;
+    if (!listing || num <= 0) { setQuote(null); return; }
+    const t = setTimeout(async () => {
+      setQuoteFetching(true);
+      try {
+        const r = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id });
+        setQuote({ quoteId: r.data.quoteId, executableRate: r.data.executableRate, expiresAt: Date.now() + r.data.expiresIn * 1000 });
+      } catch { setQuote(null); }
+      finally { setQuoteFetching(false); }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [payAmt, listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
@@ -174,7 +175,6 @@ export default function ListingDetail({ user }) {
   );
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const cfg      = getListingConfig(listing);
   const isGiftCard = listing.listing_type?.toUpperCase().includes('GIFT');
 
   const cur      = listing.currency || 'USD';

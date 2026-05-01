@@ -1444,7 +1444,7 @@ app.get('/api/users/:userId', async (req, res) => {
     const param  = req.params.userId?.trim();
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
     // Core fields only — avoid non-existent columns causing 500s
-    const coreFields = 'id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, is_phone_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, country_code, trust_score, blocks_received';
+    const coreFields = 'id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, is_phone_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country';
 
     let data = null;
 
@@ -1768,12 +1768,27 @@ app.get('/api/listings', async (req, res) => {
 
 app.get('/api/listings/:id', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('listings')
-      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, country_code, is_id_verified, is_email_verified, is_phone_verified, bio, trust_score, blocks_received)`)
-      .eq('id', req.params.id).single();
-    if (error) return res.status(404).json({ error: 'Listing not found' });
-    res.json({ listing: data });
+    // Get the listing
+    const { data: listing, error: listingError } = await supabaseAdmin
+      .from('listings')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (listingError || !listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    // Get the seller separately
+    const { data: seller } = await supabaseAdmin
+      .from('users')
+      .select('id, username, badge, country, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, is_id_verified, is_email_verified, is_phone_verified, bio, trust_score, blocks_received, avg_response_time')
+      .eq('id', listing.seller_id)
+      .single();
+
+    res.json({ listing: { ...listing, users: seller ? [seller] : [] } });
   } catch (error) {
+    console.error('Listing error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2152,6 +2167,7 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       payment_method: paymentMethod || listing.payment_method,
       gift_card_brand: listingTypeUpper.includes('GIFT_CARD') ? (listing.gift_card_brand || null) : null,
       trade_ref: tradeRef,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000),
     }]).select();
     if (error) return res.status(400).json({ error: error.message });
 

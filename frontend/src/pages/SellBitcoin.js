@@ -714,7 +714,7 @@ export default function SellBitcoin({user}) {
 
   const loadOffers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/listings`);
+      const res = await axios.get(`${API_URL}/listings`, { timeout: 15000 });
       const all = (res.data.listings||[]).map(l=>({...l, users:Array.isArray(l.users)?l.users[0]:l.users}));
       const data = all.filter(l=>l.listing_type==='BUY'||l.listing_type==='BUY_BITCOIN');
       setOffers(data);

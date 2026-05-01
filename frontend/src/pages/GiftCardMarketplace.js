@@ -672,7 +672,7 @@ export default function GiftCards({user}) {
 
   const loadListings = async () => {
     try {
-      const r=await axios.get(`${API_URL}/listings`);
+      const r=await axios.get(`${API_URL}/listings`, { timeout: 15000 });
       const all=(r.data.listings||[]).map(l=>({...l,users:Array.isArray(l.users)?l.users[0]:l.users}));
       const data=all.filter(l=>l.listing_type==='BUY_GIFT_CARD'||l.listing_type==='SELL_GIFT_CARD');
       setListings(data);

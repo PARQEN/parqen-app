@@ -143,6 +143,12 @@ class TradeEscrowService {
 
     if (deductErr) throw new Error(`Failed to lock funds: ${deductErr.message}`);
 
+    // Sync user_wallets so the wallet page reflects the deduction immediately
+    await supabaseAdmin
+      .from('user_wallets')
+      .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', btcProviderId);
+
     // ── 4. Generate deterministic lock reference ────────────────────────────
     const crypto = require('crypto');
     const lockTxHash = 'ESCROW_LOCK_' + crypto
@@ -554,6 +560,12 @@ class TradeEscrowService {
           balance_btc: newProviderBalance,
           updated_at:  new Date().toISOString(),
         })
+        .eq('user_id', btcProviderId);
+
+      // Sync user_wallets so refund shows immediately on wallet page
+      await supabaseAdmin
+        .from('user_wallets')
+        .update({ balance_btc: newProviderBalance, updated_at: new Date().toISOString() })
         .eq('user_id', btcProviderId);
 
       // Mark escrow as refunded

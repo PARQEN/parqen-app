@@ -276,6 +276,7 @@ export default function WalletPage({ user }) {
   const { rates: USD_RATES } = useRates();
 
   const [walletData,       setWalletData]       = useState(null);
+  const [lockedBtc,        setLockedBtc]        = useState(0);
   const [transactions,     setTransactions]     = useState([]);
   const [btcPrice,         setBtcPrice]         = useState(0);
   const [loading,          setLoading]          = useState(true);
@@ -307,11 +308,14 @@ export default function WalletPage({ user }) {
     try {
       const r = await axios.get(`${API_URL}/hd-wallet/wallet`, { headers: authH() });
       setWalletData({
-        address:     r.data.address,
-        balance_btc: r.data.balance_btc,
-        network:     r.data.network,
-        has_address: r.data.has_address,
+        address:       r.data.address,
+        balance_btc:   r.data.balance_btc,
+        locked_btc:    r.data.locked_btc    || 0,
+        available_btc: r.data.available_btc || r.data.balance_btc,
+        network:       r.data.network,
+        has_address:   r.data.has_address,
       });
+      setLockedBtc(r.data.locked_btc || 0);
       setTransactions(r.data.transactions || []);
     } catch (e) {
       console.error('[Wallet] Load error:', e.message);
@@ -390,8 +394,10 @@ export default function WalletPage({ user }) {
     }
   };
 
-  const balance = parseFloat(walletData?.balance_btc || 0);
-  const balUsd  = balance * (btcPrice || 88000);
+  const balance      = parseFloat(walletData?.balance_btc   || 0); // total (available + locked)
+  const lockedBal    = parseFloat(lockedBtc                 || 0);
+  const availableBal = parseFloat(walletData?.available_btc ?? balance); // already deducted server-side
+  const balUsd       = balance * (btcPrice || 88000);
   const network = walletData?.network || 'mainnet';
 
   const fxRate   = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 1);
@@ -447,21 +453,42 @@ export default function WalletPage({ user }) {
 
             {/* Balance */}
             <div className="mb-6">
-              <p className="text-white/60 text-xs mb-1">Total Balance</p>
               {showBal ? (
                 <>
+                  {/* Available — primary figure */}
+                  <p className="text-white/60 text-xs mb-1">Available Balance</p>
                   <p className="font-black text-white tracking-tight" style={{ fontSize: 'clamp(1.6rem, 6vw, 2.5rem)' }}>
-                    ₿ {fmt(balance)}
+                    ₿ {fmt(availableBal)}
                   </p>
-                  <p className="text-white/70 text-sm mt-1">≈ {fmtLocal(balUsd)}</p>
+                  <p className="text-white/70 text-sm mt-1">≈ {fmtLocal(availableBal * (btcPrice || 88000))}</p>
+
+                  {/* Locked + Total breakdown */}
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
+                      <div>
+                        <p className="text-white/40 text-xs">Locked in Escrow</p>
+                        <p className="text-white/80 text-xs font-bold">₿ {fmt(lockedBal)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#52B788' }} />
+                      <div>
+                        <p className="text-white/40 text-xs">Total Balance</p>
+                        <p className="text-white/80 text-xs font-bold">₿ {fmt(balance)}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   {btcPrice > 0 && (
-                    <p className="text-white/40 text-xs mt-0.5">
-                      BTC price: {fmtLocal(btcPrice)}
-                    </p>
+                    <p className="text-white/40 text-xs mt-2">BTC price: {fmtLocal(btcPrice)}</p>
                   )}
                 </>
               ) : (
-                <p className="text-4xl font-black text-white">••••••••</p>
+                <>
+                  <p className="text-white/60 text-xs mb-1">Available Balance</p>
+                  <p className="text-4xl font-black text-white">••••••••</p>
+                </>
               )}
             </div>
 
@@ -558,8 +585,8 @@ export default function WalletPage({ user }) {
         {/* ── STATS ────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
-            { label: 'BTC Balance',  value: `₿${fmt(balance, 6)}`, color: C.gold },
-            { label: `${displayCurrency} Value`, value: fmtLocal(balUsd), color: C.success },
+            { label: 'Available',    value: `₿${fmt(availableBal, 6)}`, color: C.gold },
+            { label: `${displayCurrency} Value`, value: fmtLocal(availableBal * (btcPrice || 88000)), color: C.success },
             { label: 'Transactions', value: `${transactions.length}`, color: C.paid },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border p-3 sm:p-4 shadow-sm text-center" style={{ borderColor: C.g200 }}>
@@ -690,7 +717,7 @@ export default function WalletPage({ user }) {
         </div>
       </footer>
 
-      {showSend && <WithdrawModal balance={balance} onClose={() => setShowSend(false)} onSend={sendBitcoin} />}
+      {showSend && <WithdrawModal balance={availableBal} onClose={() => setShowSend(false)} onSend={sendBitcoin} />}
       {showRecv && <ReceiveModal address={walletData?.address} network={network} onClose={() => setShowRecv(false)} />}
     </div>
   );

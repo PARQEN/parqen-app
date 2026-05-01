@@ -104,7 +104,7 @@ function App() {
 
   const loadProfile = async () => {
     try {
-      const response = await axios.get(`${API_URL}/users/profile`);
+      const response = await axios.get(`${API_URL}/users/profile`, { timeout: 10000 });
       const userData = response.data.user;
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));

@@ -61,6 +61,17 @@ router.get('/wallet', verifyToken, async (req, res) => {
             }
         }
 
+        // Escrow locks — sum BTC locked as seller in active trades
+        const { data: escrowData } = await supabaseAdmin
+            .from('escrow_locks')
+            .select('amount_btc')
+            .eq('seller_id', userId)
+            .eq('status', 'LOCKED');
+        const locked_btc    = (escrowData || []).reduce((sum, e) => sum + parseFloat(e.amount_btc || 0), 0);
+        // user_wallets.balance_btc is already the AVAILABLE amount (deducted during lock, refunded on cancel)
+        const available_btc = balance;
+        const total_btc     = parseFloat((balance + locked_btc).toFixed(8));
+
         // Fallback: if user_wallets has no address, check users table
         if (!address) {
             const { data: userRow } = await supabaseAdmin
@@ -81,15 +92,17 @@ router.get('/wallet', verifyToken, async (req, res) => {
 
         const network = process.env.HD_NETWORK || 'mainnet';
 
-        console.log(`💰 Wallet API — user ${userId.slice(0,8)}: ${balance} BTC | addr ${address ? address.slice(0,12) + '…' : 'none'}`);
+        console.log(`💰 Wallet API — user ${userId.slice(0,8)}: total=${total_btc} locked=${locked_btc} avail=${available_btc} BTC | addr ${address ? address.slice(0,12) + '…' : 'none'}`);
 
         res.json({
-            success:      true,
-            address:      address,
-            balance_btc:  balance,
-            network:      network,
-            has_address:  !!address,
-            transactions: txs || [],
+            success:       true,
+            address:       address,
+            balance_btc:   total_btc,     // total = available + locked (for "Total Balance" display)
+            locked_btc:    locked_btc,
+            available_btc: available_btc, // what user can actually spend/withdraw
+            network:       network,
+            has_address:   !!address,
+            transactions:  txs || [],
         });
     } catch (error) {
         console.error('Wallet API error:', error.message);

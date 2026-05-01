@@ -43,7 +43,16 @@ function WithdrawModal({ balance, onClose, onSend }) {
   const fee       = btcAmt * 0.001;
   const total     = btcAmt + fee;
   const hasEnough = total <= parseFloat(balance || 0);
-  const valid     = address.trim().length > 25 && btcAmt > 0 && hasEnough;
+
+  // Only accept mainnet addresses (bc1, 1, 3) — reject testnet (tb1, m, n)
+  const isMainnetAddr = (addr) => {
+    if (!addr || addr.length < 26) return false;
+    if (/^tb1[a-z0-9]{25,87}$/.test(addr)) return false; // testnet segwit
+    if (/^[mn][a-zA-Z0-9]{25,34}$/.test(addr)) return false; // testnet legacy
+    return /^(bc1[a-z0-9]{25,87}|[13][a-zA-HJ-NP-Z1-9]{25,34})$/.test(addr);
+  };
+  const addrOk = isMainnetAddr(address.trim());
+  const valid  = addrOk && btcAmt > 0 && hasEnough;
 
   const handleSend = async () => {
     if (!valid) return;
@@ -77,9 +86,14 @@ function WithdrawModal({ balance, onClose, onSend }) {
           <div>
             <label className="block text-xs font-bold mb-1.5 text-gray-700">Recipient Bitcoin Address</label>
             <input type="text" value={address} onChange={e => setAddress(e.target.value)}
-              placeholder="bc1q… or tb1q…"
+              placeholder="bc1q… or 1… or 3… (Bitcoin mainnet only)"
               className="w-full px-4 py-3 text-sm border-2 rounded-xl focus:outline-none font-mono"
-              style={{ borderColor: address.length > 25 ? C.green : C.g200 }} />
+              style={{ borderColor: !address ? C.g200 : addrOk ? C.green : C.danger }} />
+            {address.length > 5 && !addrOk && (
+              <p className="text-xs mt-1 font-semibold" style={{ color: C.danger }}>
+                Invalid address — mainnet only (bc1…, 1…, 3…). Testnet addresses not accepted.
+              </p>
+            )}
           </div>
 
           <div>
@@ -153,9 +167,7 @@ function ReceiveModal({ address, network, onClose }) {
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const explorerUrl = network === 'mainnet'
-    ? `https://mempool.space/address/${address}`
-    : `https://mempool.space/testnet/address/${address}`;
+  const explorerUrl = `https://mempool.space/address/${address}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
@@ -174,13 +186,6 @@ function ReceiveModal({ address, network, onClose }) {
         </div>
 
         <div className="p-5 space-y-4">
-          {network === 'testnet' && (
-            <div className="p-2.5 rounded-xl text-center text-xs font-black"
-              style={{ backgroundColor: `${C.warn}15`, color: C.warn }}>
-              ⚠️ TESTNET — Use testnet faucet only. Not real BTC.
-            </div>
-          )}
-
           <p className="text-xs text-gray-500">Send BTC to your unique address. Credited after 1 confirmation (~10 min).</p>
 
           <div>
@@ -224,8 +229,7 @@ function TxRow({ tx }) {
   const color     = isSend ? C.danger : C.success;
   const label     = isSend ? 'Sent' : tx.type === 'DEPOSIT' ? 'Received' : 'Trade';
   const txHash    = tx.tx_hash || tx.txHash;
-  const network   = process.env.REACT_APP_HD_NETWORK || 'testnet';
-  const explorerBase = network === 'mainnet' ? 'https://mempool.space/tx' : 'https://mempool.space/testnet/tx';
+  const explorerBase = 'https://mempool.space/tx';
 
   return (
     <div className="flex items-center gap-3 py-3 border-b last:border-0" style={{ borderColor: C.g100 }}>
@@ -388,7 +392,7 @@ export default function WalletPage({ user }) {
 
   const balance = parseFloat(walletData?.balance_btc || 0);
   const balUsd  = balance * (btcPrice || 88000);
-  const network = walletData?.network || 'testnet';
+  const network = walletData?.network || 'mainnet';
 
   const fxRate   = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 1);
   const sym      = CURRENCY_SYMBOLS[displayCurrency] || `${displayCurrency} `;
@@ -408,15 +412,7 @@ export default function WalletPage({ user }) {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: C.g50, fontFamily: "'DM Sans',sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 
-      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
-
-        {/* Testnet banner */}
-        {network === 'testnet' && (
-          <div className="p-3 rounded-xl text-center text-sm font-black"
-            style={{ backgroundColor: `${C.warn}20`, color: C.warn, border: `1px solid ${C.warn}40` }}>
-            ⚠️ TESTNET MODE — Using fake BTC. Switch HD_NETWORK=mainnet for real Bitcoin.
-          </div>
-        )}
+      <div className="flex-1 max-w-2xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4">
 
         {/* ── WALLET CARD ──────────────────────────────────────────── */}
         <div className="rounded-3xl overflow-hidden shadow-lg relative"
@@ -432,7 +428,7 @@ export default function WalletPage({ user }) {
                 </div>
                 <div>
                   <p className="text-white font-black text-sm">Bitcoin Wallet</p>
-                  <p className="text-white/60 text-xs">{user?.username} · {network.toUpperCase()}</p>
+                  <p className="text-white/60 text-xs">{user?.username} · Live Balance</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -454,11 +450,13 @@ export default function WalletPage({ user }) {
               <p className="text-white/60 text-xs mb-1">Total Balance</p>
               {showBal ? (
                 <>
-                  <p className="text-4xl font-black text-white tracking-tight">₿ {fmt(balance)}</p>
-                  <p className="text-white/60 text-sm mt-0.5">≈ {fmtLocal(balUsd)}</p>
+                  <p className="font-black text-white tracking-tight" style={{ fontSize: 'clamp(1.6rem, 6vw, 2.5rem)' }}>
+                    ₿ {fmt(balance)}
+                  </p>
+                  <p className="text-white/70 text-sm mt-1">≈ {fmtLocal(balUsd)}</p>
                   {btcPrice > 0 && (
                     <p className="text-white/40 text-xs mt-0.5">
-                      Live BTC: {fmtLocal(btcPrice)}
+                      BTC price: {fmtLocal(btcPrice)}
                     </p>
                   )}
                 </>
@@ -558,15 +556,15 @@ export default function WalletPage({ user }) {
         </div>
 
         {/* ── STATS ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: 'BTC Balance',  value: `₿${fmt(balance, 6)}`, color: C.gold },
             { label: `${displayCurrency} Value`, value: fmtLocal(balUsd), color: C.success },
             { label: 'Transactions', value: `${transactions.length}`, color: C.paid },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-2xl border p-4 shadow-sm text-center" style={{ borderColor: C.g200 }}>
-              <p className="text-xl font-black" style={{ color }}>{value}</p>
-              <p className="text-xs font-semibold mt-0.5" style={{ color: C.g400 }}>{label}</p>
+            <div key={label} className="bg-white rounded-2xl border p-3 sm:p-4 shadow-sm text-center" style={{ borderColor: C.g200 }}>
+              <p className="font-black truncate" style={{ color, fontSize: 'clamp(0.75rem, 3vw, 1.25rem)' }}>{value}</p>
+              <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: C.g400 }}>{label}</p>
             </div>
           ))}
         </div>

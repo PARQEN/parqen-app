@@ -11,8 +11,9 @@
   "dependencies": {
     "@coinbase/coinbase-sdk": "^0.25.0",
     "@supabase/supabase-js": "^2.26.0",
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
     "bcryptjs": "^2.4.3",
+    "bip32": "^5.0.1",
     "bip39": "^3.1.0",
     "bitcoinjs-lib": "^7.0.1",
     "coinbase-commerce-node": "^1.0.4",

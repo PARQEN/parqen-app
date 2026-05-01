@@ -98,6 +98,11 @@ export default function Settings({ user, setUser }) {
   const [phoneStep,    setPhoneStep]    = useState('idle'); // idle | sending | otp | verifying | done
   const [phoneOtp,     setPhoneOtp]     = useState('');
 
+  // Email verification flow (inline in Account tab)
+  const [emailVerifyStep,   setEmailVerifyStep]   = useState('idle'); // idle | otp | verifying
+  const [emailCode,         setEmailCode]         = useState('');
+  const [emailCodeLoading,  setEmailCodeLoading]  = useState(false);
+
   // KYC upload
   const [kycFiles,     setKycFiles]     = useState({ id: null, selfie: null });
   const [kycLoading,   setKycLoading]   = useState(false);
@@ -120,10 +125,10 @@ export default function Settings({ user, setUser }) {
     }
   }, [user]);
 
-  // Derived verification status
-  const emailVerified = user?.email_verified || !!user?.email;
-  const phoneVerified = user?.phone_verified || !!user?.phone;
-  const kycVerified   = user?.kyc_verified || false;
+  // Derived verification status — only true when explicitly verified, NOT just because value exists
+  const emailVerified = !!(user?.is_email_verified || user?.email_verified);
+  const phoneVerified = !!(user?.is_phone_verified || user?.phone_verified);
+  const kycVerified   = !!(user?.kyc_verified || user?.is_id_verified);
   const verLevel = kycVerified ? 3 : phoneVerified ? 2 : emailVerified ? 1 : 0;
 
   const handleAccountUpdate = async (e) => {
@@ -172,10 +177,38 @@ export default function Settings({ user, setUser }) {
     if (!phone) { toast.error('Enter your phone number first'); return; }
     setPhoneStep('sending');
     try {
-      await axios.post(`${API_URL}/auth/send-otp`, { method: 'sms', contact: phone });
+      await axios.post(`${API_URL}/users/send-phone-otp`, { phone }, { headers: authH() });
       toast.success(`OTP sent to ${phone}`);
       setPhoneStep('otp');
     } catch (e) { toast.error(e?.response?.data?.error || 'Failed to send OTP'); setPhoneStep('idle'); }
+  };
+
+  const handleSendEmailCode = async () => {
+    setEmailCodeLoading(true);
+    try {
+      await axios.post(`${API_URL}/users/resend-verification`, {}, { headers: authH() });
+      toast.success('Verification code sent to your email!');
+      setEmailVerifyStep('otp');
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to send code'); }
+    finally { setEmailCodeLoading(false); }
+  };
+
+  const handleVerifyEmailCode = async () => {
+    if (emailCode.length < 6) { toast.error('Enter the 6-digit code'); return; }
+    setEmailVerifyStep('verifying');
+    try {
+      await axios.post(`${API_URL}/users/verify-email-code`, { code: emailCode }, { headers: authH() });
+      toast.success('Email verified! ✅');
+      if (setUser) setUser(u => ({ ...u, is_email_verified: true, email_verified: true }));
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...stored, is_email_verified: true, email_verified: true }));
+      window.dispatchEvent(new Event('userUpdated'));
+      setEmailVerifyStep('idle');
+      setEmailCode('');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Invalid or expired code');
+      setEmailVerifyStep('otp');
+    }
   };
 
   const toggleFullName = async (hide) => {
@@ -187,15 +220,16 @@ export default function Settings({ user, setUser }) {
   };
 
   const handleVerifyPhone = async () => {
-    if (phoneOtp.length < 4) { toast.error('Enter the OTP code'); return; }
+    if (phoneOtp.length < 6) { toast.error('Enter the 6-digit OTP'); return; }
     setPhoneStep('verifying');
     try {
-      await axios.post(`${API_URL}/auth/verify-phone`, { phone: accountForm.phone.trim(), otp: phoneOtp }, { headers: authH() });
-      toast.success('Phone verified!');
+      await axios.post(`${API_URL}/users/verify-phone-otp`, { phone: accountForm.phone.trim(), otp: phoneOtp }, { headers: authH() });
+      toast.success('Phone verified! ✅');
       setPhoneStep('done');
-      if (setUser) setUser(u => ({ ...u, phone_verified: true, phone: accountForm.phone.trim() }));
+      if (setUser) setUser(u => ({ ...u, is_phone_verified: true, phone_verified: true, phone: accountForm.phone.trim() }));
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
-      localStorage.setItem('user', JSON.stringify({ ...stored, phone_verified: true, phone: accountForm.phone.trim() }));
+      localStorage.setItem('user', JSON.stringify({ ...stored, is_phone_verified: true, phone_verified: true, phone: accountForm.phone.trim() }));
+      window.dispatchEvent(new Event('userUpdated'));
     } catch (e) { toast.error(e?.response?.data?.error || 'Invalid OTP'); setPhoneStep('otp'); }
   };
 
@@ -282,74 +316,157 @@ export default function Settings({ user, setUser }) {
                   <h2 className="text-lg font-black mb-5" style={{ color: C.forest }}>Account Information</h2>
                   <form onSubmit={handleAccountUpdate} className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
-                      {/* Username */}
+                      {/* Username — editable until changed once */}
                       <div>
                         <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           Username {user?.username_changed && <Lock size={12} style={{ color: C.g400 }} />}
                         </label>
-                        <input type="text" value={accountForm.username}
-                          onChange={e => !user?.username_changed && setAccountForm({ ...accountForm, username: e.target.value })}
-                          disabled={!!user?.username_changed}
-                          className={inputCls} required
-                          style={{ ...inputStyle(accountForm.username), backgroundColor: user?.username_changed ? C.g100 : 'white', color: user?.username_changed ? C.g400 : C.g800, cursor: user?.username_changed ? 'not-allowed' : 'text' }} />
+                        {user?.username_changed ? (
+                          <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium flex items-center justify-between"
+                            style={{ borderColor: C.g200, backgroundColor: C.g100, color: C.g500 }}>
+                            <span>{accountForm.username}</span>
+                            <Lock size={13} style={{ color: C.g400 }} />
+                          </div>
+                        ) : (
+                          <input type="text" value={accountForm.username}
+                            onChange={e => setAccountForm({ ...accountForm, username: e.target.value })}
+                            className={inputCls} required style={inputStyle(accountForm.username)} />
+                        )}
                         {user?.username_changed
                           ? <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}><Lock size={9} />Username is permanently locked.</p>
                           : <p className="text-xs mt-1 flex items-center gap-1" style={{ color: '#D97706' }}>⚠ You can only change your username once. Choose carefully.</p>
                         }
                       </div>
-                      {/* Full Name */}
+                      {/* Full Name — editable until KYC */}
                       <div>
                         <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           Full Name {kycVerified && <Lock size={12} style={{ color: C.g400 }} />}
                         </label>
-                        <input type="text" value={accountForm.fullName}
-                          onChange={e => !kycVerified && setAccountForm({ ...accountForm, fullName: e.target.value })}
-                          disabled={kycVerified}
-                          className={inputCls}
-                          style={{ ...inputStyle(accountForm.fullName), backgroundColor: kycVerified ? C.g100 : 'white', color: kycVerified ? C.g400 : C.g800, cursor: kycVerified ? 'not-allowed' : 'text' }} />
+                        {kycVerified ? (
+                          <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium flex items-center justify-between"
+                            style={{ borderColor: C.g200, backgroundColor: C.g100, color: C.g500 }}>
+                            <span>{accountForm.fullName}</span>
+                            <Lock size={13} style={{ color: C.g400 }} />
+                          </div>
+                        ) : (
+                          <input type="text" value={accountForm.fullName}
+                            onChange={e => setAccountForm({ ...accountForm, fullName: e.target.value })}
+                            className={inputCls} style={inputStyle(accountForm.fullName)} />
+                        )}
                         {kycVerified
                           ? <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}><Lock size={9} />Locked after ID verification.</p>
-                          : <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g500 }}>ℹ Full name cannot be changed after ID verification.</p>
+                          : <p className="text-xs mt-1" style={{ color: C.g500 }}>ℹ Full name cannot be changed after ID verification.</p>
                         }
                       </div>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
-                      {/* Email — always read-only display */}
+                      {/* Email — read-only (can't change), show full email + verify button if not verified */}
                       <div>
-                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          Email Address <Lock size={12} style={{ color: C.g400 }} />
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          Email Address
+                          {emailVerified
+                            ? <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ECFDF5', color: C.success }}>✓ Verified</span>
+                            : <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FFF7ED', color: C.warn }}>⚠ Unverified</span>}
                         </label>
-                        <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium"
-                          style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g600 }}>
-                          {maskEmail(accountForm.email)}
+                        <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium flex items-center justify-between"
+                          style={{ borderColor: emailVerified ? '#DCFCE7' : '#FDE68A', backgroundColor: C.g50, color: C.g700 }}>
+                          <span className="truncate">{maskEmail(accountForm.email)}</span>
+                          {emailVerified
+                            ? <CheckCircle size={14} style={{ color: C.success, flexShrink: 0 }} />
+                            : <AlertCircle size={14} style={{ color: C.warn, flexShrink: 0 }} />}
                         </div>
-                        <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}>
-                          <Lock size={9} />This is the email used to register. It cannot be changed.
-                        </p>
+                        <p className="text-xs mt-1" style={{ color: C.g400 }}>This is the email used to register. It cannot be changed.</p>
+                        {!emailVerified && (
+                          <div className="mt-2 space-y-2">
+                            {emailVerifyStep === 'idle' && (
+                              <button type="button" onClick={handleSendEmailCode} disabled={emailCodeLoading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black disabled:opacity-60"
+                                style={{ backgroundColor: C.paid, color: 'white' }}>
+                                {emailCodeLoading ? <RefreshCw size={11} className="animate-spin" /> : <Mail size={11} />}
+                                {emailCodeLoading ? 'Sending code…' : 'Verify Email →'}
+                              </button>
+                            )}
+                            {(emailVerifyStep === 'otp' || emailVerifyStep === 'verifying') && (
+                              <>
+                                <p className="text-xs" style={{ color: C.g500 }}>Code sent to your email — enter it below:</p>
+                                <div className="flex gap-2 flex-wrap items-center">
+                                  <input type="text" inputMode="numeric" maxLength={6}
+                                    placeholder="000000" value={emailCode}
+                                    onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    className="px-3 py-2 border-2 rounded-xl text-sm font-black focus:outline-none w-36"
+                                    style={{ borderColor: C.paid, letterSpacing: '0.2em', color: C.g800 }} />
+                                  <button type="button" onClick={handleVerifyEmailCode}
+                                    disabled={emailVerifyStep === 'verifying' || emailCode.length < 6}
+                                    className="px-3 py-2 rounded-xl text-white text-xs font-black disabled:opacity-50"
+                                    style={{ backgroundColor: C.success }}>
+                                    {emailVerifyStep === 'verifying' ? 'Verifying…' : '✓ Confirm'}
+                                  </button>
+                                  <button type="button" onClick={() => { setEmailVerifyStep('idle'); setEmailCode(''); }}
+                                    className="text-xs underline" style={{ color: C.g400 }}>Resend</button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {/* Phone — read-only once saved, editable if not yet set */}
+
+                      {/* Phone — editable until verified, then locked */}
                       <div>
-                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          Phone Number {accountForm.phone && <Lock size={12} style={{ color: C.g400 }} />}
+                        <label className={labelCls} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          Phone Number
+                          {phoneVerified || phoneStep === 'done'
+                            ? <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ backgroundColor: '#ECFDF5', color: C.success }}>✓ Verified</span>
+                            : accountForm.phone
+                              ? <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FFF7ED', color: C.warn }}>⚠ Unverified</span>
+                              : null}
                         </label>
-                        {accountForm.phone ? (
-                          <>
-                            <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium"
-                              style={{ borderColor: C.g100, backgroundColor: C.g50, color: C.g600 }}>
-                              {accountForm.phone}
-                            </div>
-                            <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}>
-                              <Lock size={9} />Phone number cannot be changed once saved.
-                            </p>
-                          </>
+                        {phoneVerified || phoneStep === 'done' ? (
+                          <div className="px-4 py-2.5 border-2 rounded-xl text-sm font-medium flex items-center justify-between"
+                            style={{ borderColor: '#DCFCE7', backgroundColor: C.g50, color: C.g700 }}>
+                            <span>{accountForm.phone}</span>
+                            <CheckCircle size={14} style={{ color: C.success, flexShrink: 0 }} />
+                          </div>
                         ) : (
-                          <>
-                            <input type="tel" value={accountForm.phone}
-                              onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
-                              placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(accountForm.phone)} />
-                            <p className="text-xs mt-1" style={{ color: C.g400 }}>Once saved, your phone number cannot be changed.</p>
-                          </>
+                          <input type="tel" value={accountForm.phone}
+                            onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
+                            placeholder="+233 XX XXX XXXX" className={inputCls} style={inputStyle(accountForm.phone)} />
+                        )}
+                        {phoneVerified || phoneStep === 'done'
+                          ? <p className="text-xs mt-1 flex items-center gap-1" style={{ color: C.g400 }}><Lock size={9} />Phone number locked after verification.</p>
+                          : <p className="text-xs mt-1" style={{ color: C.g400 }}>Save your number then tap Verify Phone to get an OTP.</p>}
+                        {/* Inline phone OTP flow — only when phone exists and not verified */}
+                        {!phoneVerified && phoneStep !== 'done' && accountForm.phone && (
+                          <div className="mt-2 space-y-2">
+                            {(phoneStep === 'idle' || phoneStep === 'sending') && (
+                              <button type="button" onClick={handleSendPhoneOtp} disabled={phoneStep === 'sending'}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black disabled:opacity-60"
+                                style={{ backgroundColor: C.paid, color: 'white' }}>
+                                <Smartphone size={11} />
+                                {phoneStep === 'sending' ? 'Sending OTP…' : 'Verify Phone →'}
+                              </button>
+                            )}
+                            {(phoneStep === 'otp' || phoneStep === 'verifying') && (
+                              <>
+                                <p className="text-xs" style={{ color: C.g500 }}>OTP sent to {accountForm.phone}:</p>
+                                <div className="flex gap-2 flex-wrap items-center">
+                                  <input type="text" inputMode="numeric" maxLength={6}
+                                    placeholder="000000" value={phoneOtp}
+                                    onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    className="px-3 py-2 border-2 rounded-xl text-sm font-black focus:outline-none w-36"
+                                    style={{ borderColor: C.paid, letterSpacing: '0.2em', color: C.g800 }} />
+                                  <button type="button" onClick={handleVerifyPhone}
+                                    disabled={phoneStep === 'verifying' || phoneOtp.length < 6}
+                                    className="px-3 py-2 rounded-xl text-white text-xs font-black disabled:opacity-50"
+                                    style={{ backgroundColor: C.success }}>
+                                    {phoneStep === 'verifying' ? 'Verifying…' : '✓ Confirm'}
+                                  </button>
+                                  <button type="button" onClick={() => { setPhoneStep('idle'); setPhoneOtp(''); }}
+                                    className="text-xs underline" style={{ color: C.g400 }}>Resend</button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -443,8 +560,56 @@ export default function Settings({ user, setUser }) {
                   <div className="space-y-3">
 
                     {/* Step 1 — Email */}
-                    <VerifStep n={1} title="Email Verified" badge="Basic" done={emailVerified} active={!emailVerified}
-                      desc={emailVerified ? `${accountForm.email} is verified` : 'Verify your email address to start trading'} />
+                    <div className={`p-4 rounded-xl border transition ${emailVerified ? 'bg-green-50 border-green-200' : 'border-blue-200 bg-blue-50'}`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${emailVerified ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'}`}>
+                          {emailVerified ? <CheckCircle size={18}/> : 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-bold text-sm ${emailVerified ? 'text-green-800' : 'text-blue-800'}`}>Email Verification</p>
+                            <span className={`text-xs font-black px-2 py-0.5 rounded-full ${emailVerified ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'}`}>Basic</span>
+                          </div>
+                          <p className={`text-xs mt-0.5 ${emailVerified ? 'text-green-600' : 'text-blue-600'}`}>
+                            {emailVerified ? `${maskEmail(accountForm.email)} is verified ✓` : 'Verify your email address to start trading'}
+                          </p>
+                          {!emailVerified && (
+                            <div className="mt-3 space-y-2">
+                              {emailVerifyStep === 'idle' && (
+                                <button onClick={handleSendEmailCode} disabled={emailCodeLoading}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-60"
+                                  style={{ backgroundColor: C.paid }}>
+                                  <Mail size={13} />
+                                  {emailCodeLoading ? 'Sending…' : 'Send Verification Code →'}
+                                </button>
+                              )}
+                              {(emailVerifyStep === 'otp' || emailVerifyStep === 'verifying') && (
+                                <>
+                                  <p className="text-xs" style={{ color: '#1e40af' }}>Code sent! Check your inbox:</p>
+                                  <div className="flex gap-2 flex-wrap items-center">
+                                    <input type="text" inputMode="numeric" maxLength={6}
+                                      placeholder="000000" value={emailCode}
+                                      onChange={e => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                      className="px-3 py-2 border-2 rounded-xl text-sm font-black focus:outline-none w-36"
+                                      style={{ borderColor: '#3b82f6', letterSpacing: '0.2em', color: C.g800 }} />
+                                    <button onClick={handleVerifyEmailCode}
+                                      disabled={emailVerifyStep === 'verifying' || emailCode.length < 6}
+                                      className="px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-50"
+                                      style={{ backgroundColor: C.success }}>
+                                      {emailVerifyStep === 'verifying' ? 'Verifying…' : '✓ Verify'}
+                                    </button>
+                                    <button onClick={() => { setEmailVerifyStep('idle'); setEmailCode(''); }} className="text-xs underline text-gray-400">Resend</button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {emailVerified
+                          ? <CheckCircle size={16} className="text-green-500 flex-shrink-0 mt-0.5"/>
+                          : <span className="text-xs font-bold text-blue-600 flex-shrink-0 mt-0.5">Required →</span>}
+                      </div>
+                    </div>
 
                     {/* Step 2 — Phone (interactive) */}
                     <div className={`p-4 rounded-xl border transition ${phoneVerified||phoneStep==='done' ? 'bg-green-50 border-green-200' : emailVerified ? 'border-blue-200 bg-blue-50' : 'bg-gray-50 border-gray-100'}`}>

@@ -32,7 +32,7 @@ class HDWalletService {
     if (this.initialized) return;
 
     const mnemonic     = process.env.MNEMONIC;
-    const networkType  = process.env.HD_NETWORK || 'testnet';
+    const networkType  = process.env.HD_NETWORK || 'mainnet';
 
     if (!mnemonic) {
       throw new Error('❌ MNEMONIC not found in .env — run setup-hd-wallet.js first');
@@ -147,7 +147,7 @@ class HDWalletService {
   // fromIdentifier : e.g. 'user_abc123' or 'escrow_trade_xyz'
   // toAddress      : any valid BTC address
   // amountBTC      : how much to send (number)
-  // feeRate        : satoshis per vbyte (default 5 — safe for testnet/mainnet)
+  // feeRate        : satoshis per vbyte (default 5)
   async sendBitcoin(fromIdentifier, toAddress, amountBTC, feeRate = 5) {
     this.initialize();
 

@@ -134,8 +134,8 @@ export default function Dashboard({ user }) {
       });
       setEarnings(earningsRes.data.earnings || []);
 
-      // Load wallet balance
-      const walletRes = await axios.get(`${API_URL}/user/balance`, {
+      // Load wallet balance from user_wallets (source of truth)
+      const walletRes = await axios.get(`${API_URL}/hd-wallet/wallet`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWalletBalance(parseFloat(walletRes.data.balance_btc || 0));

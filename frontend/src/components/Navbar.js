@@ -28,8 +28,7 @@ export default function Navbar({ user, onLogout }) {
   const { rates: USD_RATES, btcUsd } = useRates();
   const [profileDrop,     setProfileDrop]     = useState(false);
   const [marketDrop,      setMarketDrop]      = useState(false);
-  const [balance,         setBalance]         = useState(0);
-  const [hdBalance,       setHdBalance]       = useState(0);
+  const [hdBalance,       setHdBalance]       = useState(() => parseFloat(localStorage.getItem('praqen_btc_balance') || 0));
   const [localUser,       setLocalUser]       = useState(user);
   const [showBal,         setShowBal]         = useState(true);
   const [displayCurrency, setDisplayCurrency] = useState(localStorage.getItem('praqen_currency') || 'USD');
@@ -75,12 +74,11 @@ export default function Navbar({ user, onLogout }) {
   const loadBalance = async () => {
     try {
       const tk = localStorage.getItem('token');
-      const [r1, r2] = await Promise.allSettled([
-        axios.get(`${API_URL}/wallet`,           { headers: { Authorization: `Bearer ${tk}` } }),
-        axios.get(`${API_URL}/hd-wallet/wallet`, { headers: { Authorization: `Bearer ${tk}` } }),
-      ]);
-      setBalance  (r1.status === 'fulfilled' ? r1.value.data.wallet?.balance_btc || 0 : 0);
-      setHdBalance(r2.status === 'fulfilled' ? r2.value.data.balance_btc          || 0 : 0);
+      if (!tk) return;
+      const r = await axios.get(`${API_URL}/hd-wallet/wallet`, { headers: { Authorization: `Bearer ${tk}` } });
+      const bal = parseFloat(r.data?.balance_btc || 0);
+      setHdBalance(bal);
+      localStorage.setItem('praqen_btc_balance', bal.toString());
     } catch {}
   };
 
@@ -94,11 +92,13 @@ export default function Navbar({ user, onLogout }) {
   }, []);
 
   const displayUser = localUser?.id ? localUser : user;
-  const totalBtc    = parseFloat(balance || 0) + parseFloat(hdBalance || 0);
-  const fxRate      = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 0);
-  const btcLocal    = (btcUsd || 0) * (displayCurrency === 'USD' ? 1 : fxRate);
-  const totalLocal  = totalBtc * (displayCurrency === 'USD' ? (btcUsd || 0) : btcLocal);
+  const totalBtc    = parseFloat(hdBalance || 0);
+  const fxRate      = displayCurrency === 'USD' ? 1 : (USD_RATES?.[displayCurrency] || 1);
+  const btcLocal    = (btcUsd || 88000) * (displayCurrency === 'USD' ? 1 : fxRate);
+  const totalLocal  = totalBtc * btcLocal;
   const localCode   = displayCurrency;
+  const CURRENCY_SYMBOLS = { USD:'$', GBP:'£', EUR:'€', GHS:'₵', NGN:'₦', KES:'KSh', ZAR:'R' };
+  const sym         = CURRENCY_SYMBOLS[displayCurrency] || '';
   const handleLogout = () => { onLogout(); navigate('/login'); };
 
   const isActive       = (path) => location.pathname === path;
@@ -292,8 +292,8 @@ export default function Navbar({ user, onLogout }) {
               <Link to="/wallet"
                 style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '5px 8px', textDecoration: 'none' }}>
                 <Wallet size={12} color={C.forest} />
-                <span style={{ fontSize: 11, fontWeight: 900, color: C.forest, whiteSpace: 'nowrap', maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {showBal ? `${localCode} ${fmt(totalLocal, 0)}` : '•••'}
+                <span style={{ fontSize: 11, fontWeight: 900, color: C.forest, whiteSpace: 'nowrap', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {showBal ? `${localCode} ${sym}${fmt(totalLocal, 2)}` : '•••'}
                 </span>
               </Link>
               <button
@@ -316,7 +316,7 @@ export default function Navbar({ user, onLogout }) {
               <Link to="/wallet" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Wallet size={13} color={C.forest} />
                 <span style={{ fontSize: 13, fontWeight: 900, color: C.forest }}>
-                  {showBal ? `${localCode} ${fmt(totalLocal, 2)}` : '••••••'}
+                  {showBal ? `${localCode} ${sym}${fmt(totalLocal, 2)}` : '••••••'}
                 </span>
               </Link>
             </div>

@@ -723,6 +723,19 @@ export default function Dashboard({ user }) {
     } catch (e) { /* silent */ }
   };
 
+  const fetchWalletBalance = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/hd-wallet/wallet`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const bal = parseFloat(res.data?.balance_btc || 0);
+      setWalletBalance(bal);
+      localStorage.setItem('praqen_btc_balance', bal.toString());
+    } catch (e) { /* silent */ }
+  };
+
   const handleReferralWithdraw = async () => {
     const token = localStorage.getItem('token');
     try {
@@ -741,11 +754,12 @@ export default function Dashboard({ user }) {
   useEffect(() => {
     fetchReferralData();
     fetchBtcPrice();
+    fetchWalletBalance();
   }, [user]);
 
   // Auto-refresh every 60s
   useEffect(() => {
-    const iv = setInterval(() => loadDashboardData(), 60000);
+    const iv = setInterval(() => { loadDashboardData(); fetchWalletBalance(); }, 60000);
     return () => clearInterval(iv);
   }, [user]);
 
@@ -1028,12 +1042,17 @@ export default function Dashboard({ user }) {
                   <p className="text-white/60 text-xs mb-1">Available Balance</p>
                   <div className="flex items-center gap-2">
                     {showBalance
-                      ? <p className="text-3xl font-black">{fmtBtc(walletBalance)} BTC</p>
+                      ? <p className="text-3xl font-black">₿ {fmtBtc(walletBalance)}</p>
                       : <p className="text-3xl font-black">•••••••• BTC</p>}
                     <button onClick={()=>setShowBalance(!showBalance)} className="text-white/60 hover:text-white">
                       {showBalance ? <EyeOff size={16}/> : <Eye size={16}/>}
                     </button>
                   </div>
+                  {showBalance && btcPrice > 0 && (
+                    <p className="text-white/70 text-sm mt-1">
+                      ≈ ${fmt(walletBalance * btcPrice, 2)} USD
+                    </p>
+                  )}
                 </div>
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{backgroundColor:'rgba(255,255,255,0.15)'}}>

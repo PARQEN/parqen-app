@@ -650,69 +650,145 @@ app.post('/api/test-notify', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, username, fullName, referralCode } = req.body;
-    if (!email || !password || !username) return res.status(400).json({ error: 'Missing required fields' });
-    const { data: existingUser } = await supabaseAdmin.from('users').select('email').eq('email', email).single();
+
+    // ── Validate inputs ────────────────────────────────────────────────────
+    if (!email || !password || !username) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // ── Check uniqueness (fast DB lookups) ─────────────────────────────────
+    const { data: existingUser } = await supabaseAdmin
+      .from('users').select('email').eq('email', email.toLowerCase().trim()).single();
     if (existingUser) return res.status(400).json({ error: 'An account with this email already exists.' });
-    const { data: existingUsername } = await supabaseAdmin.from('users').select('id').eq('username', username).single();
+
+    const { data: existingUsername } = await supabaseAdmin
+      .from('users').select('id').eq('username', username.trim()).single();
     if (existingUsername) return res.status(400).json({ error: 'That username is already taken. Please choose a different one.' });
+
+    // ── Referral lookup ────────────────────────────────────────────────────
     let referrerId = null;
     if (referralCode) {
-      const { data: referrer } = await supabaseAdmin.from('users').select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle();
+      const { data: referrer } = await supabaseAdmin
+        .from('users').select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle();
       if (referrer) referrerId = referrer.id;
     }
-    const passwordHash = await bcrypt.hash(password, 10);
-    const walletAddress = generateMockWallet();
+
+    // ── Create user ────────────────────────────────────────────────────────
+    const passwordHash      = await bcrypt.hash(password, 10);
     const referralCodeValue = await generateUniqueReferralCode(username);
+
     const { data, error } = await supabaseAdmin.from('users').insert([{
-      email, password_hash: passwordHash, username, full_name: fullName || username,
-      bitcoin_wallet_address: walletAddress, is_email_verified: false, average_rating: 0,
-      total_trades: 0, completion_rate: 100, account_status: 'ACTIVE', created_at: new Date(),
-      avatar_url: null, is_admin: false, is_moderator: false,
-      referred_by: referrerId, referral_code: referralCodeValue, badge: 'BEGINNER',
+      email:                  email.toLowerCase().trim(),
+      password_hash:          passwordHash,
+      username:               username.trim(),
+      full_name:              fullName || username.trim(),
+      bitcoin_wallet_address: null,       // HD address generated async below
+      is_email_verified:      false,
+      average_rating:         0,
+      total_trades:           0,
+      completion_rate:        100,
+      account_status:         'ACTIVE',
+      created_at:             new Date(),
+      avatar_url:             null,
+      is_admin:               false,
+      is_moderator:           false,
+      referred_by:            referrerId,
+      referral_code:          referralCodeValue,
+      badge:                  'BEGINNER',
     }]).select();
-    if (error) { console.error('Registration error:', error); return res.status(400).json({ error: error.message }); }
-    if (!data || data.length === 0) return res.status(400).json({ error: 'Failed to create user' });
-    if (referrerId) await supabaseAdmin.rpc('increment_referral_count', { user_id: referrerId });
-    await supabaseAdmin.from('mock_wallets').insert([{ user_id: data[0].id, wallet_address: walletAddress, balance_btc: 0 }]);
-    await supabaseAdmin.from('user_balances').insert([{ user_id: data[0].id, balance_btc: 0, balance_usd: 0 }]);
-    try {
-      const wallet = await coinbaseWallet.createWallet(data[0].id, username);
-      await supabaseAdmin.from('users').update({
-        coinbase_wallet_id: wallet.walletId, coinbase_wallet_address: wallet.address, wallet_created_at: new Date()
-      }).eq('id', data[0].id);
-      console.log(`✅ Coinbase wallet created for ${username}: ${wallet.address}`);
-    } catch (walletError) {
-      console.error('⚠️ Wallet creation failed but user was created:', walletError.message);
+
+    if (error) {
+      console.error('[Register] DB insert error:', error);
+      return res.status(400).json({ error: error.message });
     }
-    // Generate 6-digit code
+    if (!data || data.length === 0) return res.status(400).json({ error: 'Failed to create user' });
+
+    const newUser = data[0];
+
+    // ── Seed balance row ───────────────────────────────────────────────────
+    await supabaseAdmin.from('user_balances').insert([{ user_id: newUser.id, balance_btc: 0, balance_usd: 0 }]);
+
+    // ── Generate 6-digit verification code & save to DB (fast) ────────────
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    // Send email
-    await sendVerificationEmail(email, code);
-    // Keep in-memory copy for fast lookup
-    verificationCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, userId: data[0].id });
-    // Save code to user record in DB
-    await supabaseAdmin
-      .from('users')
-      .update({
-        verification_code: code,
-        verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
-      })
-      .eq('id', data[0].id);
-    const token = jwt.sign({ userId: data[0].id, email }, JWT_SECRET, { expiresIn: '7d' });
+    verificationCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000, userId: newUser.id });
+    await supabaseAdmin.from('users').update({
+      verification_code:         code,
+      verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
+    }).eq('id', newUser.id);
+
+    // ── Sign JWT ───────────────────────────────────────────────────────────
+    const token = jwt.sign({ userId: newUser.id, email }, JWT_SECRET, { expiresIn: '7d' });
+
+    // ── RESPOND IMMEDIATELY — never block on email or external APIs ────────
     res.json({
       success: true,
       token,
       user: {
-        id: data[0].id, email: data[0].email, username: data[0].username,
-        full_name: data[0].full_name, average_rating: 0, total_trades: 0,
-        avatar_url: null, is_admin: false, is_moderator: false,
-        referral_code: referralCodeValue, bitcoin_wallet_address: walletAddress,
+        id:                     newUser.id,
+        email:                  newUser.email,
+        username:               newUser.username,
+        full_name:              newUser.full_name,
+        average_rating:         0,
+        total_trades:           0,
+        avatar_url:             null,
+        is_admin:               false,
+        is_moderator:           false,
+        referral_code:          referralCodeValue,
+        bitcoin_wallet_address: null,
       },
-      message: 'Account created successfully!',
+      message: 'Account created! Check your email for the verification code.',
     });
+
+    // ── BACKGROUND WORK (runs after response is sent) ──────────────────────
+    // 1. Send verification email (SMTP can be slow — never block signup on it)
+    sendVerificationEmail(email, code)
+      .catch(e => console.error('[Register] Verification email failed:', e.message));
+
+    // 2. Generate HD wallet address for this user
+    Promise.resolve().then(async () => {
+      try {
+        const hdAddrData = hdWalletService.generateUserAddress(newUser.id);
+        await supabaseAdmin.from('users').update({
+          bitcoin_wallet_address: hdAddrData.address,
+          updated_at: new Date().toISOString(),
+        }).eq('id', newUser.id);
+        await supabaseAdmin.from('user_wallets').upsert({
+          user_id:    newUser.id,
+          btc_address: hdAddrData.address,
+          network:    'mainnet',
+          balance_btc: 0,
+          created_at: new Date().toISOString(),
+        });
+        console.log(`[Register] HD wallet generated for ${newUser.username}: ${hdAddrData.address}`);
+      } catch (e) {
+        console.error('[Register] HD wallet generation failed:', e.message);
+      }
+    });
+
+    // 3. Increment referrer count (non-critical)
+    if (referrerId) {
+      supabaseAdmin.rpc('increment_referral_count', { user_id: referrerId })
+        .catch(e => console.error('[Register] Referral increment failed:', e.message));
+    }
+
+    // 4. Coinbase wallet (non-critical, slow external API — fully background)
+    coinbaseWallet.createWallet(newUser.id, username)
+      .then(async (wallet) => {
+        await supabaseAdmin.from('users').update({
+          coinbase_wallet_id:      wallet.walletId,
+          coinbase_wallet_address: wallet.address,
+          wallet_created_at:       new Date(),
+        }).eq('id', newUser.id);
+        console.log(`[Register] Coinbase wallet created for ${newUser.username}: ${wallet.address}`);
+      })
+      .catch(e => console.error('[Register] Coinbase wallet failed (non-critical):', e.message));
+
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Register] Unexpected error:', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
@@ -835,21 +911,72 @@ app.get('/api/auth/twilio-check', async (req, res) => {
   }
 });
 
+// ── OTP helpers ──────────────────────────────────────────────────────────────
+// Uses local generation + Supabase otp_codes table + plain Twilio SMS.
+// Run this SQL in Supabase once if the table doesn't exist:
+//   create table if not exists otp_codes (
+//     id         uuid primary key default gen_random_uuid(),
+//     phone      text not null,
+//     code       text not null,
+//     expires_at timestamptz not null,
+//     used       boolean not null default false,
+//     created_at timestamptz not null default now()
+//   );
+
+async function storeOtp(contact, otp) {
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const { error } = await supabaseAdmin
+    .from('otp_codes')
+    .insert({ phone: contact, code: otp, expires_at: expiresAt, used: false });
+  if (error) throw new Error(`OTP store failed: ${error.message}`);
+}
+
+async function checkOtp(contact, token) {
+  const { data, error } = await supabaseAdmin
+    .from('otp_codes')
+    .select('*')
+    .eq('phone', contact)
+    .eq('code', token)
+    .eq('used', false)
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (error || !data) return null;
+  // mark used immediately so replay attacks fail
+  await supabaseAdmin.from('otp_codes').update({ used: true }).eq('id', data.id);
+  return data;
+}
+
 app.post('/api/auth/send-otp', async (req, res) => {
   try {
     const { phone, email, channel } = req.body;
     const ch = channel || 'sms';
-    const to = ch === 'email' ? email : toE164(phone);
-    if (!to) return res.status(400).json({ error: 'Phone or email required' });
+    const contact = ch === 'email' ? email : toE164(phone);
+    if (!contact) return res.status(400).json({ error: 'Phone or email required' });
 
-    console.log(`[OTP send] channel=${ch} to=${to}`);
-    await twilioClient.verify.v2
-      .services(twilioVerifySid)
-      .verifications.create({ to, channel: ch });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await storeOtp(contact, otp);
 
+    if (ch === 'email') {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: contact,
+        subject: 'Your PRAQEN verification code',
+        html: `<p style="font-family:sans-serif">Your PRAQEN verification code is:<br/><strong style="font-size:28px;letter-spacing:6px">${otp}</strong><br/><small>Valid for 5 minutes. Do not share this code.</small></p>`,
+      });
+    } else {
+      await twilioClient.messages.create({
+        body: `Your PRAQEN code is: ${otp}. Valid 5 min. Do not share.`,
+        from: process.env.TWILIO_PHONE,
+        to: contact,
+      });
+    }
+
+    console.log(`[OTP send] channel=${ch} to=${contact}`);
     res.json({ success: true, message: 'Code sent!' });
   } catch (error) {
-    console.error('[OTP send error]', error.status, error.code, error.message);
+    console.error('[OTP send error]', error.message);
     res.status(500).json({ error: 'Failed to send code. Please try again.' });
   }
 });
@@ -858,16 +985,21 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
   try {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: 'Phone required' });
-    const to = toE164(phone);
+    const contact = toE164(phone);
 
-    console.log(`[OTP send-phone] to=${to}`);
-    await twilioClient.verify.v2
-      .services(twilioVerifySid)
-      .verifications.create({ to, channel: 'sms' });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await storeOtp(contact, otp);
 
+    await twilioClient.messages.create({
+      body: `Your PRAQEN code is: ${otp}. Valid 5 min. Do not share.`,
+      from: process.env.TWILIO_PHONE,
+      to: contact,
+    });
+
+    console.log(`[OTP send-phone] to=${contact}`);
     res.json({ success: true, message: 'Code sent!' });
   } catch (error) {
-    console.error('[OTP send-phone error]', error.status, error.code, error.message);
+    console.error('[OTP send-phone error]', error.message);
     res.status(500).json({ error: 'Failed to send code. Please try again.' });
   }
 });
@@ -876,53 +1008,37 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   try {
     const { phone, email, code, channel, contact, otp } = req.body;
     const ch = channel || 'sms';
-    const rawTo = ch === 'email' ? email : (phone || contact);
-    const to = ch === 'email' ? rawTo : toE164(rawTo);
+    const rawContact = ch === 'email' ? (email || contact) : (phone || contact);
+    const normalizedContact = ch === 'email' ? rawContact : toE164(rawContact);
     const token = (code || otp || '').trim();
 
-    if (!to || !token) return res.status(400).json({ error: 'Phone/email and code are required' });
-    if (token.length !== 6) return res.status(400).json({ error: 'Enter the full 6-digit code' });
-
-    console.log(`[OTP verify] channel=${ch} to=${to} token=${token}`);
-
-    let result;
-    try {
-      result = await twilioClient.verify.v2
-        .services(twilioVerifySid)
-        .verificationChecks.create({ to, code: token });
-    } catch (twilioErr) {
-      const status = twilioErr.status || twilioErr.statusCode;
-      const tcode  = twilioErr.code;
-      const tmsg   = twilioErr.message || '';
-      console.error('[OTP verify Twilio error]', status, tcode, tmsg);
-
-      // 404 / 20404 = expired, already used, or number mismatch
-      if (status === 404 || tcode === 20404 || tmsg.includes('was not found')) {
-        return res.status(400).json({ error: 'Code expired or already used. Tap "Resend code" to get a new one.' });
-      }
-      // 60202 = max send attempts; 60203 = max check attempts
-      if (tcode === 60202 || tcode === 60203) {
-        return res.status(400).json({ error: 'Too many attempts. Please wait a few minutes and request a new code.' });
-      }
-      // any other Twilio error — return friendly message, never expose raw error
-      return res.status(400).json({ error: `Could not verify code (${tcode || status}). Please request a new code.` });
+    if (!normalizedContact || !token) {
+      return res.status(400).json({ error: 'Phone/email and code are required' });
+    }
+    if (token.length !== 6) {
+      return res.status(400).json({ error: 'Enter the full 6-digit code' });
     }
 
-    console.log(`[OTP verify result] status=${result.status}`);
+    console.log(`[OTP verify] channel=${ch} contact=${normalizedContact} token=${token}`);
 
-    if (result.status === 'approved') {
-      if (to && ch !== 'email') {
-        try {
-          await supabaseAdmin.from('users')
-            .update({ phone_verified: true, phone: to })
-            .eq('phone', to);
-        } catch (_) {}
-      }
-      return res.json({ success: true, message: 'Verified!' });
+    const record = await checkOtp(normalizedContact, token);
+    if (!record) {
+      return res.status(400).json({ error: 'Code expired or already used. Tap "Resend code" to get a new one.' });
     }
-    return res.status(400).json({ error: 'Incorrect code. Please check and try again.' });
+
+    // Update phone_verified flag for SMS verifications
+    if (ch !== 'email') {
+      try {
+        await supabaseAdmin.from('users')
+          .update({ phone_verified: true, phone: normalizedContact })
+          .eq('phone', normalizedContact);
+      } catch (_) {}
+    }
+
+    console.log(`[OTP verify] success for ${normalizedContact}`);
+    return res.json({ success: true, message: 'Verified!' });
   } catch (error) {
-    console.error('[OTP verify unexpected error]', error.message, error.stack);
+    console.error('[OTP verify unexpected error]', error.message);
     res.status(500).json({ error: `Verification failed: ${error.message}` });
   }
 });
@@ -1024,6 +1140,202 @@ app.post('/api/auth/verify-code', async (req, res) => {
   }
 });
 
+// ============================================================
+// AUTHENTICATED VERIFICATION ENDPOINTS
+// Called from Profile page after user is logged in
+// ============================================================
+
+// POST /api/users/resend-verification — resend email code to logged-in user
+app.post('/api/users/resend-verification', verifyToken, async (req, res) => {
+  try {
+    const { data: user } = await supabaseAdmin
+      .from('users').select('email, is_email_verified').eq('id', req.userId).single();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.is_email_verified) return res.json({ success: true, message: 'Email already verified' });
+
+    const code      = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    verificationCodes.set(user.email, { code, expiresAt, userId: req.userId });
+    await supabaseAdmin.from('users').update({
+      verification_code:         code,
+      verification_code_expires: new Date(expiresAt),
+    }).eq('id', req.userId);
+
+    // Fire-and-forget — never block response on SMTP
+    sendVerificationEmail(user.email, code)
+      .catch(e => console.error('[resend-verification] Email failed:', e.message));
+
+    res.json({ success: true, message: 'Verification code sent to your email' });
+  } catch (err) {
+    console.error('[resend-verification]', err.message);
+    res.status(500).json({ error: 'Failed to send code. Try again.' });
+  }
+});
+
+// POST /api/users/verify-email-code — verify code entered from profile
+app.post('/api/users/verify-email-code', verifyToken, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code || String(code).length !== 6) return res.status(400).json({ error: 'Enter the full 6-digit code' });
+
+    const { data: user } = await supabaseAdmin
+      .from('users')
+      .select('email, verification_code, verification_code_expires, is_email_verified')
+      .eq('id', req.userId).single();
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.is_email_verified) return res.json({ success: true, message: 'Already verified' });
+
+    // In-memory check first (fast path)
+    const mem = verificationCodes.get(user.email);
+    if (mem) {
+      if (Date.now() > mem.expiresAt) {
+        verificationCodes.delete(user.email);
+        return res.status(400).json({ error: 'Code expired. Request a new one.' });
+      }
+      if (mem.code !== String(code)) return res.status(400).json({ error: 'Invalid code. Check and try again.' });
+      verificationCodes.delete(user.email);
+    } else {
+      // DB fallback (handles server restarts)
+      if (!user.verification_code) return res.status(400).json({ error: 'No code found. Request a new one.' });
+      if (new Date() > new Date(user.verification_code_expires)) return res.status(400).json({ error: 'Code expired. Request a new one.' });
+      if (String(user.verification_code) !== String(code)) return res.status(400).json({ error: 'Invalid code. Check and try again.' });
+    }
+
+    await supabaseAdmin.from('users').update({
+      is_email_verified:         true,
+      email_verified:            true,
+      verification_code:         null,
+      verification_code_expires: null,
+    }).eq('id', req.userId);
+
+    res.json({ success: true, message: 'Email verified successfully!' });
+  } catch (err) {
+    console.error('[verify-email-code]', err.message);
+    res.status(500).json({ error: 'Verification failed. Try again.' });
+  }
+});
+
+// POST /api/users/send-phone-otp — send SMS OTP to a phone number (authenticated)
+app.post('/api/users/send-phone-otp', verifyToken, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number required' });
+
+    const e164 = phone.startsWith('+') ? phone : `+${phone.replace(/^0/, '')}`;
+    const otp  = Math.floor(100000 + Math.random() * 900000).toString();
+
+    otpStore.set(e164, { otp, expires: Date.now() + 5 * 60 * 1000 });
+
+    await twilioClient.messages.create({
+      body: `[PRAQEN] Your verification code is: ${otp}. Valid for 5 minutes. Never share this code.`,
+      from: process.env.TWILIO_PHONE,
+      to:   e164,
+    });
+
+    console.log(`[send-phone-otp] OTP sent to ${e164}`);
+    res.json({ success: true, message: 'OTP sent to your phone' });
+  } catch (err) {
+    console.error('[send-phone-otp]', err.message);
+    res.status(500).json({ error: 'Failed to send SMS. Check the number and try again.' });
+  }
+});
+
+// POST /api/users/verify-phone-otp — verify phone OTP and mark phone verified
+app.post('/api/users/verify-phone-otp', verifyToken, async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP required' });
+
+    const e164   = phone.startsWith('+') ? phone : `+${phone.replace(/^0/, '')}`;
+    const stored = otpStore.get(e164);
+
+    if (!stored || String(stored.otp) !== String(otp) || Date.now() > stored.expires) {
+      return res.status(400).json({ error: 'Invalid or expired OTP. Request a new one.' });
+    }
+
+    otpStore.delete(e164);
+
+    await supabaseAdmin.from('users').update({
+      phone:             e164,
+      is_phone_verified: true,
+      phone_verified:    true,
+      updated_at:        new Date().toISOString(),
+    }).eq('id', req.userId);
+
+    res.json({ success: true, message: 'Phone number verified!' });
+  } catch (err) {
+    console.error('[verify-phone-otp]', err.message);
+    res.status(500).json({ error: 'Verification failed. Try again.' });
+  }
+});
+
+// POST /api/kyc/upload — receive base64 ID + selfie, store in Supabase Storage, set status pending
+app.post('/api/kyc/upload', verifyToken, async (req, res) => {
+  try {
+    const { idImage, selfieImage, idType = 'national_id' } = req.body;
+    if (!idImage || !selfieImage) return res.status(400).json({ error: 'ID photo and selfie are both required' });
+
+    const userId    = req.userId;
+    const timestamp = Date.now();
+
+    // Strip base64 prefix and convert to buffer
+    const toBuffer = (b64) => Buffer.from(b64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+
+    let idUrl      = null;
+    let selfieUrl  = null;
+
+    // Try Supabase Storage upload (bucket: kyc-documents)
+    try {
+      const { error: idErr } = await supabaseAdmin.storage
+        .from('kyc-documents')
+        .upload(`${userId}/id_${timestamp}.jpg`, toBuffer(idImage), { contentType: 'image/jpeg', upsert: true });
+
+      const { error: selfieErr } = await supabaseAdmin.storage
+        .from('kyc-documents')
+        .upload(`${userId}/selfie_${timestamp}.jpg`, toBuffer(selfieImage), { contentType: 'image/jpeg', upsert: true });
+
+      if (!idErr) {
+        const { data: { publicUrl } } = supabaseAdmin.storage.from('kyc-documents').getPublicUrl(`${userId}/id_${timestamp}.jpg`);
+        idUrl = publicUrl;
+      }
+      if (!selfieErr) {
+        const { data: { publicUrl } } = supabaseAdmin.storage.from('kyc-documents').getPublicUrl(`${userId}/selfie_${timestamp}.jpg`);
+        selfieUrl = publicUrl;
+      }
+    } catch (storageErr) {
+      console.warn('[kyc/upload] Storage upload failed (bucket may not exist):', storageErr.message);
+    }
+
+    // Always mark user as pending regardless of storage success
+    await supabaseAdmin.from('users').update({
+      kyc_status:       'pending',
+      kyc_id_type:      idType,
+      kyc_submitted_at: new Date().toISOString(),
+      kyc_id_url:       idUrl,
+      kyc_selfie_url:   selfieUrl,
+      updated_at:       new Date().toISOString(),
+    }).eq('id', userId);
+
+    // In-app notification for user
+    await supabaseAdmin.from('notifications').insert({
+      user_id:    userId,
+      type:       'kyc',
+      title:      '📋 KYC Submitted — Under Review',
+      message:    'Your identity documents have been submitted. We will review within 24 hours and update your profile.',
+      action:     '/profile',
+      is_read:    false,
+      created_at: new Date().toISOString(),
+    });
+
+    console.log(`[kyc/upload] KYC submitted by user ${userId}`);
+    res.json({ success: true, message: 'Documents submitted! We will review within 24 hours.' });
+  } catch (err) {
+    console.error('[kyc/upload]', err.message);
+    res.status(500).json({ error: 'Upload failed. Please try again.' });
+  }
+});
+
 // Resend verification code
 app.post('/api/auth/resend-code', async (req, res) => {
   try {
@@ -1083,7 +1395,7 @@ app.post('/api/users/heartbeat', verifyToken, async (req, res) => {
 app.get('/api/users/profile', verifyToken, async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('users')
-      .select('id, username, full_name, bio, location, website, phone, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
+      .select('id, email, username, full_name, bio, location, website, phone, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, email_verified, is_phone_verified, phone_verified, kyc_verified, kyc_status, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc, username_changed, preferred_currency, preferred_language, hide_full_name')
       .eq('id', req.userId).single();
     if (error) return res.status(400).json({ error: error.message });
     const { data: wallet } = await supabaseAdmin.from('mock_wallets').select('*').eq('user_id', req.userId).single();
@@ -1351,7 +1663,7 @@ app.get('/api/listings', async (req, res) => {
       users:seller_id(id, username, average_rating, total_trades, completion_rate,
         avatar_url, is_id_verified, is_email_verified, last_login, created_at,
         total_feedback_count, positive_feedback, negative_feedback, country, bio, badge)
-    `).eq('status', 'ACTIVE').order('created_at', { ascending: false });
+    `).neq('status', 'DELETED').order('created_at', { ascending: false });
     if (brand) query = query.ilike('gift_card_brand', `%${brand}%`);
     if (minPrice) query = query.gte('bitcoin_price', parseFloat(minPrice));
     if (maxPrice) query = query.lte('bitcoin_price', parseFloat(maxPrice));
@@ -1696,6 +2008,16 @@ app.post('/api/trades', verifyToken, async (req, res) => {
     const verifiedFee = parseFloat(calculateFee(verifiedAmountBtc));
     const tradeRef = 'PRAQ-' + require('crypto').randomBytes(4).toString('hex').toUpperCase();
 
+    // Pre-check: ensure BTC provider has enough balance before creating the trade
+    const { data: providerBalance } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', btcProviderId).single();
+    const availableBtc = parseFloat(providerBalance?.balance_btc || 0);
+    if (availableBtc < verifiedAmountBtc) {
+      return res.status(400).json({
+        error: `The ${btcProviderId === req.userId ? 'seller' : 'offer owner'} has insufficient Bitcoin balance to complete this trade. Please try a smaller amount or choose a different offer.`
+      });
+    }
+
     // Level 2+: Large trades ($10k+) require email + phone + ID
     if (tradeAmountUsd >= 10000 && (!tradeOpener?.is_email_verified || !tradeOpener?.is_phone_verified || !tradeOpener?.is_id_verified)) {
       return res.status(403).json({
@@ -1731,8 +2053,14 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       escrowResult = await tradeEscrowService.lockFundsInEscrow(trade[0].id, btcProviderId, verifiedAmountBtc);
     } catch (lockError) {
       console.error('❌ lockFundsInEscrow failed:', lockError.message);
-      await supabaseAdmin.from('trades').delete().eq('id', trade[0].id);
-      return res.status(400).json({ error: lockError.message });
+      await supabaseAdmin.from('trades').update({
+        status: 'CANCELLED',
+        cancel_reason: `Escrow lock failed: ${lockError.message}`,
+        cancelled_at: new Date().toISOString(),
+      }).eq('id', trade[0].id);
+      return res.status(400).json({
+        error: 'Could not lock Bitcoin in escrow. The seller may have insufficient funds. Please try a different offer.'
+      });
     }
     // Notify whichever party needs to act next
     // Gift card: notify card seller (Kenneth) to send the gift card code
@@ -2716,9 +3044,13 @@ app.listen(PORT, () => {
   console.log(`✅ PRAQEN Backend running on http://localhost:${PORT}`);
   console.log('📋 Routes: /api/auth, /api/users, /api/listings, /api/trades, /api/my-trades, /api/wallet, /api/hd-wallet, /api/notifications');
 
-  // Start deposit monitor background job
-  depositMonitor.start();
-  console.log('🔍 Deposit monitor: running — polls every 60s');
+  // Start deposit monitor background job (mainnet only)
+  if (process.env.HD_NETWORK === 'mainnet') {
+    depositMonitor.start();
+    console.log('🔍 Deposit monitor: MAINNET — polls every 5 min | SMS + Email alerts enabled');
+  } else {
+    console.log('⚠️  Deposit monitor NOT started — HD_NETWORK is not mainnet');
+  }
 });
 
 module.exports = app;

@@ -39,28 +39,57 @@ router.get('/wallet', verifyToken, async (req, res) => {
     try {
         const userId = req.userId;
 
-        // Get balance from user_balances
-        const { data: balanceData, error: balanceError } = await supabaseAdmin
-            .from('user_balances')
-            .select('balance_btc')
-            .eq('user_id', userId)
-            .single();
-
-        // Get address from user_wallets
-        const { data: walletData } = await supabaseAdmin
+        // Primary source: user_wallets (updated by deposit monitor on every confirmed tx)
+        const { data: walletRow } = await supabaseAdmin
             .from('user_wallets')
-            .select('btc_address')
+            .select('btc_address, balance_btc')
             .eq('user_id', userId)
             .single();
 
-        const balance = balanceData?.balance_btc || 0;
+        let address = walletRow?.btc_address || null;
+        let balance = parseFloat(walletRow?.balance_btc || 0);
 
-        console.log(`💰 Wallet API - User: ${userId}, Balance: ${balance} BTC`);
+        // Fallback: if user_wallets has 0, also check user_balances
+        if (!balance) {
+            const { data: balRow } = await supabaseAdmin
+                .from('user_balances')
+                .select('balance_btc')
+                .eq('user_id', userId)
+                .single();
+            if (parseFloat(balRow?.balance_btc || 0) > 0) {
+                balance = parseFloat(balRow.balance_btc);
+            }
+        }
+
+        // Fallback: if user_wallets has no address, check users table
+        if (!address) {
+            const { data: userRow } = await supabaseAdmin
+                .from('users')
+                .select('bitcoin_wallet_address')
+                .eq('id', userId)
+                .single();
+            address = userRow?.bitcoin_wallet_address || null;
+        }
+
+        // Transaction history
+        const { data: txs } = await supabaseAdmin
+            .from('wallet_transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const network = process.env.HD_NETWORK || 'mainnet';
+
+        console.log(`💰 Wallet API — user ${userId.slice(0,8)}: ${balance} BTC | addr ${address ? address.slice(0,12) + '…' : 'none'}`);
 
         res.json({
-            success: true,
-            address: walletData?.btc_address,
-            balance_btc: balance
+            success:      true,
+            address:      address,
+            balance_btc:  balance,
+            network:      network,
+            has_address:  !!address,
+            transactions: txs || [],
         });
     } catch (error) {
         console.error('Wallet API error:', error.message);

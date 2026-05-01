@@ -340,15 +340,24 @@ class DepositMonitor {
 
         if (balErr) {
           console.error(`[DepositMonitor] user_balances update failed for ${username}:`, balErr.message);
-          this.checkedTxIds.add(`${userId}_${txid}`);
-          continue;
+          // Do NOT continue — user_wallets must still be updated below
         }
 
-        // ── 3. Sync user_wallets.balance_btc ─────────────────────────────────
-        await supabaseAdmin
+        // ── 3. Update user_wallets.balance_btc ───────────────────────────────
+        // Fetch wallet's own current balance so we don't inherit a stale user_balances value
+        const { data: walletRow } = await supabaseAdmin
+          .from('user_wallets').select('balance_btc').eq('user_id', userId).single();
+        const walletBase    = parseFloat(walletRow?.balance_btc || 0);
+        const walletBalance = parseFloat((walletBase + depositBTC).toFixed(8));
+
+        const { error: walletErr } = await supabaseAdmin
           .from('user_wallets')
-          .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+          .update({ balance_btc: walletBalance, updated_at: new Date().toISOString() })
           .eq('user_id', userId);
+
+        if (walletErr) {
+          console.error(`[DepositMonitor] user_wallets update failed for ${username}:`, walletErr.message);
+        }
 
         // ── 4. In-app notification ───────────────────────────────────────────
         await supabaseAdmin

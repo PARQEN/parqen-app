@@ -14,7 +14,44 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 );
 
-const FEE_RATE = 0.005; // 0.5% platform fee
+const FEE_RATE            = 0.005;
+const COMPANY_WALLET_ID   = '14762cd0-d3b2-474f-acab-fe0071961e9a';
+const COMPANY_BTC_ADDRESS = 'bc1qd8z3zdn2e3eul6y8nmcyjvgle3yzv8ttvsjp49';
+
+// Auto-pause a seller's SELL listings when their BTC balance hits zero.
+// Called after every trade completion and every wallet withdrawal.
+// NEVER throws — must not break the caller.
+async function pauseSellOffersIfEmpty(sellerId) {
+  try {
+    const { data: bal } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', sellerId).single();
+    const balance = parseFloat(bal?.balance_btc || 0);
+    if (balance > 0.000001) return; // Still has funds — nothing to do
+
+    const { data: paused } = await supabaseAdmin
+      .from('listings')
+      .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
+      .eq('seller_id', sellerId)
+      .eq('status', 'ACTIVE')
+      .in('listing_type', ['SELL', 'SELL_BITCOIN'])
+      .select('id');
+
+    if (paused && paused.length > 0) {
+      console.log(`⏸ [AutoPause] ${paused.length} sell offer(s) paused — wallet empty for ${sellerId.slice(0,8)}`);
+      await supabaseAdmin.from('notifications').insert({
+        user_id:    sellerId,
+        type:       'wallet',
+        title:      '⏸ Sell Offers Paused',
+        message:    `Your sell offer${paused.length > 1 ? 's have' : ' has'} been automatically paused because your Bitcoin balance is empty. Top up your wallet to reactivate them.`,
+        action:     '/wallet',
+        is_read:    false,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.error('[pauseSellOffersIfEmpty]', err.message);
+  }
+}
 
 class TradeEscrowService {
 
@@ -319,7 +356,7 @@ class TradeEscrowService {
 
     console.log(`🔓 Release reference: ${releaseTxHash}`);
 
-    // ── Credit the BTC receiver's balance ─────────────────────────────────
+    // ── Credit the BTC receiver's balance (user_balances + user_wallets) ────
     const { data: currentBal } = await supabaseAdmin
         .from('user_balances')
         .select('balance_btc')
@@ -340,6 +377,12 @@ class TradeEscrowService {
 
     if (balError) throw new Error(`Balance update failed: ${balError.message}`);
 
+    // Also sync user_wallets so the wallet page shows the updated balance
+    await supabaseAdmin
+        .from('user_wallets')
+        .update({ balance_btc: newReceiverBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', btcReceiverId);
+
     // ── Mark escrow lock as released ───────────────────────────────────────
     await supabaseAdmin
         .from('escrow_locks')
@@ -347,20 +390,89 @@ class TradeEscrowService {
         .eq('trade_id', tradeId);
 
     // ── Complete the trade ─────────────────────────────────────────────────
-    // NOTE: A DB trigger on trades may reference trades.referred_by (doesn't exist).
-    // Catch so the funds move succeeds regardless.
     const { error: tradeUpdateError } = await supabaseAdmin
         .from('trades')
         .update({
             status:            'COMPLETED',
             completed_at:      new Date().toISOString(),
             buyer_btc_txhash:  releaseTxHash,
+            fee_status:        'PENDING',
         })
         .eq('id', tradeId);
 
     if (tradeUpdateError) {
         console.warn('⚠️  Trade status update failed (DB trigger issue):', tradeUpdateError.message);
     }
+
+    // ── Collect 0.5% platform fee from seller — NEVER breaks the trade ─────
+    // Fee = trade.amount_btc × 0.005
+    // Seller is whoever locked BTC (btcProviderId from escrow_locks)
+    try {
+        const { data: escrowLock } = await supabaseAdmin
+            .from('escrow_locks')
+            .select('seller_id')
+            .eq('trade_id', tradeId)
+            .single();
+
+        // sellerId = whoever locked BTC into escrow (the "BTC provider")
+        const feePayerId = escrowLock?.seller_id || tradeData.seller_id;
+
+        console.log(`💸 Collecting fee: ${platformFee.toFixed(8)} BTC from ${feePayerId.slice(0,8)}`);
+
+        // 1. Get current company balance
+        const { data: companyBal } = await supabaseAdmin
+            .from('user_balances')
+            .select('balance_btc')
+            .eq('user_id', COMPANY_WALLET_ID)
+            .single();
+
+        const newCompanyBalance = parseFloat(
+            (parseFloat(companyBal?.balance_btc || 0) + platformFee).toFixed(8)
+        );
+
+        // 2. Credit company wallet in user_balances
+        await supabaseAdmin
+            .from('user_balances')
+            .upsert({
+                user_id:     COMPANY_WALLET_ID,
+                balance_btc: newCompanyBalance,
+                updated_at:  new Date().toISOString(),
+            });
+
+        // 3. Sync company user_wallets
+        await supabaseAdmin
+            .from('user_wallets')
+            .update({ balance_btc: newCompanyBalance, updated_at: new Date().toISOString() })
+            .eq('user_id', COMPANY_WALLET_ID);
+
+        // 4. Record fee in wallet_transactions
+        await supabaseAdmin
+            .from('wallet_transactions')
+            .insert({
+                user_id:    COMPANY_WALLET_ID,
+                type:       'FEE',
+                amount_btc: platformFee,
+                status:     'CONFIRMED',
+                tx_hash:    releaseTxHash,
+                notes:      `0.5% fee — Trade #${tradeId.slice(0, 8).toUpperCase()} (paid by seller)`,
+                created_at: new Date().toISOString(),
+            });
+
+        // 5. Mark trade fee as collected
+        await supabaseAdmin
+            .from('trades')
+            .update({ fee_status: 'COLLECTED', fee_collected_at: new Date().toISOString() })
+            .eq('id', tradeId);
+
+        console.log(`✅ Fee collected: ${platformFee.toFixed(8)} BTC → company wallet (balance: ${newCompanyBalance.toFixed(8)} BTC)`);
+
+    } catch (feeErr) {
+        // Fee failure must NEVER break the trade — it is already COMPLETED
+        console.error(`⚠️ [Escrow] Fee collection failed (trade still COMPLETED):`, feeErr.message);
+    }
+
+    // ── Auto-pause seller's SELL offers if their wallet is now empty ──────
+    pauseSellOffersIfEmpty(btcProviderId).catch(() => {});
 
     // ── Award badges to both participants (fire and forget) ────────────────
     checkAndAwardBadges(tradeData.seller_id).catch(() => {});
@@ -369,7 +481,7 @@ class TradeEscrowService {
     // ── Log transaction for receiver ───────────────────────────────────────
     await this.logTransaction(
         btcReceiverId, 'ESCROW_RELEASE', buyerGets, releaseTxHash,
-        `Trade #${tradeId.slice(0, 8)} completed — BTC received`
+        `Trade #${tradeId.slice(0, 8)} completed — ₿${buyerGets.toFixed(8)} received`
     );
 
     // ── Notify both parties ────────────────────────────────────────────────
@@ -380,11 +492,11 @@ class TradeEscrowService {
     );
     await this.notify(
         releaserId, 'trade', '✅ Trade Complete',
-        `Trade #${tradeId.slice(0, 8).toUpperCase()} completed. 0.5% platform fee applied.`,
+        `Trade #${tradeId.slice(0, 8).toUpperCase()} completed. 0.5% platform fee (₿${platformFee.toFixed(8)}) collected.`,
         `/trade/${tradeId}`
     );
 
-    console.log(`✅ Trade ${tradeId.slice(0, 8)} COMPLETED — buyer received ${buyerGets} BTC`);
+    console.log(`✅ Trade ${tradeId.slice(0, 8)} COMPLETED — receiver got ₿${buyerGets} | fee ₿${platformFee} → company`);
 
     return {
         success:          true,

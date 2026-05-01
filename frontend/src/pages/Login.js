@@ -5,7 +5,8 @@ import { API_URL } from '../App';
 import {
   Mail, Lock, Eye, EyeOff, Shield, ArrowRight, ArrowLeft,
   AlertCircle, RefreshCw, Smartphone, CheckCircle, ChevronDown,
-  Home, Gift, LogIn,
+  Home, Gift, LogIn, Bitcoin, Star, Zap, Globe,
+  Users, CircleDollarSign
 } from 'lucide-react';
 
 const C = {
@@ -15,34 +16,37 @@ const C = {
   g300: '#CBD5E1', g400: '#94A3B8', g500: '#64748B',
   g600: '#475569', g700: '#334155', g800: '#1E293B',
   success: '#10B981', danger: '#EF4444',
-  blue: '#3B82F6', indigo: '#6366F1',
 };
 
 const COUNTRIES = [
-  { flag: '🇬🇭', name: 'Ghana',         code: '+233', min: 9,  max: 9  },
-  { flag: '🇳🇬', name: 'Nigeria',       code: '+234', min: 10, max: 10 },
-  { flag: '🇰🇪', name: 'Kenya',         code: '+254', min: 9,  max: 9  },
-  { flag: '🇿🇦', name: 'South Africa',  code: '+27',  min: 9,  max: 9  },
-  { flag: '🇹🇿', name: 'Tanzania',      code: '+255', min: 9,  max: 9  },
-  { flag: '🇺🇬', name: 'Uganda',        code: '+256', min: 9,  max: 9  },
-  { flag: '🇷🇼', name: 'Rwanda',        code: '+250', min: 9,  max: 9  },
-  { flag: '🇿🇲', name: 'Zambia',        code: '+260', min: 9,  max: 9  },
-  { flag: '🇪🇬', name: 'Egypt',         code: '+20',  min: 10, max: 10 },
-  { flag: '🇲🇦', name: 'Morocco',       code: '+212', min: 9,  max: 9  },
-  { flag: '🇺🇸', name: 'United States', code: '+1',   min: 10, max: 10 },
-  { flag: '🇨🇦', name: 'Canada',        code: '+1',   min: 10, max: 10 },
-  { flag: '🇬🇧', name: 'United Kingdom',code: '+44',  min: 10, max: 10 },
-  { flag: '🇩🇪', name: 'Germany',       code: '+49',  min: 10, max: 11 },
-  { flag: '🇫🇷', name: 'France',        code: '+33',  min: 9,  max: 9  },
-  { flag: '🇸🇦', name: 'Saudi Arabia',  code: '+966', min: 9,  max: 9  },
-  { flag: '🇦🇪', name: 'UAE',           code: '+971', min: 9,  max: 9  },
-  { flag: '🇮🇳', name: 'India',         code: '+91',  min: 10, max: 10 },
-  { flag: '🇵🇰', name: 'Pakistan',      code: '+92',  min: 10, max: 10 },
-  { flag: '🇦🇺', name: 'Australia',     code: '+61',  min: 9,  max: 9  },
-  { flag: '🇧🇷', name: 'Brazil',        code: '+55',  min: 10, max: 11 },
-  { flag: '🇨🇳', name: 'China',         code: '+86',  min: 11, max: 11 },
-  { flag: '🇮🇩', name: 'Indonesia',     code: '+62',  min: 9,  max: 12 },
-  { flag: '🇸🇬', name: 'Singapore',     code: '+65',  min: 8,  max: 8  },
+  { flag: '🇬🇭', name: 'Ghana', code: '+233', min: 9, max: 9 },
+  { flag: '🇳🇬', name: 'Nigeria', code: '+234', min: 10, max: 10 },
+  { flag: '🇰🇪', name: 'Kenya', code: '+254', min: 9, max: 9 },
+  { flag: '🇿🇦', name: 'South Africa', code: '+27', min: 9, max: 9 },
+  { flag: '🇹🇿', name: 'Tanzania', code: '+255', min: 9, max: 9 },
+  { flag: '🇺🇬', name: 'Uganda', code: '+256', min: 9, max: 9 },
+  { flag: '🇺🇸', name: 'United States', code: '+1', min: 10, max: 10 },
+  { flag: '🇬🇧', name: 'United Kingdom', code: '+44', min: 10, max: 10 },
+  { flag: '🇩🇪', name: 'Germany', code: '+49', min: 10, max: 11 },
+  { flag: '🇫🇷', name: 'France', code: '+33', min: 9, max: 9 },
+  { flag: '🇸🇦', name: 'Saudi Arabia', code: '+966', min: 9, max: 9 },
+  { flag: '🇦🇪', name: 'UAE', code: '+971', min: 9, max: 9 },
+  { flag: '🇮🇳', name: 'India', code: '+91', min: 10, max: 10 },
+  { flag: '🇦🇺', name: 'Australia', code: '+61', min: 9, max: 9 },
+  { flag: '🇨🇲', name: 'Cameroon', code: '+237', min: 9, max: 9 },
+];
+
+const BENEFITS = [
+  { icon: Shield, title: '100% Escrow Protected', desc: 'Your Bitcoin is locked in secure escrow until both parties confirm the trade' },
+  { icon: Zap, title: 'Lightning Fast Trades', desc: 'Complete your P2P trades in under 15 minutes with instant mobile money' },
+  { icon: Globe, title: 'Best Market Rates', desc: 'Access competitive rates from verified traders across 180+ countries' },
+];
+
+const STATS = [
+  { icon: Users, value: '50,000+', label: 'Active Traders' },
+  { icon: Globe, value: '180+', label: 'Countries' },
+  { icon: CircleDollarSign, value: '$25M+', label: 'Monthly Volume' },
+  { icon: Star, value: '4.9/5', label: 'User Rating' },
 ];
 
 function OtpBoxes({ value, onChange }) {
@@ -69,21 +73,20 @@ function OtpBoxes({ value, onChange }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
       {digits.map((d, i) => (
         <input key={i} ref={refs[i]} type="text" inputMode="numeric" maxLength={1}
           value={d}
           onChange={e => handleChange(i, e.target.value)}
           onKeyDown={e => handleKey(i, e)}
           onPaste={handlePaste}
-          className="pq-otp"
           style={{
-            width: 38, height: 50, borderRadius: 12,
+            width: 44, height: 52, borderRadius: 12,
             textAlign: 'center', fontSize: 20, fontWeight: 800,
-            border: `2.5px solid ${d ? C.green : C.g200}`,
-            color: C.forest, background: d ? `${C.green}10` : C.white,
-            outline: 'none', transition: 'all 0.15s',
-            fontFamily: "'DM Sans', sans-serif",
+            border: `2px solid ${d ? '#2D6A4F' : '#E2E8F0'}`,
+            color: '#1B4332', background: d ? 'rgba(45,106,79,0.04)' : '#FFFFFF',
+            outline: 'none', transition: 'all 0.2s',
+            fontFamily: "'Inter', sans-serif",
           }}
         />
       ))}
@@ -96,20 +99,20 @@ export default function Login({ onLogin }) {
   const [searchParams] = useSearchParams();
   const msg = searchParams.get('message');
 
-  const [step, setStep]       = useState('choose');
+  const [step, setStep] = useState('choose');
   const [otpSent, setOtpSent] = useState(false);
-  const [email, setEmail]     = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPw, setShowPw]   = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
   const [country, setCountry] = useState(COUNTRIES[0]);
-  const [phone, setPhone]     = useState('');
+  const [phone, setPhone] = useState('');
   const [showDrop, setShowDrop] = useState(false);
-  const [search, setSearch]   = useState('');
-  const [otp, setOtp]         = useState('');
+  const [search, setSearch] = useState('');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const [notice, setNotice]   = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const fullPhone = `${country.code}${phone.replace(/^0+/, '')}`;
 
@@ -173,437 +176,801 @@ export default function Login({ onLogin }) {
     } finally { setLoading(false); }
   };
 
+  const inputStyle = (filled, error) => ({
+    width: '100%',
+    padding: '13px 14px 13px 44px',
+    fontSize: 14,
+    borderRadius: 14,
+    border: `2px solid ${error ? '#EF4444' : filled ? '#2D6A4F' : '#E2E8F0'}`,
+    color: '#1E293B',
+    background: error ? '#FEF2F2' : filled ? '#F8FAFC' : '#FFFFFF',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    fontFamily: "'Inter', sans-serif",
+  });
+
+  const inputWithRightIcon = (filled, error) => ({
+    ...inputStyle(filled, error),
+    paddingRight: 46,
+  });
+
+  // Import additional icons needed
+  const { Users, CircleDollarSign } = require('lucide-react');
+
   return (
-    <div className="min-h-screen flex" style={{ fontFamily: "'DM Sans', sans-serif", background: C.mist }}>
+    <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap');
-        @keyframes pqUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pqIn  { from { opacity:0; } to { opacity:1; } }
-        @keyframes pqSpin{ to   { transform:rotate(360deg); } }
-        .pq-anim  { animation: pqUp  0.3s cubic-bezier(0.22,0.68,0,1.1) both; }
-        .pq-fade  { animation: pqIn  0.25s ease both; }
-        .pq-spin  { animation: pqSpin 0.7s linear infinite; }
-        .pq-inp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; outline: none; }
-        .pq-otp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
-        .pq-card { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
-        .pq-card:hover { border-color: #2D6A4F !important; transform: translateY(-2px); box-shadow: 0 10px 28px rgba(27,67,50,0.12) !important; }
-        .pq-card:active { transform: none; }
-        .pq-btn { transition: opacity 0.12s, transform 0.1s; }
-        .pq-btn:active { transform: scale(0.99); }
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        button, a { touch-action: manipulation; }
-        input, select { font-size: 16px !important; }
-        html, body { overscroll-behavior: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700;800;900&display=swap');
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        html, body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          background: #F0F9F4;
+          overscroll-behavior: none;
+          height: 100%;
+          width: 100%;
+          overflow-x: hidden;
+        }
+
+        .login-layout {
+          min-height: 100vh;
+          min-height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+          .login-layout {
+            flex-direction: row;
+          }
+        }
+
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-gold {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        .animate-in {
+          animation: fadeInUp 0.4s cubic-bezier(0.22, 0.68, 0, 1.1) both;
+        }
+        .animate-fade {
+          animation: fadeIn 0.25s ease both;
+        }
+        .animate-spin {
+          animation: spin 0.7s linear infinite;
+        }
+
+        /* Hero Panel - Desktop */
+        .hero-panel {
+          display: none;
+        }
+
+        @media (min-width: 1024px) {
+          .hero-panel {
+            display: flex;
+            width: 50%;
+            flex-shrink: 0;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 56px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(160deg, #1B4332 0%, #1F4D3D 25%, #2D6A4F 60%, #40916C 100%);
+          }
+        }
+
+        .hero-bg-pattern {
+          position: absolute;
+          inset: 0;
+          opacity: 0.04;
+          background-image: 
+            radial-gradient(circle at 25% 25%, white 2px, transparent 2px),
+            radial-gradient(circle at 75% 75%, white 2px, transparent 2px);
+          background-size: 60px 60px;
+          background-position: 0 0, 30px 30px;
+        }
+
+        .hero-glow-1 {
+          position: absolute;
+          top: -150px;
+          right: -150px;
+          width: 500px;
+          height: 500px;
+          border-radius: 50%;
+          background: #F4A422;
+          opacity: 0.1;
+          filter: blur(100px);
+          pointer-events: none;
+        }
+
+        .hero-glow-2 {
+          position: absolute;
+          bottom: -100px;
+          left: -100px;
+          width: 400px;
+          height: 400px;
+          border-radius: 50%;
+          background: #40916C;
+          opacity: 0.15;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+
+        /* Form Panel */
+        .form-panel {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: linear-gradient(180deg, #F0F9F4 0%, #E8F5EC 100%);
+          width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+          .form-panel {
+            width: 50%;
+            padding: 40px;
+          }
+        }
+
+        /* Mobile Hero Strip */
+        .mobile-hero-strip {
+          margin-bottom: 16px;
+          width: 100%;
+          max-width: 460px;
+        }
+
+        @media (min-width: 1024px) {
+          .mobile-hero-strip {
+            display: none;
+          }
+        }
+
+        .mobile-benefits-strip {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding: 4px 0;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+
+        .mobile-benefits-strip::-webkit-scrollbar {
+          display: none;
+        }
+
+        .mobile-benefit-pill {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 50px;
+          background: linear-gradient(135deg, #1B4332, #2D6A4F);
+          color: white;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+
+        /* Login Card */
+        .login-card {
+          width: 100%;
+          max-width: 460px;
+          background: #FFFFFF;
+          border-radius: 24px;
+          box-shadow: 0 4px 24px rgba(27, 67, 50, 0.08), 0 0 0 1px rgba(27, 67, 50, 0.04);
+          overflow: hidden;
+        }
+
+        @media (min-width: 1024px) {
+          .login-card {
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(27, 67, 50, 0.12), 0 0 0 1px rgba(27, 67, 50, 0.06);
+          }
+        }
+
+        .card-top {
+          padding: 24px 24px 16px;
+          text-align: center;
+          border-bottom: 1px solid #F1F5F9;
+        }
+
+        .card-body {
+          padding: 16px 24px 24px;
+        }
+
+        .card-footer-bar {
+          padding: 12px 24px;
+          border-top: 1px solid #F1F5F9;
+          background: #F8FAFC;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        /* Method Cards */
+        .method-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 16px;
+          border-radius: 16px;
+          border: 2px solid #E2E8F0;
+          background: white;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          text-align: left;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .method-card:hover {
+          border-color: #2D6A4F;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(27,67,50,0.1);
+        }
+
+        .method-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+          width: 100%;
+          padding: 15px;
+          border-radius: 14px;
+          border: none;
+          font-size: 15px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: 'Inter', sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .submit-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.6s;
+        }
+
+        .submit-btn:hover::before {
+          left: 100%;
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none !important;
+        }
+
+        .form-input-focus:focus {
+          border-color: #2D6A4F !important;
+          box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.08) !important;
+        }
       `}</style>
 
-      {/* ── Desktop left panel ───────────────────────────────────────────────── */}
-      <div className="hidden lg:flex w-5/12 flex-shrink-0 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 58%, ${C.mint} 100%)` }}>
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)', backgroundSize: '28px 28px' }}/>
-        <div className="absolute -bottom-16 -right-16 w-80 h-80 rounded-full pointer-events-none blur-3xl"
-          style={{ background: C.gold, opacity: 0.10 }}/>
-
-        <div className="relative z-10">
-          {/* praqen wordmark */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 18px', borderRadius: 10, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 36 }}>
-            <span style={{ color: 'white', fontSize: 14, fontWeight: 800, letterSpacing: '7px', fontFamily: "'DM Sans', sans-serif" }}>praqen</span>
-          </div>
-
-          <h2 className="font-black text-white leading-tight" style={{ fontFamily: "'Syne',sans-serif", fontSize: 38, margin: '0 0 14px' }}>
-            Buy & Sell Bitcoin<br/>the Safe Way ⚡
-          </h2>
-          <p className="text-sm leading-relaxed mb-9" style={{ color: 'rgba(255,255,255,0.60)' }}>
-            Africa's most trusted P2P Bitcoin platform.<br/>Real escrow. Real people. Zero fraud.
-          </p>
-
-          <div className="space-y-2.5">
-            {[
-              { icon: '🔒', t: 'Escrow on every trade',       s: 'Bitcoin locked until both sides confirm' },
-              { icon: '⚡', t: 'Settle in under 15 minutes', s: 'Mobile money, bank transfer & more' },
-              { icon: '🌍', t: '180+ countries supported',   s: 'GHS, NGN, KES, USD, EUR and more' },
-            ].map(({ icon, t, s }) => (
-              <div key={t} className="flex items-center gap-3 p-3 rounded-2xl"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                <span className="text-xl flex-shrink-0">{icon}</span>
-                <div>
-                  <p className="text-white text-sm font-bold m-0">{t}</p>
-                  <p className="text-xs m-0" style={{ color: 'rgba(255,255,255,0.45)' }}>{s}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative z-10 flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>
-          <Shield size={12}/>256-bit encrypted · ISO 27001 certified
-        </div>
-      </div>
-
-      {/* ── Right panel ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col lg:items-center lg:justify-center overflow-y-auto" style={{ background: C.mist, minHeight: '100vh' }}>
-
-        {/* Mobile hero — hidden on desktop */}
-        <div className="lg:hidden relative overflow-hidden flex-shrink-0"
-          style={{ background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 55%, ${C.mint} 100%)`, padding: '24px 20px 52px' }}>
-          <div className="absolute inset-0"
-            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '22px 22px', opacity: 0.06 }}/>
-          <div className="absolute -top-12 -right-12 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-            style={{ background: C.gold, opacity: 0.20 }}/>
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full blur-2xl pointer-events-none"
-            style={{ background: C.mint, opacity: 0.25 }}/>
-          <div className="relative">
-            {/* praqen wordmark */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 16px', borderRadius: 9, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 14 }}>
-              <span style={{ color: 'white', fontSize: 13, fontWeight: 800, letterSpacing: '6px', fontFamily: "'DM Sans',sans-serif" }}>praqen</span>
+      <div className="login-layout">
+        {/* Desktop Left Hero Panel */}
+        <div className="hero-panel">
+          <div className="hero-bg-pattern" />
+          <div className="hero-glow-1" />
+          <div className="hero-glow-2" />
+          
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            {/* Brand Badge */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 22px',
+              borderRadius: 50,
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1.5px solid rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              marginBottom: 36
+            }}>
+              <Bitcoin size={22} style={{ color: '#F4A422' }} />
+              <span style={{ color: 'white', fontWeight: 800, letterSpacing: '4px', fontSize: 15 }}>
+                PRAQEN
+              </span>
             </div>
 
-            <h1 className="font-black text-white leading-tight" style={{ fontFamily: "'Syne',sans-serif", fontSize: 28, margin: '0 0 8px' }}>
-              Buy & Sell Bitcoin<br/>Safe. Fast. Easy.
+            <h1 style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: 44,
+              fontWeight: 900,
+              color: 'white',
+              lineHeight: 1.1,
+              margin: '0 0 16px',
+              letterSpacing: '-1px'
+            }}>
+              Welcome<br/>Back! 👋
             </h1>
-            <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.72)', lineHeight: 1.6 }}>
-              Escrow-protected P2P trades — no bank needed.
+
+            <p style={{
+              fontSize: 16,
+              color: 'rgba(255, 255, 255, 0.7)',
+              lineHeight: 1.6,
+              margin: '0 0 40px',
+              fontWeight: 400
+            }}>
+              Sign in to continue trading Bitcoin peer-to-peer with confidence.
             </p>
 
-            {/* Trust pills */}
-            <div className="flex gap-2 flex-wrap">
-              {[['🔒','Escrow'],['⚡','Instant'],['🌍','180+ Countries']].map(([ic, lb]) => (
-                <div key={lb} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white"
-                  style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.20)' }}>
-                  <span>{ic}</span>{lb}
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 40 }}>
+              {STATS.map(({ icon: Icon, value, label }) => (
+                <div key={label} style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px', borderRadius: 16,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: 'rgba(244, 164, 34, 0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#F4A422', flexShrink: 0
+                  }}>
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1.2 }}>{value}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
+          <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 'auto' }}>
+            <Shield size={14} />
+            All data encrypted · SOC 2 Type II · ISO 27001
+          </div>
         </div>
 
-        {/* Form card */}
-        <div className="w-full sm:max-w-md sm:mx-auto lg:max-w-md px-3 sm:px-4 lg:px-0 -mt-10 lg:mt-0 pb-28 sm:pb-10 lg:py-10">
-          <div className="bg-white rounded-3xl overflow-hidden pq-anim"
-            style={{ boxShadow: '0 4px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)' }}>
-
-            {/* Header */}
-            <div className="px-4 sm:px-6 py-4 sm:py-5 border-b" style={{ borderColor: C.g100 }}>
-              <div className="flex items-center gap-3">
-                {step !== 'choose' && (
-                  <button onClick={() => go('choose')}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition hover:bg-gray-100"
-                    style={{ border: `1.5px solid ${C.g200}`, color: C.g500, background: C.white }}>
-                    <ArrowLeft size={15}/>
-                  </button>
-                )}
-                <div>
-                  <h1 className="text-lg font-black m-0 leading-tight" style={{ color: C.forest, fontFamily: "'Syne',sans-serif" }}>
-                    {step === 'choose' ? 'Sign In' : step === 'email' ? 'Email Sign In' : otpSent ? 'Enter Your Code' : 'Phone Sign In'}
-                  </h1>
-                  <p className="text-xs mt-1 m-0" style={{ color: C.g500 }}>
-                    {step === 'choose' ? 'Choose your sign-in method'
-                      : step === 'email' ? 'Use your email address & password'
-                      : otpSent ? `Code sent to ${fullPhone}`
-                      : "We'll send a 6-digit code via SMS"}
-                  </p>
+        {/* Right Form Panel */}
+        <div className="form-panel">
+          <div style={{ width: '100%', maxWidth: 460 }}>
+            {/* Mobile Hero Strip */}
+            <div className="mobile-hero-strip">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px', borderRadius: 50,
+                  background: 'linear-gradient(135deg, #1B4332, #2D6A4F)',
+                }}>
+                  <Bitcoin size={16} style={{ color: '#F4A422' }} />
+                  <span style={{ color: 'white', fontWeight: 700, fontSize: 12, letterSpacing: '2px' }}>
+                    PRAQEN
+                  </span>
                 </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#2D6A4F', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Star size={12} fill="#F4A422" color="#F4A422" />
+                  4.9/5 · 50K+ traders
+                </div>
+              </div>
+              <div className="mobile-benefits-strip">
+                {BENEFITS.map(({ icon: Icon, title }) => (
+                  <div key={title} className="mobile-benefit-pill">
+                    <Icon size={12} style={{ color: '#F4A422', flexShrink: 0 }} />
+                    {title}
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Body */}
-            <div className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4 pq-fade" key={step + String(otpSent)}>
+            {/* Login Card */}
+            <div className="login-card animate-in">
+              <div className="card-top">
+                <h1 style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: '#1B4332',
+                  margin: '0 0 4px',
+                  letterSpacing: '-0.3px',
+                  fontFamily: "'Outfit', sans-serif"
+                }}>
+                  {step === 'choose' ? 'Sign In' : step === 'email' ? 'Email Sign In' : otpSent ? 'Verify Code' : 'Phone Sign In'}
+                </h1>
+                <p style={{ fontSize: 13, color: '#64748B', margin: 0, fontWeight: 400 }}>
+                  {step === 'choose' ? 'Choose your sign-in method'
+                    : step === 'email' ? 'Sign in with your email & password'
+                    : otpSent ? `Code sent to ${fullPhone}`
+                    : "We'll send a 6-digit code via SMS"}
+                </p>
+              </div>
 
-              {/* Alerts */}
-              {msg && !error && (
-                <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#FFFBEB', color: '#92400E', border: '1.5px solid #FDE68A' }}>
-                  <AlertCircle size={13} className="flex-shrink-0 mt-0.5"/>{msg}
-                </div>
-              )}
-              {error && (
-                <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#FEF2F2', color: C.danger, border: `1.5px solid #FECACA` }}>
-                  <AlertCircle size={13} className="flex-shrink-0 mt-0.5"/>{error}
-                </div>
-              )}
-              {notice && !error && (
-                <div className="flex items-start gap-2 p-3 rounded-xl text-xs" style={{ background: '#F0FDF4', color: C.success, border: '1.5px solid #BBF7D0' }}>
-                  <CheckCircle size={13} className="flex-shrink-0 mt-0.5"/>{notice}
-                </div>
-              )}
+              <div className="card-body animate-fade" key={step + String(otpSent)}>
+                {/* Alerts */}
+                {msg && !error && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', borderRadius: 12, fontSize: 12, background: '#FFFBEB', color: '#92400E', border: '1.5px solid #FDE68A', marginBottom: 14 }}>
+                    <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />{msg}
+                  </div>
+                )}
+                {error && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: '#EF4444', border: '1.5px solid #FECACA', marginBottom: 14 }}>
+                    <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />{error}
+                  </div>
+                )}
+                {notice && !error && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', borderRadius: 12, fontSize: 12, background: '#F0FDF4', color: '#10B981', border: '1.5px solid #BBF7D0', marginBottom: 14 }}>
+                    <CheckCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />{notice}
+                  </div>
+                )}
 
-              {/* ═══ CHOOSE ═══ */}
-              {step === 'choose' && (
-                <>
-                  <p className="text-center text-xs font-semibold m-0" style={{ color: C.g500 }}>
-                    Choose how you'd like to sign in
-                  </p>
-
-                  <div className="flex flex-col gap-3">
-                    <button className="pq-card flex items-center gap-4 p-4 rounded-2xl text-left w-full"
-                      onClick={() => go('email')}
-                      style={{ border: `2px solid ${C.g200}`, background: C.white, boxShadow: '0 2px 12px rgba(27,67,50,0.06)' }}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${C.green}, ${C.mint})`, boxShadow: '0 4px 14px rgba(45,106,79,0.28)' }}>
-                        <Mail size={22} color="white"/>
+                {/* CHOOSE STEP */}
+                {step === 'choose' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Email Method */}
+                    <button className="method-card" onClick={() => go('email')}>
+                      <div className="method-icon" style={{ background: 'linear-gradient(135deg, #2D6A4F, #40916C)' }}>
+                        <Mail size={22} color="white" />
                       </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="font-black text-sm m-0" style={{ color: C.forest }}>Continue with Email</p>
-                        <p className="text-xs mt-1 m-0 leading-relaxed" style={{ color: C.g500 }}>Sign in with your email & password</p>
-                      </div>
-                      <ArrowRight size={17} className="flex-shrink-0" style={{ color: C.g300 }}/>
-                    </button>
-
-                    <button className="pq-card flex items-center gap-4 p-4 rounded-2xl text-left w-full"
-                      onClick={() => go('sms')}
-                      style={{ border: `2px solid ${C.g200}`, background: C.white, boxShadow: '0 2px 12px rgba(27,67,50,0.06)' }}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)', boxShadow: '0 4px 14px rgba(59,130,246,0.28)' }}>
-                        <Smartphone size={22} color="white"/>
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="font-black text-sm m-0" style={{ color: C.forest }}>Continue with Phone (SMS)</p>
-                        <p className="text-xs mt-1 m-0 leading-relaxed" style={{ color: C.g500 }}>Get a one-time 6-digit code via text</p>
-                      </div>
-                      <ArrowRight size={17} className="flex-shrink-0" style={{ color: C.g300 }}/>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-5 p-3 rounded-xl flex-wrap"
-                    style={{ background: C.g50, border: `1px solid ${C.g100}` }}>
-                    {[['🔒','256-bit SSL'],['✅','2.4M+ traders'],['🌍','180+ countries']].map(([ic, lb]) => (
-                      <div key={lb} className="flex items-center gap-1 text-xs font-semibold" style={{ color: C.g500 }}>
-                        <span>{ic}</span>{lb}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* ═══ EMAIL ═══ */}
-              {step === 'email' && (
-                <>
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                    style={{ background: 'rgba(45,106,79,0.06)', border: '1.5px solid rgba(45,106,79,0.15)' }}>
-                    <Mail size={14} style={{ color: C.green }}/>
-                    <span className="text-xs font-bold" style={{ color: C.green }}>Email Sign In</span>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: C.g700 }}>Email Address</label>
-                    <div className="relative">
-                      <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.g400 }}/>
-                      <input type="email" value={email}
-                        onChange={e => { setEmail(e.target.value); setError(''); }}
-                        onKeyDown={e => e.key === 'Enter' && handleEmailLogin(e)}
-                        placeholder="you@example.com"
-                        className="pq-inp w-full border-2 rounded-xl py-3.5"
-                        style={{ paddingLeft: 42, paddingRight: 14, borderColor: error && !email ? C.danger : email ? C.green : C.g200, color: C.g800, background: C.white, outline: 'none' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold uppercase tracking-wide" style={{ color: C.g700 }}>Password</label>
-                      <Link to="/forgot-password" className="text-xs font-bold" style={{ color: C.green, textDecoration: 'none' }}>Forgot?</Link>
-                    </div>
-                    <div className="relative">
-                      <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.g400 }}/>
-                      <input type={showPw ? 'text' : 'password'} value={password}
-                        onChange={e => { setPassword(e.target.value); setError(''); }}
-                        onKeyDown={e => e.key === 'Enter' && handleEmailLogin(e)}
-                        placeholder="Enter your password"
-                        className="pq-inp w-full border-2 rounded-xl py-3.5"
-                        style={{ paddingLeft: 42, paddingRight: 48, borderColor: error && !password ? C.danger : password ? C.green : C.g200, color: C.g800, background: C.white, outline: 'none' }}
-                      />
-                      <button type="button" onClick={() => setShowPw(!showPw)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 flex items-center"
-                        style={{ color: C.g400, background: 'none', border: 'none' }}>
-                        {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
-                      </button>
-                    </div>
-                  </div>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <div onClick={() => setRemember(!remember)}
-                      className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition"
-                      style={{ border: `2px solid ${remember ? C.green : C.g200}`, background: remember ? C.green : 'transparent' }}>
-                      {remember && (
-                        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                          <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-sm select-none" style={{ color: C.g600 }}>Remember me on this device</span>
-                  </label>
-
-                  <button onClick={handleEmailLogin} disabled={loading} className="pq-btn w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2"
-                    style={{ background: `linear-gradient(135deg, ${C.green}, ${C.mint})`, boxShadow: '0 6px 24px rgba(45,106,79,0.28)', opacity: loading ? 0.65 : 1, border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
-                    {loading ? <><RefreshCw size={15} className="pq-spin"/>Signing in…</> : <>Sign In <ArrowRight size={16}/></>}
-                  </button>
-                </>
-              )}
-
-              {/* ═══ SMS ═══ */}
-              {step === 'sms' && (
-                <>
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                    style={{ background: 'rgba(59,130,246,0.07)', border: '1.5px solid rgba(99,102,241,0.20)' }}>
-                    <Smartphone size={14} style={{ color: C.blue }}/>
-                    <span className="text-xs font-bold" style={{ color: C.blue }}>Phone (SMS) Sign In</span>
-                  </div>
-
-                  {!otpSent ? (
-                    <>
-                      <div>
-                        <label className="block text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: C.g700 }}>Phone Number</label>
-                        <div className="flex gap-2">
-                          <div className="relative flex-shrink-0">
-                            <button onClick={() => { setShowDrop(!showDrop); setSearch(''); }}
-                              className="flex items-center gap-2 border-2 rounded-xl px-3 py-3.5 transition"
-                              style={{ borderColor: showDrop ? C.green : C.g200, background: C.white, color: C.g700, fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: 18 }}>{country.flag}</span>
-                              <span>{country.code}</span>
-                              <ChevronDown size={13} style={{ color: C.g400, transform: showDrop ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}/>
-                            </button>
-
-                            {showDrop && (
-                              <div className="absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
-                                style={{ width: 280, maxWidth: 'calc(100vw - 32px)', border: `1px solid ${C.g100}` }}>
-                                <div className="p-2.5" style={{ borderBottom: `1px solid ${C.g100}` }}>
-                                  <input autoFocus value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    placeholder="Search country…"
-                                    className="w-full px-3 py-2 rounded-lg"
-                                    style={{ border: `1.5px solid ${C.g200}`, fontSize: 14, color: C.g800, background: C.g50, outline: 'none' }}
-                                  />
-                                </div>
-                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-                                  {filteredCountries.length === 0
-                                    ? <p className="p-4 text-center text-xs m-0" style={{ color: C.g400 }}>No results</p>
-                                    : filteredCountries.map(c => (
-                                      <button key={`${c.name}-${c.code}`}
-                                        onClick={() => { setCountry(c); setShowDrop(false); setPhone(''); setError(''); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition"
-                                        style={{ border: 'none', borderBottom: `1px solid ${C.g50}`, background: country.name === c.name ? `${C.green}08` : 'transparent', cursor: 'pointer' }}>
-                                        <span style={{ fontSize: 20 }}>{c.flag}</span>
-                                        <span className="flex-1 text-sm font-semibold" style={{ color: C.g700 }}>{c.name}</span>
-                                        <span className="text-xs font-bold" style={{ color: country.name === c.name ? C.green : C.g400 }}>{c.code}</span>
-                                      </button>
-                                    ))
-                                  }
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <input type="tel" value={phone}
-                            onChange={e => { setPhone(e.target.value.replace(/\D/g, '')); setError(''); }}
-                            placeholder={`${country.min}–${country.max} digits`}
-                            className="pq-inp flex-1 border-2 rounded-xl px-4 py-3.5"
-                            style={{ borderColor: error && !phone ? C.danger : phone ? C.green : C.g200, color: C.g800, background: C.white, outline: 'none' }}
-                          />
-                        </div>
-                        <p className="text-xs mt-2 m-0" style={{ color: C.g400 }}>
-                          {country.flag} {country.name} · {country.code} · Enter without leading zero
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 700, fontSize: 14, color: '#1B4332', margin: '0 0 2px' }}>
+                          Continue with Email
+                        </p>
+                        <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+                          Sign in with your email & password
                         </p>
                       </div>
+                      <ArrowRight size={18} style={{ color: '#CBD5E1', flexShrink: 0 }} />
+                    </button>
 
-                      <button onClick={sendSms} disabled={loading} className="pq-btn w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2"
-                        style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)', boxShadow: '0 6px 24px rgba(59,130,246,0.26)', opacity: loading ? 0.65 : 1, border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
-                        {loading ? <><RefreshCw size={15} className="pq-spin"/>Sending code…</> : <><Smartphone size={16}/>Send SMS Code</>}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3 p-4 rounded-2xl"
-                        style={{ background: 'rgba(59,130,246,0.07)', border: '1.5px solid rgba(99,102,241,0.22)' }}>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>
-                          <Smartphone size={18} color="white"/>
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm m-0" style={{ color: '#1E40AF' }}>Code sent!</p>
-                          <p className="text-xs mt-0.5 m-0" style={{ color: '#3B82F6' }}>Check messages at {fullPhone}</p>
-                        </div>
+                    {/* Phone Method */}
+                    <button className="method-card" onClick={() => go('sms')}>
+                      <div className="method-icon" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>
+                        <Smartphone size={22} color="white" />
                       </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontWeight: 700, fontSize: 14, color: '#1B4332', margin: '0 0 2px' }}>
+                          Continue with Phone (SMS)
+                        </p>
+                        <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
+                          Get a one-time 6-digit code via text
+                        </p>
+                      </div>
+                      <ArrowRight size={18} style={{ color: '#CBD5E1', flexShrink: 0 }} />
+                    </button>
 
-                      <div>
-                        <label className="block text-xs font-bold mb-3 text-center uppercase tracking-wide" style={{ color: C.g700 }}>
-                          Enter 6-digit code
+                    {/* Trust Pills */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 16, padding: '12px', borderRadius: 12,
+                      background: '#F8FAFC', border: '1px solid #F1F5F9',
+                      flexWrap: 'wrap'
+                    }}>
+                      {[['🔒','256-bit SSL'],['✅','2.4M+ traders'],['🌍','180+ countries']].map(([ic, lb]) => (
+                        <div key={lb} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#64748B' }}>
+                          <span>{ic}</span>{lb}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* EMAIL STEP */}
+                {step === 'email' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 14px', borderRadius: 12,
+                      background: 'rgba(45,106,79,0.06)', border: '1.5px solid rgba(45,106,79,0.15)'
+                    }}>
+                      <Mail size={14} style={{ color: '#2D6A4F' }} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#2D6A4F' }}>Email Sign In</span>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Email Address
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input type="email" value={email}
+                          onChange={e => { setEmail(e.target.value); setError(''); }}
+                          onKeyDown={e => e.key === 'Enter' && handleEmailLogin(e)}
+                          placeholder="you@example.com"
+                          className="form-input-focus"
+                          style={inputStyle(!!email, false)} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Password
                         </label>
-                        <OtpBoxes value={otp} onChange={v => { setOtp(v); setError(''); }}/>
+                        <Link to="/forgot-password" style={{ fontSize: 12, fontWeight: 600, color: '#2D6A4F', textDecoration: 'none' }}>
+                          Forgot?
+                        </Link>
                       </div>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input type={showPw ? 'text' : 'password'} value={password}
+                          onChange={e => { setPassword(e.target.value); setError(''); }}
+                          onKeyDown={e => e.key === 'Enter' && handleEmailLogin(e)}
+                          placeholder="Enter your password"
+                          className="form-input-focus"
+                          style={inputWithRightIcon(!!password, false)} />
+                        <button type="button" onClick={() => setShowPw(!showPw)}
+                          style={{
+                            position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                            background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8',
+                            padding: 4, display: 'flex', alignItems: 'center'
+                          }}>
+                          {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                        </button>
+                      </div>
+                    </div>
 
-                      <button onClick={verifySms} disabled={loading || otp.length !== 6}
-                        className="pq-btn w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-center gap-2"
-                        style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)', boxShadow: '0 6px 24px rgba(59,130,246,0.26)', opacity: (loading || otp.length !== 6) ? 0.55 : 1, border: 'none', cursor: (loading || otp.length !== 6) ? 'not-allowed' : 'pointer' }}>
-                        {loading ? <><RefreshCw size={15} className="pq-spin"/>Verifying…</> : <>Verify & Sign In <ArrowRight size={16}/></>}
-                      </button>
+                    {/* Remember Me */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+                      onClick={() => setRemember(!remember)}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 6,
+                        border: `2px solid ${remember ? '#2D6A4F' : '#CBD5E1'}`,
+                        background: remember ? '#2D6A4F' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.2s', flexShrink: 0
+                      }}>
+                        {remember && (
+                          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                            <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 13, color: '#64748B', userSelect: 'none' }}>Remember me on this device</span>
+                    </div>
 
-                      <button onClick={() => { setOtpSent(false); setOtp(''); setError(''); setNotice(''); }}
-                        className="w-full py-3 rounded-xl text-sm font-bold"
-                        style={{ background: 'none', border: 'none', color: C.blue, cursor: 'pointer' }}>
-                        ← Resend code
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
+                    <button onClick={handleEmailLogin} disabled={loading}
+                      className="submit-btn"
+                      style={{
+                        background: 'linear-gradient(135deg, #2D6A4F, #40916C)',
+                        color: 'white',
+                        boxShadow: '0 6px 20px rgba(45, 106, 79, 0.25)'
+                      }}>
+                      {loading ? (
+                        <><RefreshCw size={16} className="animate-spin" />Signing in…</>
+                      ) : (
+                        <>Sign In <ArrowRight size={16} /></>
+                      )}
+                    </button>
+                  </div>
+                )}
 
-              {/* Divider */}
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px" style={{ background: C.g200 }}/>
-                <span className="text-xs font-semibold" style={{ color: C.g400 }}>OR</span>
-                <div className="flex-1 h-px" style={{ background: C.g200 }}/>
+                {/* SMS STEP */}
+                {step === 'sms' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 14px', borderRadius: 12,
+                      background: 'rgba(59,130,246,0.06)', border: '1.5px solid rgba(99,102,241,0.15)'
+                    }}>
+                      <Smartphone size={14} style={{ color: '#3B82F6' }} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6' }}>Phone (SMS) Sign In</span>
+                    </div>
+
+                    {!otpSent ? (
+                      <>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Phone Number
+                          </label>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                              <button onClick={() => { setShowDrop(!showDrop); setSearch(''); }}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  padding: '13px 14px', border: `2px solid ${showDrop ? '#2D6A4F' : '#E2E8F0'}`,
+                                  borderRadius: 14, background: 'white', cursor: 'pointer',
+                                  fontSize: 13, fontWeight: 600, color: '#334155',
+                                  fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap'
+                                }}>
+                                <span style={{ fontSize: 18 }}>{country.flag}</span>
+                                <span>{country.code}</span>
+                                <ChevronDown size={12} style={{ color: '#94A3B8', transform: showDrop ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                              </button>
+                              {showDrop && (
+                                <div style={{
+                                  position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+                                  width: 280, maxWidth: 'calc(100vw - 32px)',
+                                  background: 'white', borderRadius: 18,
+                                  boxShadow: '0 20px 60px rgba(0,0,0,0.15)', zIndex: 100,
+                                  border: '1px solid #F1F5F9', overflow: 'hidden'
+                                }}>
+                                  <div style={{ padding: 10, borderBottom: '1px solid #F1F5F9' }}>
+                                    <input autoFocus value={search}
+                                      onChange={e => setSearch(e.target.value)}
+                                      placeholder="Search country…"
+                                      style={{
+                                        width: '100%', padding: '10px 12px', borderRadius: 10,
+                                        border: '1.5px solid #E2E8F0', fontSize: 13, color: '#1E293B',
+                                        background: '#F8FAFC', outline: 'none', fontFamily: "'Inter', sans-serif"
+                                      }} />
+                                  </div>
+                                  <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                    {filteredCountries.map(c => (
+                                      <button key={`${c.name}-${c.code}`}
+                                        onClick={() => { setCountry(c); setShowDrop(false); setPhone(''); setError(''); }}
+                                        style={{
+                                          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                          padding: '11px 16px', background: country.name === c.name ? 'rgba(45,106,79,0.06)' : 'transparent',
+                                          border: 'none', borderBottom: '1px solid #F8FAFC',
+                                          cursor: 'pointer', textAlign: 'left', fontSize: 13,
+                                          fontFamily: "'Inter', sans-serif"
+                                        }}>
+                                        <span style={{ fontSize: 20 }}>{c.flag}</span>
+                                        <span style={{ flex: 1, fontWeight: 600, color: '#334155' }}>{c.name}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: country.name === c.name ? '#2D6A4F' : '#94A3B8' }}>{c.code}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                              <Smartphone size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                              <input type="tel" value={phone}
+                                onChange={e => { setPhone(e.target.value.replace(/\D/g, '')); setError(''); }}
+                                placeholder={`${country.min}–${country.max} digits`}
+                                className="form-input-focus"
+                                style={{ ...inputStyle(!!phone, false), paddingLeft: 38 }} />
+                            </div>
+                          </div>
+                          <p style={{ fontSize: 11, color: '#94A3B8', margin: '6px 0 0' }}>
+                            {country.flag} {country.name} · {country.code} · Enter without leading zero
+                          </p>
+                        </div>
+
+                        <button onClick={sendSms} disabled={loading}
+                          className="submit-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #3B82F6, #6366F1)',
+                            color: 'white',
+                            boxShadow: '0 6px 20px rgba(59, 130, 246, 0.25)'
+                          }}>
+                          {loading ? (
+                            <><RefreshCw size={16} className="animate-spin" />Sending code…</>
+                          ) : (
+                            <><Smartphone size={16} />Send SMS Code</>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '14px', borderRadius: 14,
+                          background: 'rgba(59,130,246,0.06)', border: '1.5px solid rgba(99,102,241,0.15)'
+                        }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12,
+                            background: 'linear-gradient(135deg, #3B82F6, #6366F1)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <Smartphone size={18} color="white" />
+                          </div>
+                          <div>
+                            <p style={{ fontWeight: 700, fontSize: 13, color: '#1E40AF', margin: '0 0 2px' }}>Code sent!</p>
+                            <p style={{ fontSize: 12, color: '#3B82F6', margin: 0 }}>Check messages at {fullPhone}</p>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'center' }}>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 12, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Enter 6-digit code
+                          </label>
+                          <OtpBoxes value={otp} onChange={v => { setOtp(v); setError(''); }} />
+                        </div>
+
+                        <button onClick={verifySms} disabled={loading || otp.length !== 6}
+                          className="submit-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #3B82F6, #6366F1)',
+                            color: 'white',
+                            boxShadow: '0 6px 20px rgba(59, 130, 246, 0.25)',
+                            opacity: (loading || otp.length !== 6) ? 0.55 : 1
+                          }}>
+                          {loading ? (
+                            <><RefreshCw size={16} className="animate-spin" />Verifying…</>
+                          ) : (
+                            <>Verify & Sign In <ArrowRight size={16} /></>
+                          )}
+                        </button>
+
+                        <button onClick={() => { setOtpSent(false); setOtp(''); setError(''); setNotice(''); }}
+                          style={{
+                            width: '100%', padding: '12px', borderRadius: 12,
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            fontSize: 13, fontWeight: 600, color: '#3B82F6',
+                            fontFamily: "'Inter', sans-serif"
+                          }}>
+                          ← Resend code
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Divider & Register CTA */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                  <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>OR</span>
+                  <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+                </div>
+
+                <button onClick={() => navigate('/register')}
+                  className="submit-btn"
+                  style={{
+                    background: 'none',
+                    border: '2px solid #2D6A4F',
+                    color: '#2D6A4F',
+                    boxShadow: 'none'
+                  }}>
+                  Create a Free Account
+                </button>
               </div>
 
-              <button onClick={() => navigate('/register')} className="pq-btn w-full py-3.5 rounded-xl font-black text-sm"
-                style={{ border: `2px solid ${C.green}`, background: 'none', color: C.green, cursor: 'pointer' }}>
-                Create a Free Account
-              </button>
-            </div>
-
-            {/* Footer */}
-            <div className="px-4 sm:px-6 py-3 border-t flex items-center justify-between gap-3" style={{ borderColor: C.g100, background: C.g50 }}>
-              <div className="flex items-center gap-1" style={{ color: C.g400, fontSize: 10 }}>
-                <Shield size={10}/>SSL · Zero fraud
+              {/* Card Footer */}
+              <div className="card-footer-bar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8' }}>
+                  <Shield size={11} />
+                  <span>SSL · Zero fraud</span>
+                </div>
+                <button onClick={() => go('choose')}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 600, color: '#64748B',
+                    fontFamily: "'Inter', sans-serif", padding: '4px 8px', borderRadius: 8
+                  }}>
+                  ← Back
+                </button>
               </div>
-              <Link to="/register" className="font-black whitespace-nowrap" style={{ color: C.green, textDecoration: 'none', fontSize: 12 }}>
-                Sign up free →
-              </Link>
             </div>
-          </div>
-
-          {/* Below-card CTA */}
-          <div className="mt-4 p-4 rounded-2xl" style={{ background: `${C.green}10`, border: `1px solid ${C.green}25` }}>
-            <p className="text-center text-sm font-black mb-1 m-0" style={{ color: C.forest }}>New to PRAQEN?</p>
-            <p className="text-center text-xs mb-3 m-0 leading-relaxed" style={{ color: C.g500 }}>
-              Join thousands of traders buying & selling Bitcoin safely — no bank needed.
-            </p>
-            <Link to="/register"
-              className="block text-center py-3 rounded-2xl text-sm font-black text-white"
-              style={{ background: `linear-gradient(135deg, ${C.green}, ${C.mint})`, boxShadow: '0 4px 16px rgba(45,106,79,0.28)', textDecoration: 'none' }}>
-              Create a Free Account →
-            </Link>
           </div>
         </div>
       </div>
-
-      {/* ── Mobile bottom nav — hidden on desktop ──────────────────────────── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t"
-        style={{ borderColor: C.g200, boxShadow: '0 -4px 20px rgba(0,0,0,0.07)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex items-center justify-around py-2">
-          {[
-            { icon: Home,       label: 'Home',  path: '/',           active: false },
-            { icon: Gift,       label: 'Gifts', path: '/gift-cards', active: false },
-            { icon: LogIn,      label: 'Login', path: '/login',      active: true  },
-          ].map(({ icon: Icon, label, path, active }) => (
-            <button key={label} onClick={() => navigate(path)}
-              className="flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl"
-              style={{ color: active ? C.forest : C.g400, background: 'none', border: 'none', cursor: 'pointer' }}>
-              <Icon size={21} strokeWidth={active ? 2.5 : 1.8}/>
-              <span className="text-xs font-bold">{label}</span>
-              {active && <span className="w-1.5 h-1.5 rounded-full block" style={{ background: C.forest }}/>}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

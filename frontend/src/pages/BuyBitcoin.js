@@ -167,7 +167,7 @@ const getUser     = (u) => Array.isArray(u) ? u[0] : (u||{});
 const isVerified  = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
 const getTrades   = (u) => parseInt(u?.total_trades ?? u?.trade_count ?? 0);
 const getLastSeen = (u) => {
-  const d = u?.last_login||u?.last_seen||u?.updated_at||u?.created_at;
+  const d = u?.last_seen_at||u?.last_login||u?.updated_at||u?.created_at;
   if (!d) return {label:'—', online:false};
   const s = (Date.now()-new Date(d))/1000;
   if (s<300)   return {label:'ACTIVE NOW', online:true};
@@ -384,7 +384,7 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
 }
 
 // ── Profile Modal ─────────────────────────────────────────────────────────────
-function ProfileModal({seller, listing, onClose, onTrade}) {
+function ProfileModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
   const [tab, setTab] = useState('rules');
   const { rates: USD_RATES } = useRates();
   if (!seller) return null;
@@ -398,7 +398,7 @@ function ProfileModal({seller, listing, onClose, onTrade}) {
   const cur       = listing?.currency||'GHS';
   const sym       = listing?.currency_symbol || CUR_SYM[cur] || '₵';
   const usdRate   = USD_RATES[cur]||1;
-  const rateLocal = getRateUSD(listing||{}, 68000) * usdRate;
+  const rateLocal = getRateUSD(listing||{}, btcPriceUSD||68000) * usdRate;
   const ccCode    = (u?.country_code||u?.country||'gh').toLowerCase();
 
   return (
@@ -646,6 +646,7 @@ export default function BuyBitcoin({user}) {
   const [buyAmt,       setBuyAmt]       = useState('');
   const [activeTrades, setActiveTrades] = useState([]);
   const [showAllTrades, setShowAllTrades] = useState(false);
+  const [pausedOffer,  setPausedOffer]  = useState(false); // seller's own offer is paused due to empty wallet
   const countryRef = useRef(null);
   const paymentRef = useRef(null);
 
@@ -654,6 +655,11 @@ export default function BuyBitcoin({user}) {
     loadListings();
     const interval = setInterval(loadListings, 60000);
     return () => clearInterval(interval);
+  },[]);
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    if (!tk) return;
+    axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
   },[]);
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -684,6 +690,18 @@ export default function BuyBitcoin({user}) {
       const data = all.filter(l=>l.listing_type==='SELL'||l.listing_type==='SELL_BITCOIN');
       setListings(data);
       try { sessionStorage.setItem('praqen_buy', JSON.stringify({data, ts:Date.now()})); } catch {}
+
+      // Check if the logged-in user (as a seller) has a paused SELL offer due to empty wallet
+      const tk = localStorage.getItem('token');
+      if (tk) {
+        try {
+          const myR = await axios.get(`${API_URL}/my-listings`, { headers: { Authorization: `Bearer ${tk}` } });
+          const myPaused = (myR.data.listings||[]).filter(l=>
+            l.status === 'PAUSED' && (l.listing_type === 'SELL' || l.listing_type === 'SELL_BITCOIN')
+          );
+          setPausedOffer(myPaused.length > 0);
+        } catch {}
+      }
     } catch { if (!listings.length) toast.error('Failed to load marketplace'); }
     finally { setLoading(false); }
   };
@@ -694,7 +712,15 @@ export default function BuyBitcoin({user}) {
     if (selPayment!=='all')      list=list.filter(l=>String(l.payment_method||'').toLowerCase().includes(selPayment));
     if (buyAmt && parseFloat(buyAmt)>0) {
       const a = parseFloat(buyAmt);
-      list=list.filter(l=>a>=(l.min_limit_usd||0)&&a<=(l.max_limit_usd||999999));
+      const _cur  = selCountry.currency || 'GHS';
+      const _rate = USD_RATES[_cur] || 1;
+      list=list.filter(l=>{
+        if (l.min_limit_local && l.max_limit_local && l.currency===_cur) {
+          return a>=(l.min_limit_local) && a<=(l.max_limit_local);
+        }
+        const aUsd = _rate>0 ? a/_rate : a;
+        return aUsd>=(l.min_limit_usd||0) && aUsd<=(l.max_limit_usd||999999);
+      });
     }
     const rate = l => getRateUSD(l,btcPrice);
     if (sortBy==='rate_low')    list.sort((a,b)=>rate(a)-rate(b));
@@ -724,7 +750,7 @@ export default function BuyBitcoin({user}) {
   const usdRate   = USD_RATES[cur] || 1;
   const btcLocal  = btcPrice * usdRate;
   const selPmInfo = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
-  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_seen_at||l.users?.last_login||0))/1000<300).length;
   const sellerCount = new Set(listings.map(l=>l.seller_id)).size;
   const hasFilters = selPayment!=='all' || buyAmt || selCountry.code!=='ALL';
 
@@ -809,6 +835,31 @@ export default function BuyBitcoin({user}) {
           </span>
         </div>
       </div>
+
+      {/* ══ PAUSED OFFER BANNER — shown to seller when their SELL offer is paused ══ */}
+      {pausedOffer && (
+        <div className="flex-shrink-0 px-3 pt-3">
+          <div className="max-w-7xl mx-auto rounded-2xl p-4 flex items-start gap-3"
+            style={{backgroundColor:'#FFFBEB', border:'1.5px solid #FCD34D'}}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{backgroundColor:'#FEF3C7'}}>
+              <Wallet size={16} style={{color:'#D97706'}}/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black" style={{color:'#92400E'}}>Your sell offer is off the market</p>
+              <p className="text-xs mt-0.5 leading-relaxed" style={{color:'#B45309'}}>
+                Your Bitcoin wallet is empty, so your sell offer has been automatically paused. Top up your wallet to bring it back to the marketplace.
+              </p>
+            </div>
+            <button
+              onClick={()=>window.location.href='/wallet'}
+              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-black text-white"
+              style={{backgroundColor:'#D97706'}}>
+              Top Up Wallet
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ══ 3. FILTER BAR ══════════════════════════════════════ */}
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
@@ -910,7 +961,7 @@ export default function BuyBitcoin({user}) {
                     style={{color:selPayment!=='all' ? C.forest : C.g400}}/>
                 </button>
                 {showPayment && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
                     style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
                     <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="🔍  Search payment…"
@@ -1060,6 +1111,7 @@ export default function BuyBitcoin({user}) {
         <ProfileModal
           seller={modal.seller}
           listing={modal.listing}
+          btcPriceUSD={btcPrice}
           onClose={()=>setModal(null)}
           onTrade={()=>handleBuy(modal.listing?.id)}
         />

@@ -202,6 +202,31 @@ router.post('/check-deposit', verifyToken, async (req, res) => {
 // Send BTC from user's PRAQEN wallet to any external address
 // (Withdrawal)
 // ============================================================
+// Pause seller's SELL listings when their BTC balance hits zero.
+async function pauseSellOffersIfEmpty(sellerId) {
+  try {
+    const { data: bal } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', sellerId).single();
+    if (parseFloat(bal?.balance_btc || 0) > 0.000001) return;
+
+    const { data: paused } = await supabaseAdmin
+      .from('listings')
+      .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
+      .eq('seller_id', sellerId).eq('status', 'ACTIVE')
+      .in('listing_type', ['SELL', 'SELL_BITCOIN']).select('id');
+
+    if (paused && paused.length > 0) {
+      console.log(`⏸ [AutoPause] ${paused.length} sell offer(s) paused after withdrawal — ${sellerId.slice(0,8)}`);
+      await supabaseAdmin.from('notifications').insert({
+        user_id: sellerId, type: 'wallet',
+        title: '⏸ Sell Offers Paused',
+        message: `Your sell offer${paused.length > 1 ? 's have' : ' has'} been paused because your Bitcoin balance is now empty. Top up to reactivate.`,
+        action: '/wallet', is_read: false, created_at: new Date().toISOString(),
+      });
+    }
+  } catch (err) { console.error('[pauseSellOffersIfEmpty withdrawal]', err.message); }
+}
+
 router.post('/send', verifyToken, async (req, res) => {
   try {
     const { toAddress, amountBtc } = req.body;
@@ -213,56 +238,160 @@ router.post('/send', verifyToken, async (req, res) => {
 
     const amount = parseFloat(amountBtc);
 
-    // Check DB balance first
-    const { data: bal } = await supabaseAdmin
-      .from('user_balances')
-      .select('balance_btc')
-      .eq('user_id', userId)
+    // ── 2-verification required to send BTC out (external only) ─────────────
+    // Internal PRAQEN-to-PRAQEN transfers remain free with 1 verification.
+    // We check after resolving the destination so internal transfers aren't blocked.
+
+    // ── Check if destination is a PRAQEN user address (internal transfer) ──
+    const { data: internalWallet } = await supabaseAdmin
+      .from('user_wallets')
+      .select('user_id')
+      .eq('btc_address', toAddress.trim())
       .single();
+
+    if (internalWallet && internalWallet.user_id !== userId) {
+      // ── INTERNAL TRANSFER — free, instant, no on-chain broadcast ─────────
+      const recipientId = internalWallet.user_id;
+
+      const { data: senderBal } = await supabaseAdmin
+        .from('user_balances').select('balance_btc').eq('user_id', userId).single();
+      const available = parseFloat(senderBal?.balance_btc || 0);
+      if (available < amount) {
+        return res.status(400).json({
+          error: `Insufficient balance. Available: ${available.toFixed(8)} BTC, Requested: ${amount.toFixed(8)} BTC`,
+        });
+      }
+
+      const newSenderBalance    = parseFloat((available - amount).toFixed(8));
+      const { data: recipBal }  = await supabaseAdmin
+        .from('user_balances').select('balance_btc').eq('user_id', recipientId).single();
+      const newRecipientBalance = parseFloat((parseFloat(recipBal?.balance_btc || 0) + amount).toFixed(8));
+
+      // Deduct sender
+      await supabaseAdmin.from('user_balances')
+        .update({ balance_btc: newSenderBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      await supabaseAdmin.from('user_wallets')
+        .update({ balance_btc: newSenderBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+
+      // Credit recipient
+      await supabaseAdmin.from('user_balances')
+        .upsert({ user_id: recipientId, balance_btc: newRecipientBalance, updated_at: new Date().toISOString() });
+      await supabaseAdmin.from('user_wallets')
+        .update({ balance_btc: newRecipientBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', recipientId);
+
+      const crypto = require('crypto');
+      const txRef  = 'INT_' + crypto
+        .createHash('sha256').update(`${userId}:${recipientId}:${amount}:${Date.now()}`).digest('hex')
+        .slice(0, 20).toUpperCase();
+
+      await supabaseAdmin.from('wallet_transactions').insert([
+        {
+          user_id: userId, type: 'TRANSFER_OUT', amount_btc: amount,
+          status: 'CONFIRMED', tx_hash: txRef,
+          notes: `Internal transfer → PRAQEN user · No fee`,
+          created_at: new Date().toISOString(),
+        },
+        {
+          user_id: recipientId, type: 'TRANSFER_IN', amount_btc: amount,
+          status: 'CONFIRMED', tx_hash: txRef,
+          notes: `Internal transfer received · No fee`,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      const { data: recip } = await supabaseAdmin.from('users').select('username').eq('id', recipientId).single();
+      await supabaseAdmin.from('notifications').insert({
+        user_id: recipientId, type: 'wallet',
+        title: '₿ Bitcoin Received!',
+        message: `₿${amount.toFixed(8)} received — instant internal transfer, no fee`,
+        action: '/wallet', is_read: false, created_at: new Date().toISOString(),
+      });
+
+      console.log(`[InternalTransfer] ${userId.slice(0,8)} → ${recipientId.slice(0,8)} | ₿${amount} | FREE`);
+
+      return res.json({
+        success:     true,
+        internal:    true,
+        txRef,
+        amount_btc:  amount,
+        fee:         0,
+        fee_label:   'Free — internal PRAQEN transfer',
+        to:          recip?.username || toAddress,
+        new_balance: newSenderBalance,
+        message:     `₿${amount.toFixed(8)} sent instantly — no fee!`,
+      });
+    }
+
+    // ── EXTERNAL SEND — on-chain broadcast ───────────────────────────────────
+
+    // 2 verifications required to withdraw BTC to an external address
+    const { data: sendUser } = await supabaseAdmin
+      .from('users')
+      .select('is_email_verified, email_verified, is_phone_verified, phone_verified, is_id_verified, kyc_verified')
+      .eq('id', userId).single();
+
+    const sHasEmail = !!(sendUser?.is_email_verified || sendUser?.email_verified);
+    const sHasPhone = !!(sendUser?.is_phone_verified  || sendUser?.phone_verified);
+    const sHasKyc   = !!(sendUser?.is_id_verified      || sendUser?.kyc_verified);
+    const sVerifCount = [sHasEmail, sHasPhone, sHasKyc].filter(Boolean).length;
+
+    if (sVerifCount < 2) {
+      return res.status(403).json({
+        error: 'You need 2 verifications to withdraw Bitcoin to an external address. Please verify your email and phone number in Profile → Verification.',
+        requireVerification: 'two',
+      });
+    }
+
+    const { data: bal } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', userId).single();
 
     const available = parseFloat(bal?.balance_btc || 0);
     if (available < amount) {
       return res.status(400).json({
-        error: `Insufficient balance. Available: ${available.toFixed(8)} BTC, Requested: ${amount.toFixed(8)} BTC`
+        error: `Insufficient balance. Available: ${available.toFixed(8)} BTC, Requested: ${amount.toFixed(8)} BTC`,
       });
     }
 
-    console.log(`[hdWalletRoutes] Sending ${amount} BTC from user ${userId.slice(0,8)} to ${toAddress}`);
+    console.log(`[hdWalletRoutes] On-chain send: ${amount} BTC from ${userId.slice(0,8)} → ${toAddress}`);
 
-    // Send via HD wallet — uses user's derived private key
     const result = await hdWallet.sendBitcoin(`user_${userId}`, toAddress, amount);
 
-    // Deduct from DB balance
     const newBalance = parseFloat((available - amount).toFixed(8));
-    await supabaseAdmin
-      .from('user_balances')
+    await supabaseAdmin.from('user_balances')
+      .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    await supabaseAdmin.from('user_wallets')
       .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
       .eq('user_id', userId);
 
-    // Log the withdrawal
-    await supabaseAdmin
-      .from('wallet_transactions')
-      .insert({
-        user_id:              userId,
-        type:                 'WITHDRAWAL',
-        amount_btc:           amount,
-        status:               'CONFIRMED',
-        tx_hash:              result.txid,
-        destination_address:  toAddress,
-        created_at:           new Date().toISOString(),
-      });
+    await supabaseAdmin.from('wallet_transactions').insert({
+      user_id:              userId,
+      type:                 'WITHDRAWAL',
+      amount_btc:           amount,
+      status:               'CONFIRMED',
+      tx_hash:              result.txid,
+      destination_address:  toAddress,
+      created_at:           new Date().toISOString(),
+    });
 
-    console.log(`✅ [hdWalletRoutes] Sent ${amount} BTC — TX: ${result.txid}`);
+    console.log(`✅ [hdWalletRoutes] On-chain sent ₿${amount} — TX: ${result.txid}`);
+
+    // Auto-pause sell offers if wallet is now empty
+    pauseSellOffersIfEmpty(userId).catch(() => {});
 
     res.json({
       success:     true,
+      internal:    false,
       txid:        result.txid,
       amount_btc:  amount,
       to:          toAddress,
       fee_sats:    result.fee_sats,
       new_balance: newBalance,
       explorer:    result.explorer_url,
-      message:     `${amount} BTC sent successfully`,
+      message:     `₿${amount} sent on-chain successfully`,
     });
 
   } catch (error) {

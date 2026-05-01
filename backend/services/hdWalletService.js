@@ -31,8 +31,7 @@ class HDWalletService {
   initialize() {
     if (this.initialized) return;
 
-    const mnemonic     = process.env.MNEMONIC;
-    const networkType  = process.env.HD_NETWORK || 'mainnet';
+    const mnemonic = process.env.MNEMONIC;
 
     if (!mnemonic) {
       throw new Error('❌ MNEMONIC not found in .env — run setup-hd-wallet.js first');
@@ -42,19 +41,15 @@ class HDWalletService {
       throw new Error('❌ MNEMONIC is invalid — check your .env file');
     }
 
-    this.network = networkType === 'mainnet'
-      ? bitcoin.networks.bitcoin
-      : bitcoin.networks.testnet;
-
-    this.apiBase = networkType === 'mainnet'
-      ? 'https://mempool.space/api'
-      : 'https://mempool.space/testnet/api';
+    // MAINNET ONLY — no testnet fallback
+    this.network = bitcoin.networks.bitcoin;
+    this.apiBase = 'https://mempool.space/api';
 
     const seed = bip39.mnemonicToSeedSync(mnemonic);
     this.masterPrivateKey = seed.slice(0, 32);
 
     this.initialized = true;
-    console.log(`✅ HD Wallet initialized — ${networkType.toUpperCase()}`);
+    console.log('✅ HD Wallet initialized — MAINNET');
     console.log(`📡 API: ${this.apiBase}`);
   }
 
@@ -75,7 +70,7 @@ class HDWalletService {
     const privateKey = this.getPrivateKey(identifier);
     const keyPair    = ECPair.fromPrivateKey(privateKey, { network: this.network });
 
-    // Native SegWit (bc1q / tb1q) — lowest fees, most modern
+    // Native SegWit (bc1q) — lowest fees, most modern — MAINNET ONLY
     const payment = bitcoin.payments.p2wpkh({
       pubkey:  keyPair.publicKey,
       network: this.network,
@@ -84,7 +79,7 @@ class HDWalletService {
     return {
       address:    payment.address,
       identifier: identifier,
-      network:    this.network === bitcoin.networks.bitcoin ? 'mainnet' : 'testnet',
+      network:    'mainnet',
       format:     'Native SegWit (P2WPKH)',
       createdAt:  new Date().toISOString(),
     };
@@ -250,10 +245,6 @@ class HDWalletService {
       throw new Error(`Broadcast failed: ${detail}`);
     }
 
-    const explorerBase = this.network === bitcoin.networks.bitcoin
-      ? 'https://mempool.space/tx'
-      : 'https://mempool.space/testnet/tx';
-
     const result = {
       success:      true,
       txid:         txId,
@@ -263,7 +254,7 @@ class HDWalletService {
       amount_sats:  amountSats,
       fee_sats:     feeSats,
       change_sats:  changeSats,
-      explorer_url: `${explorerBase}/${txId}`,
+      explorer_url: `https://mempool.space/tx/${txId}`,
     };
 
     console.log(`✅ Bitcoin sent successfully!`);
@@ -373,10 +364,6 @@ class HDWalletService {
       throw new Error(`Escrow broadcast failed: ${detail}`);
     }
 
-    const explorerBase = this.network === bitcoin.networks.bitcoin
-      ? 'https://mempool.space/tx'
-      : 'https://mempool.space/testnet/tx';
-
     const result = {
       success:          true,
       trade_id:         tradeId,
@@ -386,7 +373,7 @@ class HDWalletService {
       praqen_address:   praqenAddress,
       praqen_fee_btc:   feeBTC,
       network_fee_sats: networkFee,
-      explorer_url:     `${explorerBase}/${txId}`,
+      explorer_url:     `https://mempool.space/tx/${txId}`,
     };
 
     console.log(`✅ Escrow released!`);
@@ -442,14 +429,14 @@ class HDWalletService {
   // ── Get network name ───────────────────────────────────────────────────────
   getNetwork() {
     this.initialize();
-    return this.network === bitcoin.networks.bitcoin ? 'mainnet' : 'testnet';
+    return 'mainnet';
   }
 
   // ── Get PRAQEN info (safe to log) ─────────────────────────────────────────
   getInfo() {
     this.initialize();
     return {
-      network:           this.network === bitcoin.networks.bitcoin ? 'mainnet' : 'testnet',
+      network:           'mainnet',
       api_base:          this.apiBase,
       praqen_fee_rate:   `${PRAQEN_FEE_RATE * 100}%`,
       praqen_fee_wallet: this.getPraqenFeeAddress(),

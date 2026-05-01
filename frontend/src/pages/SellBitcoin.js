@@ -168,7 +168,7 @@ const getUser     = (u) => Array.isArray(u) ? u[0] : (u||{});
 const isVerified  = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
 const getTrades   = (u) => parseInt(u?.total_trades ?? u?.trade_count ?? 0);
 const getLastSeen = (u) => {
-  const d = u?.last_login||u?.last_seen||u?.updated_at||u?.created_at;
+  const d = u?.last_seen_at||u?.last_login||u?.updated_at||u?.created_at;
   if (!d) return {label:'—', online:false};
   const s = (Date.now()-new Date(d))/1000;
   if (s<300)   return {label:'ACTIVE NOW', online:true};
@@ -378,7 +378,7 @@ function OfferCard({listing, btcPriceUSD, onViewBuyer, onSell}) {
 }
 
 // ── Buyer Modal ───────────────────────────────────────────────────────────────
-function BuyerModal({buyer, listing, onClose, onTrade}) {
+function BuyerModal({buyer, listing, onClose, onTrade, btcPriceUSD}) {
   const [tab, setTab] = useState('rules');
   const { rates: USD_RATES } = useRates();
   if (!buyer) return null;
@@ -392,7 +392,7 @@ function BuyerModal({buyer, listing, onClose, onTrade}) {
   const cur       = listing?.currency||'GHS';
   const sym       = listing?.currency_symbol || CUR_SYM[cur] || '₵';
   const usdRate   = USD_RATES[cur]||1;
-  const rateLocal = getRateUSD(listing||{}, 68000) * usdRate;
+  const rateLocal = getRateUSD(listing||{}, btcPriceUSD||68000) * usdRate;
   const ccCode    = (u?.country_code||u?.country||'gh').toLowerCase();
 
   return (
@@ -643,6 +643,11 @@ export default function SellBitcoin({user}) {
     const interval = setInterval(loadOffers, 60000);
     return () => clearInterval(interval);
   },[]);
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    if (!tk) return;
+    axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
+  },[]);
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -682,7 +687,15 @@ export default function SellBitcoin({user}) {
     if (selPayment!=='all')      list=list.filter(l=>String(l.payment_method||'').toLowerCase().includes(selPayment));
     if (sellAmt && parseFloat(sellAmt)>0) {
       const a = parseFloat(sellAmt);
-      list=list.filter(l=>a>=(l.min_limit_usd||0)&&a<=(l.max_limit_usd||999999));
+      const _cur  = selCountry.currency || 'GHS';
+      const _rate = USD_RATES[_cur] || 1;
+      list=list.filter(l=>{
+        if (l.min_limit_local && l.max_limit_local && l.currency===_cur) {
+          return a>=(l.min_limit_local) && a<=(l.max_limit_local);
+        }
+        const aUsd = _rate>0 ? a/_rate : a;
+        return aUsd>=(l.min_limit_usd||0) && aUsd<=(l.max_limit_usd||999999);
+      });
     }
     if (sortBy==='rate_high') list.sort((a,b)=>parseFloat(b.margin||0)-parseFloat(a.margin||0));
     else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
@@ -711,7 +724,7 @@ export default function SellBitcoin({user}) {
   const usdRate    = USD_RATES[cur] || 1;
   const btcLocal   = btcPrice * usdRate;
   const selPmInfo  = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
-  const onlineCnt   = offers.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const onlineCnt   = offers.filter(l=>(Date.now()-new Date(l.users?.last_seen_at||l.users?.last_login||0))/1000<300).length;
   const buyerCount  = new Set(offers.map(l=>l.seller_id)).size;
   const hasFilters  = selPayment!=='all' || sellAmt || selCountry.code!=='ALL';
 
@@ -894,7 +907,7 @@ export default function SellBitcoin({user}) {
                     style={{color:selPayment!=='all' ? C.sell : C.g400}}/>
                 </button>
                 {showPayment && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
                     style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
                     <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="🔍  Search payment…"
@@ -1038,6 +1051,7 @@ export default function SellBitcoin({user}) {
         <BuyerModal
           buyer={modal.buyer}
           listing={modal.listing}
+          btcPriceUSD={btcPrice}
           onClose={()=>setModal(null)}
           onTrade={()=>handleSell(modal.listing?.id)}
         />

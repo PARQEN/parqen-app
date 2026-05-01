@@ -146,12 +146,10 @@ class DepositMonitor {
       return;
     }
 
-    this.network = process.env.HD_NETWORK || 'mainnet';
-    this.apiBase = this.network === 'mainnet'
-      ? 'https://mempool.space/api'
-      : 'https://mempool.space/testnet/api';
+    this.network = 'mainnet';
+    this.apiBase = 'https://mempool.space/api';
 
-    console.log(`\n🔍 DepositMonitor started — ${this.network.toUpperCase()}`);
+    console.log(`\n🔍 DepositMonitor started — MAINNET`);
     console.log(`   Polling every ${POLL_INTERVAL_MS / 1000 / 60} minutes`);
     console.log(`   API: ${this.apiBase}\n`);
 
@@ -313,26 +311,11 @@ class DepositMonitor {
         console.log(`   TX     : ${txid}`);
         console.log(`   Amount : ${depositBTC} BTC`);
 
-        // ── 1. Update user_balances ──────────────────────────────────────────
-        const { error: balErr } = await supabaseAdmin
-          .from('user_balances')
-          .upsert({ user_id: userId, balance_btc: newBalance, updated_at: new Date().toISOString() });
-
-        if (balErr) {
-          console.error(`[DepositMonitor] user_balances update failed for ${username}:`, balErr.message);
-          continue;
-        }
-
-        // ── 2. Also sync user_wallets.balance_btc ────────────────────────────
-        await supabaseAdmin
-          .from('user_wallets')
-          .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
-          .eq('user_id', userId);
-
-        // ── 3. Record in wallet_transactions ────────────────────────────────
-        await supabaseAdmin
+        // ── 1. Insert TX record FIRST — if this fails, skip balance update ───
+        // Using upsert on tx_hash to make this idempotent across restarts
+        const { error: txErr } = await supabaseAdmin
           .from('wallet_transactions')
-          .insert({
+          .upsert({
             user_id:    userId,
             type:       'DEPOSIT',
             amount_btc: depositBTC,
@@ -340,7 +323,31 @@ class DepositMonitor {
             tx_hash:    txid,
             notes:      `Confirmed deposit to ${address.slice(0,12)}…`,
             created_at: new Date().toISOString(),
-          });
+          }, { onConflict: 'tx_hash,user_id', ignoreDuplicates: true });
+
+        if (txErr) {
+          console.error(`[DepositMonitor] wallet_transactions insert failed for TX ${txid.slice(0,12)}:`, txErr.message);
+          // Still add to memory cache so we don't retry in this session
+          this.checkedTxIds.add(`${userId}_${txid}`);
+          continue;
+        }
+
+        // ── 2. Update user_balances ──────────────────────────────────────────
+        const { error: balErr } = await supabaseAdmin
+          .from('user_balances')
+          .upsert({ user_id: userId, balance_btc: newBalance, updated_at: new Date().toISOString() });
+
+        if (balErr) {
+          console.error(`[DepositMonitor] user_balances update failed for ${username}:`, balErr.message);
+          this.checkedTxIds.add(`${userId}_${txid}`);
+          continue;
+        }
+
+        // ── 3. Sync user_wallets.balance_btc ─────────────────────────────────
+        await supabaseAdmin
+          .from('user_wallets')
+          .update({ balance_btc: newBalance, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
 
         // ── 4. In-app notification ───────────────────────────────────────────
         await supabaseAdmin
@@ -355,7 +362,7 @@ class DepositMonitor {
             created_at: new Date().toISOString(),
           });
 
-        // ── 5. SMS + Email (fire-and-forget — don't let them block crediting) ─
+        // ── 5. SMS + Email (fire-and-forget) ──────────────────────────────────
         Promise.allSettled([
           this.sendDepositSMS(userId, depositBTC, newBalance),
           this.sendDepositEmail(userId, username, depositBTC, newBalance, txid),

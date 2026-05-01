@@ -6,6 +6,8 @@ import {
   Mail, Lock, User, Eye, EyeOff, Shield, CheckCircle,
   ArrowRight, ArrowLeft, RefreshCw, AlertCircle, Smartphone,
   AtSign, Check, X, Home, Gift, LogIn, Phone, ChevronDown,
+  Bitcoin, Zap, Globe, TrendingUp, Users, BadgeCheck, Star,
+  ArrowUpRight, CircleDollarSign, Wallet, BarChart3
 } from 'lucide-react';
 
 const C = {
@@ -44,26 +46,65 @@ const PW_CHECKS = [
   { label: 'Number (0–9)',           test: p => /\d/.test(p) },
 ];
 
+const STATS = [
+  { icon: Users, value: '50,000+', label: 'Active Traders' },
+  { icon: Globe, value: '180+', label: 'Countries' },
+  { icon: CircleDollarSign, value: '$25M+', label: 'Monthly Volume' },
+  { icon: Star, value: '4.9/5', label: 'User Rating' },
+];
+
+const BENEFITS = [
+  { icon: Shield, title: '100% Escrow Protected', desc: 'Your Bitcoin is locked in secure escrow until both parties confirm the trade' },
+  { icon: Zap, title: 'Lightning Fast Trades', desc: 'Complete your P2P trades in under 15 minutes with instant mobile money' },
+  { icon: TrendingUp, title: 'Best Market Rates', desc: 'Access competitive rates from verified traders across 180+ countries' },
+];
+
+const TESTIMONIALS = [
+  { name: 'Sarah K.', location: 'Accra, Ghana', text: 'Praqen made my first Bitcoin purchase so easy! The escrow system gave me complete peace of mind.' },
+  { name: 'David M.', location: 'Lagos, Nigeria', text: 'Best P2P platform in Africa. Fast trades and amazing customer support. Highly recommended!' },
+];
+
 function PwStrength({ password }) {
   const passed = PW_CHECKS.filter(c => c.test(password)).length;
   const colors = ['', C.danger, '#F97316', C.amber, C.success, C.success];
   const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
   if (!password) return null;
   return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 5 }}>
-        {[1,2,3,4].map(i => (
-          <div key={i} style={{ height: 4, flex: 1, borderRadius: 99, background: i <= passed ? colors[passed] : C.g200, transition: 'background 0.3s' }}/>
-        ))}
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} style={{
+              height: 4, flex: 1, borderRadius: 99,
+              background: i <= passed ? colors[passed] : '#E2E8F0',
+              transition: 'background 0.3s'
+            }} />
+          ))}
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: colors[passed],
+          textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap'
+        }}>
+          {labels[passed]}
+        </span>
       </div>
-      <p style={{ fontSize: 11, fontWeight: 700, color: colors[passed], margin: '0 0 6px' }}>{labels[passed]}</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
         {PW_CHECKS.map(({ label, test }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            {test(password)
-              ? <Check size={10} style={{ color: C.success, flexShrink: 0 }}/>
-              : <X size={10} style={{ color: C.g300, flexShrink: 0 }}/>}
-            <span style={{ fontSize: 11, color: test(password) ? C.g600 : C.g400 }}>{label}</span>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {test(password) ? (
+              <Check size={12} style={{ color: '#10B981', flexShrink: 0 }} />
+            ) : (
+              <div style={{
+                width: 12, height: 12, borderRadius: '50%',
+                border: '2px solid #CBD5E1', flexShrink: 0
+              }} />
+            )}
+            <span style={{
+              fontSize: 11, color: test(password) ? '#64748B' : '#94A3B8',
+              transition: 'color 0.2s'
+            }}>
+              {label}
+            </span>
           </div>
         ))}
       </div>
@@ -96,22 +137,21 @@ function OTPInput({ value, onChange, hasError }) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
       {digits.map((d, i) => (
         <input key={i} ref={refs[i]} type="text" inputMode="numeric" maxLength={1}
           value={d === ' ' ? '' : d}
           onKeyDown={e => handleKey(i, e)}
           onPaste={handlePaste}
           onChange={() => {}}
-          className="pq-otp"
           style={{
-            width: 38, height: 50, borderRadius: 12,
+            width: 44, height: 52, borderRadius: 12,
             textAlign: 'center', fontSize: 20, fontWeight: 800,
-            border: `2.5px solid ${hasError ? C.danger : (d !== ' ' && d) ? C.green : C.g200}`,
-            color: C.forest,
-            background: (d !== ' ' && d) ? `${C.green}10` : C.white,
-            outline: 'none', transition: 'all 0.15s',
-            fontFamily: "'DM Sans', sans-serif",
+            border: `2px solid ${hasError ? '#EF4444' : (d !== ' ' && d) ? '#2D6A4F' : '#E2E8F0'}`,
+            color: '#1B4332',
+            background: hasError ? '#FEF2F2' : (d !== ' ' && d) ? 'rgba(45,106,79,0.04)' : '#FFFFFF',
+            outline: 'none', transition: 'all 0.2s',
+            fontFamily: "'Inter', sans-serif",
           }}
         />
       ))}
@@ -131,6 +171,7 @@ export default function Register({ onLogin }) {
   const [phoneCode, setPhoneCode]     = useState(PHONE_CODES[0]);
   const [showCodes, setShowCodes]     = useState(false);
   const [globalError, setGlobalError] = useState('');
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
   const [email, setEmail]       = useState('');
   const [phone, setPhone]       = useState('');
@@ -148,6 +189,13 @@ export default function Register({ onLogin }) {
     const iv = setInterval(() => setOtpTimer(t => t - 1), 1000);
     return () => clearInterval(iv);
   }, [otpTimer]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTestimonial(prev => (prev + 1) % TESTIMONIALS.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const contact = method === 'email' ? email : `${phoneCode.code}${phone}`;
 
@@ -259,542 +307,1291 @@ export default function Register({ onLogin }) {
     setOtp(''); setErrs({}); setGlobalError('');
   };
 
-  const FEATURES = [
-    { icon: '🔒', t: 'Escrow on every trade',    s: 'Bitcoin locked until both confirm' },
-    { icon: '⚡', t: 'Complete in under 15 min', s: 'Mobile money & bank transfer' },
-    { icon: '🌍', t: '180+ countries supported', s: 'GHS, NGN, KES, EUR & more' },
-  ];
-
-  const heroTitle = mode === 'forgot' ? 'Reset Password' : 'Create Account';
-  const heroSub   = mode === 'forgot' ? "We'll help you get back in" : "Join Africa's #1 P2P Bitcoin platform";
-
-  const inp = (filled, err) => ({
-    width: '100%', padding: '13px 16px', fontSize: 16, borderRadius: 14,
-    border: `2px solid ${err ? C.danger : filled ? C.green : C.g200}`,
-    color: C.g800, background: C.white, outline: 'none',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    fontFamily: "'DM Sans', sans-serif",
+  const inputStyle = (filled, error) => ({
+    width: '100%',
+    padding: '13px 14px 13px 44px',
+    fontSize: 14,
+    borderRadius: 14,
+    border: `2px solid ${error ? '#EF4444' : filled ? '#2D6A4F' : '#E2E8F0'}`,
+    color: '#1E293B',
+    background: error ? '#FEF2F2' : filled ? '#F8FAFC' : '#FFFFFF',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+    fontFamily: "'Inter', sans-serif",
   });
 
-  const inpWithIcon = (filled, err) => ({ ...inp(filled, err), paddingLeft: 42 });
-  const inpIconRight = (filled, err) => ({ ...inpWithIcon(filled, err), paddingRight: 48 });
-
-  const PrimaryBtn = ({ onClick, disabled, children, style = {} }) => (
-    <button onClick={onClick} disabled={disabled}
-      className="pq-btn"
-      style={{
-        width: '100%', padding: '14px', borderRadius: 14, border: 'none',
-        background: `linear-gradient(135deg, ${C.green}, ${C.mint})`,
-        color: 'white', fontSize: 14, fontWeight: 900,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        boxShadow: '0 6px 24px rgba(45,106,79,0.28)',
-        opacity: disabled ? 0.55 : 1, cursor: disabled ? 'not-allowed' : 'pointer',
-        ...style,
-      }}>
-      {children}
-    </button>
-  );
-
-  const ErrMsg = ({ text }) => text ? (
-    <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.danger, margin: '5px 0 0' }}>
-      <AlertCircle size={10}/>{text}
-    </p>
-  ) : null;
-
-  const Label = ({ children }) => (
-    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 7, color: C.g700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-      {children}
-    </label>
-  );
+  const inputWithRightIcon = (filled, error) => ({
+    ...inputStyle(filled, error),
+    paddingRight: 46,
+  });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'DM Sans', sans-serif", background: C.mist }}>
+    <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap');
-        @keyframes pqUp  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pqIn  { from { opacity:0; } to { opacity:1; } }
-        @keyframes pqSpin{ to   { transform:rotate(360deg); } }
-        .pq-anim { animation: pqUp  0.3s cubic-bezier(0.22,0.68,0,1.1) both; }
-        .pq-fade { animation: pqIn  0.25s ease both; }
-        .pq-spin { animation: pqSpin 0.7s linear infinite; }
-        .pq-inp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
-        .pq-otp:focus { border-color: #2D6A4F !important; box-shadow: 0 0 0 3px rgba(45,106,79,0.12) !important; }
-        .pq-btn { transition: opacity 0.12s, transform 0.1s; }
-        .pq-btn:active { transform: scale(0.99); }
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        button, a { touch-action: manipulation; }
-        input, select { font-size: 16px !important; }
-        html, body { overscroll-behavior: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700;800;900&display=swap');
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        html, body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          background: #F0F9F4;
+          overscroll-behavior: none;
+          -webkit-overflow-scrolling: touch;
+          height: 100%;
+          width: 100%;
+          overflow-x: hidden;
+        }
+
+        #root {
+          min-height: 100%;
+        }
+
+        .register-layout {
+          min-height: 100vh;
+          min-height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+          .register-layout {
+            flex-direction: row;
+          }
+        }
+
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-gold {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
+        .animate-in {
+          animation: fadeInUp 0.4s cubic-bezier(0.22, 0.68, 0, 1.1) both;
+        }
+        .animate-fade {
+          animation: fadeIn 0.25s ease both;
+        }
+        .animate-spin {
+          animation: spin 0.7s linear infinite;
+        }
+        .pulse-gold {
+          animation: pulse-gold 2s ease-in-out infinite;
+        }
+
+        /* Hero Panel - Desktop Only */
+        .hero-panel {
+          display: none;
+        }
+
+        @media (min-width: 1024px) {
+          .hero-panel {
+            display: flex;
+            width: 50%;
+            flex-shrink: 0;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 56px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(160deg, #1B4332 0%, #1F4D3D 25%, #2D6A4F 60%, #40916C 100%);
+          }
+        }
+
+        .hero-bg-pattern {
+          position: absolute;
+          inset: 0;
+          opacity: 0.04;
+          background-image: 
+            radial-gradient(circle at 25% 25%, white 2px, transparent 2px),
+            radial-gradient(circle at 75% 75%, white 2px, transparent 2px);
+          background-size: 60px 60px;
+          background-position: 0 0, 30px 30px;
+        }
+
+        .hero-glow-1 {
+          position: absolute;
+          top: -150px;
+          right: -150px;
+          width: 500px;
+          height: 500px;
+          border-radius: 50%;
+          background: #F4A422;
+          opacity: 0.1;
+          filter: blur(100px);
+          pointer-events: none;
+        }
+
+        .hero-glow-2 {
+          position: absolute;
+          bottom: -100px;
+          left: -100px;
+          width: 400px;
+          height: 400px;
+          border-radius: 50%;
+          background: #40916C;
+          opacity: 0.15;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+
+        .hero-content {
+          position: relative;
+          z-index: 2;
+        }
+
+        .hero-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 22px;
+          border-radius: 50px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1.5px solid rgba(255, 255, 255, 0.2);
+          backdrop-filter: blur(10px);
+          margin-bottom: 36px;
+        }
+
+        .hero-title {
+          font-family: 'Outfit', sans-serif;
+          font-size: 44px;
+          font-weight: 900;
+          color: white;
+          line-height: 1.1;
+          margin: 0 0 16px;
+          letter-spacing: -1px;
+        }
+
+        .hero-title .highlight {
+          background: linear-gradient(135deg, #F4A422, #FBBF24);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .hero-description {
+          font-size: 16px;
+          color: rgba(255, 255, 255, 0.7);
+          line-height: 1.6;
+          margin: 0 0 40px;
+          font-weight: 400;
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 40px;
+        }
+
+        .stat-card {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 16px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .stat-card:hover {
+          background: rgba(255, 255, 255, 0.12);
+          transform: translateY(-2px);
+        }
+
+        .stat-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(244, 164, 34, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #F4A422;
+          flex-shrink: 0;
+        }
+
+        .stat-value {
+          font-size: 18px;
+          font-weight: 800;
+          color: white;
+          line-height: 1.2;
+        }
+
+        .stat-label {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.5);
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .testimonial-card {
+          padding: 20px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+        }
+
+        .testimonial-quote {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.8);
+          line-height: 1.7;
+          margin: 0 0 12px;
+          font-style: italic;
+        }
+
+        .testimonial-author {
+          font-size: 13px;
+          font-weight: 700;
+          color: white;
+        }
+
+        .testimonial-location {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        .testimonial-dots {
+          display: flex;
+          gap: 6px;
+          margin-top: 12px;
+        }
+
+        .testimonial-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.2);
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .testimonial-dot.active {
+          background: #F4A422;
+          width: 24px;
+          border-radius: 4px;
+        }
+
+        .hero-footer {
+          position: relative;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: rgba(255, 255, 255, 0.35);
+          font-size: 12px;
+          margin-top: auto;
+        }
+
+        /* Form Panel */
+        .form-panel {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: linear-gradient(180deg, #F0F9F4 0%, #E8F5EC 100%);
+          width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+          .form-panel {
+            width: 50%;
+            padding: 40px;
+          }
+        }
+
+        /* Mobile Hero Strip - hidden on desktop */
+        .mobile-hero-strip {
+          margin-bottom: 16px;
+          width: 100%;
+          max-width: 460px;
+        }
+
+        @media (min-width: 1024px) {
+          .mobile-hero-strip {
+            display: none;
+          }
+        }
+
+        .mobile-benefits-strip {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding: 4px 0;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+
+        .mobile-benefits-strip::-webkit-scrollbar {
+          display: none;
+        }
+
+        .mobile-benefit-pill {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 50px;
+          background: linear-gradient(135deg, #1B4332, #2D6A4F);
+          color: white;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+
+        /* Form Card */
+        .register-card {
+          width: 100%;
+          max-width: 460px;
+          background: #FFFFFF;
+          border-radius: 24px;
+          box-shadow: 0 4px 24px rgba(27, 67, 50, 0.08), 0 0 0 1px rgba(27, 67, 50, 0.04);
+          overflow: visible;
+        }
+
+        @media (min-width: 1024px) {
+          .register-card {
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(27, 67, 50, 0.12), 0 0 0 1px rgba(27, 67, 50, 0.06);
+          }
+        }
+
+        .card-top {
+          padding: 24px 24px 16px;
+          text-align: center;
+          border-bottom: 1px solid #F1F5F9;
+        }
+
+        @media (min-width: 1024px) {
+          .card-top {
+            padding: 28px 28px 20px;
+          }
+        }
+
+        .logo-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: linear-gradient(135deg, #1B4332, #2D6A4F);
+          color: white;
+          padding: 8px 18px;
+          border-radius: 50px;
+          margin-bottom: 16px;
+          font-weight: 700;
+          font-size: 14px;
+          letter-spacing: 3px;
+        }
+
+        .card-title {
+          font-size: 22px;
+          font-weight: 800;
+          color: #1B4332;
+          margin: 0 0 4px;
+          letter-spacing: -0.3px;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        .card-subtitle {
+          font-size: 13px;
+          color: #64748B;
+          margin: 0;
+          font-weight: 400;
+        }
+
+        .card-body {
+          padding: 16px 24px 24px;
+        }
+
+        @media (min-width: 1024px) {
+          .card-body {
+            padding: 20px 28px 28px;
+          }
+        }
+
+        .card-footer-bar {
+          padding: 12px 24px;
+          border-top: 1px solid #F1F5F9;
+          background: #F8FAFC;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        @media (min-width: 1024px) {
+          .card-footer-bar {
+            padding: 14px 28px;
+          }
+        }
+
+        /* Method Toggle */
+        .method-toggle {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+          padding: 4px;
+          border-radius: 12px;
+          background: #F1F5F9;
+          margin-bottom: 16px;
+        }
+
+        .method-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          background: transparent;
+          color: #64748B;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .method-btn.active {
+          background: white;
+          color: #2D6A4F;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        /* Input Focus */
+        .form-input-focus:focus {
+          border-color: #2D6A4F !important;
+          box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.08) !important;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+          width: 100%;
+          padding: 15px;
+          border-radius: 14px;
+          border: none;
+          background: linear-gradient(135deg, #2D6A4F 0%, #40916C 100%);
+          color: white;
+          font-size: 15px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 6px 20px rgba(45, 106, 79, 0.25);
+          margin-top: 8px;
+          font-family: 'Inter', sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .submit-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: left 0.6s;
+        }
+
+        .submit-btn:hover::before {
+          left: 100%;
+        }
+
+        .submit-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(45, 106, 79, 0.3);
+        }
+
+        .submit-btn:active {
+          transform: scale(0.98);
+        }
+
+        .submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none !important;
+        }
+
+        /* Success */
+        .shimmer-text {
+          background: linear-gradient(90deg, #2D6A4F 0%, #40916C 50%, #2D6A4F 100%);
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 2s infinite;
+        }
+
+        /* Phone Dropdown scrollbar */
+        .phone-dropdown-scroll::-webkit-scrollbar {
+          width: 4px;
+        }
+        .phone-dropdown-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .phone-dropdown-scroll::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 2px;
+        }
       `}</style>
 
-      {/* ── Desktop left panel ─────────────────────────────────────────────── */}
-      <div style={{
-        display: 'none', width: '42%', flexShrink: 0,
-        flexDirection: 'column', justifyContent: 'space-between',
-        padding: '48px', position: 'relative', overflow: 'hidden',
-        background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 58%, ${C.mint} 100%)`,
-      }} className="pq-left-panel">
-        <style>{`.pq-left-panel { display: none; } @media(min-width:1024px){ .pq-left-panel { display: flex !important; } }`}</style>
-
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)', backgroundSize: '28px 28px' }}/>
-        <div style={{ position: 'absolute', bottom: -60, right: -60, width: 300, height: 300, borderRadius: '50%', background: C.gold, opacity: 0.10, filter: 'blur(70px)', pointerEvents: 'none' }}/>
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* praqen wordmark */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 18px', borderRadius: 10, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 36 }}>
-            <span style={{ color: 'white', fontSize: 14, fontWeight: 800, letterSpacing: '7px', fontFamily: "'DM Sans',sans-serif" }}>praqen</span>
-          </div>
-
-          <h2 style={{ color: 'white', fontWeight: 900, fontSize: 36, fontFamily: "'Syne',sans-serif", margin: '0 0 12px', lineHeight: 1.15 }}>
-            {mode === 'forgot' ? <>Reset Your<br/>Password 🔑</> : <>Start Trading<br/>Bitcoin Today ⚡</>}
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.60)', fontSize: 14, lineHeight: 1.75, margin: '0 0 32px' }}>
-            Africa's most trusted P2P Bitcoin platform.<br/>Real escrow. Real people. Zero fraud.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {FEATURES.map(({ icon, t, s }) => (
-              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 18, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
-                <div>
-                  <p style={{ color: 'white', fontSize: 13, fontWeight: 700, margin: 0 }}>{t}</p>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, margin: 0 }}>{s}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 7, color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
-          <Shield size={12}/>All data encrypted · ISO 27001 security standards
-        </div>
-      </div>
-
-      {/* ── Right panel ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: C.mist, minHeight: '100vh' }}>
-
-        {/* Mobile hero — hidden on desktop via CSS */}
-        <div className="pq-mob-hero" style={{ position: 'relative', overflow: 'hidden', padding: '24px 20px 52px', flexShrink: 0, background: `linear-gradient(150deg, ${C.forest} 0%, ${C.green} 55%, ${C.mint} 100%)` }}>
-          <style>{`.pq-mob-hero {} @media(min-width:1024px){ .pq-mob-hero { display:none !important; } }`}</style>
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '22px 22px' }}/>
-          <div style={{ position: 'absolute', top: -12, right: -12, width: 200, height: 200, borderRadius: '50%', background: C.gold, opacity: 0.18, filter: 'blur(60px)', pointerEvents: 'none' }}/>
-          <div style={{ position: 'absolute', bottom: -16, left: -16, width: 140, height: 140, borderRadius: '50%', background: C.mint, opacity: 0.22, filter: 'blur(40px)', pointerEvents: 'none' }}/>
-          <div style={{ position: 'relative' }}>
-            {/* praqen wordmark */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 16px', borderRadius: 9, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.22)', marginBottom: 14 }}>
-              <span style={{ color: 'white', fontSize: 13, fontWeight: 800, letterSpacing: '6px', fontFamily: "'DM Sans',sans-serif" }}>praqen</span>
+      <div className="register-layout">
+        {/* Desktop Left Hero Panel */}
+        <div className="hero-panel">
+          <div className="hero-bg-pattern" />
+          <div className="hero-glow-1" />
+          <div className="hero-glow-2" />
+          
+          <div className="hero-content">
+            <div className="hero-badge">
+              <Bitcoin size={22} className="pulse-gold" style={{ color: '#F4A422' }} />
+              <span style={{ 
+                color: 'white', 
+                fontWeight: 800, 
+                letterSpacing: '4px',
+                fontSize: 15,
+                textTransform: 'uppercase'
+              }}>
+                Praqen
+              </span>
             </div>
 
-            <h1 style={{ color: 'white', fontWeight: 900, fontSize: 27, fontFamily: "'Syne',sans-serif", margin: '0 0 8px', lineHeight: 1.2 }}>
-              {mode === 'forgot' ? 'Reset Your Password 🔑' : <>Start Trading<br/>Bitcoin Today ⚡</>}
+            <h1 className="hero-title">
+              Trade Bitcoin<br />
+              <span className="highlight">Peer-to-Peer</span><br />
+              with Confidence
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, margin: '0 0 14px', lineHeight: 1.6 }}>
-              {mode === 'forgot' ? "We'll get you back in safely." : 'Escrow-protected P2P trades — no bank needed.'}
+
+            <p className="hero-description">
+              Join Africa's most trusted P2P Bitcoin marketplace. 
+              Trade directly with verified users, protected by 
+              industry-leading escrow technology.
             </p>
 
-            {/* Trust pills */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {[['🔒','Escrow'],['⚡','Fast'],['🌍','180+ Countries']].map(([ic, lb]) => (
-                <div key={lb} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.20)', fontSize: 11, fontWeight: 700, color: 'white' }}>
-                  <span style={{ fontSize: 11 }}>{ic}</span>{lb}
+            <div className="stats-grid">
+              {STATS.map(({ icon: Icon, value, label }) => (
+                <div key={label} className="stat-card">
+                  <div className="stat-icon">
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <div className="stat-value">{value}</div>
+                    <div className="stat-label">{label}</div>
+                  </div>
                 </div>
               ))}
             </div>
+
+            <div className="testimonial-card">
+              <p className="testimonial-quote">
+                "{TESTIMONIALS[currentTestimonial].text}"
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p className="testimonial-author">
+                    {TESTIMONIALS[currentTestimonial].name}
+                  </p>
+                  <p className="testimonial-location">
+                    📍 {TESTIMONIALS[currentTestimonial].location}
+                  </p>
+                </div>
+                <div className="testimonial-dots">
+                  {TESTIMONIALS.map((_, i) => (
+                    <div 
+                      key={i}
+                      className={`testimonial-dot ${i === currentTestimonial ? 'active' : ''}`}
+                      onClick={() => setCurrentTestimonial(i)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-footer">
+            <Shield size={14} />
+            All data encrypted · SOC 2 Type II · ISO 27001
           </div>
         </div>
 
-        {/* Form area */}
-        <div style={{ flex: 1, padding: '0 12px', paddingBottom: 112 }}>
-          <div className="pq-anim pq-form-center" style={{ width: '100%', marginTop: -40 }}>
-            <style>{`@media(min-width:540px){ .pq-form-center { max-width:480px; margin-left:auto; margin-right:auto; } } @media(min-width:1024px){ .pq-form-center { max-width:480px !important; margin:40px auto !important; } }`}</style>
-
-            {/* Card */}
-            <div style={{ background: C.white, borderRadius: 28, boxShadow: '0 4px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-
-              {/* Card header */}
-              <div style={{ padding: '18px 16px 14px', borderBottom: `1px solid ${C.g100}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  {(step === 'f2' || step === 'f3') && (
-                    <button onClick={() => { if (step === 'f2') setStep('f1'); else if (step === 'f3') setStep('f2'); }}
-                      style={{ width: 32, height: 32, borderRadius: 10, border: `1.5px solid ${C.g200}`, background: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: C.g500 }}>
-                      <ArrowLeft size={15}/>
-                    </button>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", lineHeight: 1.2 }}>
-                      {mode === 'register'
-                        ? (step === 4 ? 'Welcome!' : 'Create Account')
-                        : ({ f1:'Forgot Password', f2:'Verify Your Contact', f3:'Set New Password', f4:'Password Reset!' }[step])}
-                    </h1>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: C.g500, lineHeight: 1.4 }}>
-                      {mode === 'register'
-                        ? (step === 4 ? 'Your account is ready' : 'Fill in your details to get started')
-                        : ({ f1:"We'll send a reset code to your contact", f2:`Check your ${method} for the code`, f3:'Choose a new secure password', f4:'You can now log in with your new password' }[step])}
-                    </p>
-                  </div>
+        {/* Right Form Panel */}
+        <div className="form-panel">
+          <div style={{ width: '100%', maxWidth: 460 }}>
+            {/* Mobile Hero Strip */}
+            <div className="mobile-hero-strip">
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 10, 
+                marginBottom: 12,
+                flexWrap: 'wrap'
+              }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 50,
+                  background: 'linear-gradient(135deg, #1B4332, #2D6A4F)',
+                }}>
+                  <Bitcoin size={16} style={{ color: '#F4A422' }} />
+                  <span style={{ 
+                    color: 'white', 
+                    fontWeight: 700, 
+                    fontSize: 12,
+                    letterSpacing: '2px'
+                  }}>
+                    PRAQEN
+                  </span>
                 </div>
-
-                {step !== 4 && step !== 'f4' && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-                    {(mode === 'register' ? [1] : ['f1','f2','f3','f4']).map((s, i) => (
-                      <div key={i} style={{ height: 4, flex: 1, borderRadius: 99, background: (mode === 'register' ? step === 4 : ['f2','f3','f4'].includes(step) && i < ['f1','f2','f3','f4'].indexOf(step)) ? C.green : C.g200, transition: 'background 0.4s' }}/>
-                    ))}
+                <div style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#2D6A4F',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <Star size={12} fill="#F4A422" color="#F4A422" />
+                  4.9/5 · 50K+ traders
+                </div>
+              </div>
+              
+              <div className="mobile-benefits-strip">
+                {BENEFITS.map(({ icon: Icon, title }) => (
+                  <div key={title} className="mobile-benefit-pill">
+                    <Icon size={12} style={{ color: '#F4A422', flexShrink: 0 }} />
+                    {title}
                   </div>
-                )}
+                ))}
+              </div>
+            </div>
+
+            {/* Main Registration Card */}
+            <div className="register-card animate-in">
+              <div className="card-top">
+                <div className="logo-badge" style={{ display: 'none' }}>
+                  <Bitcoin size={18} style={{ color: '#F4A422' }} />
+                  PRAQEN
+                </div>
+                <h1 className="card-title">
+                  {mode === 'register' ? 'Create Account' : 'Reset Password'}
+                </h1>
+                <p className="card-subtitle">
+                  {mode === 'register' 
+                    ? 'Join the future of P2P trading' 
+                    : "We'll help you get back in"
+                  }
+                </p>
               </div>
 
-              {/* Card body */}
-              <div className="pq-fade" key={String(step)} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-                {/* ─── REGISTER STEP 1 ─── */}
+              <div className="card-body animate-fade" key={step}>
+                {/* REGISTER STEP 1 */}
                 {step === 1 && mode === 'register' && (
-                  <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {globalError && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger, border: '1.5px solid #FECACA' }}>
-                        <AlertCircle size={13} style={{ flexShrink: 0 }}/>{globalError}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '10px 14px', borderRadius: 12, fontSize: 12,
+                        background: '#FEF2F2', color: '#EF4444',
+                        border: '1.5px solid #FECACA'
+                      }}>
+                        <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                        {globalError}
                       </div>
                     )}
 
-                    {/* Method toggle */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 5, borderRadius: 14, background: C.g100 }}>
-                      {[{ val: 'email', Icon: AtSign, label: 'Email' }, { val: 'phone', Icon: Smartphone, label: 'Phone' }].map(({ val, Icon, label }) => (
-                        <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: method === val ? C.white : 'transparent', color: method === val ? C.green : C.g500, boxShadow: method === val ? '0 1px 6px rgba(0,0,0,0.10)' : 'none' }}>
-                          <Icon size={14}/>{label}
-                        </button>
-                      ))}
+                    {/* Method Toggle */}
+                    <div className="method-toggle">
+                      <button 
+                        onClick={() => { setMethod('email'); setErrs({}); }}
+                        className={`method-btn ${method === 'email' ? 'active' : ''}`}
+                      >
+                        <Mail size={14} />
+                        Email
+                      </button>
+                      <button 
+                        onClick={() => { setMethod('phone'); setErrs({}); }}
+                        className={`method-btn ${method === 'phone' ? 'active' : ''}`}
+                      >
+                        <Smartphone size={14} />
+                        Phone
+                      </button>
                     </div>
 
                     {/* Email or Phone */}
                     {method === 'email' ? (
                       <div>
-                        <Label>Email Address</Label>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Email Address
+                        </label>
                         <div style={{ position: 'relative' }}>
-                          <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                          <input type="email" value={email} placeholder="you@example.com"
-                            onChange={e => setEmail(e.target.value)} className="pq-inp"
-                            style={inpWithIcon(!!email, errs.email)}/>
+                          <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                          <input 
+                            type="email" 
+                            value={email}
+                            placeholder="you@example.com"
+                            onChange={e => setEmail(e.target.value)}
+                            className="form-input-focus"
+                            style={inputStyle(!!email, errs.email)}
+                          />
                         </div>
-                        <ErrMsg text={errs.email}/>
+                        {errs.email && (
+                          <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                            <AlertCircle size={10} />{errs.email}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div>
-                        <Label>Phone Number</Label>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Phone Number
+                        </label>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <button onClick={() => setShowCodes(!showCodes)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px 12px', border: `2px solid ${C.g200}`, borderRadius: 14, background: C.white, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.g700, whiteSpace: 'nowrap' }}>
+                            <button 
+                              onClick={() => setShowCodes(!showCodes)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '13px 14px', border: '2px solid #E2E8F0',
+                                borderRadius: 14, background: 'white', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 600, color: '#334155',
+                                flexShrink: 0, transition: 'border-color 0.2s',
+                                fontFamily: "'Inter', sans-serif",
+                              }}
+                            >
                               <span style={{ fontSize: 18 }}>{phoneCode.flag}</span>
                               <span>{phoneCode.code}</span>
-                              <ChevronDown size={13} style={{ color: C.g400 }}/>
+                              <ChevronDown size={12} style={{ color: '#94A3B8' }} />
                             </button>
                             {showCodes && (
-                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, width: 240, maxWidth: 'calc(100vw - 40px)', background: C.white, borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.16)', zIndex: 100, border: `1px solid ${C.g100}`, overflow: 'hidden' }}>
-                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                              <div style={{
+                                position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+                                width: 280, maxWidth: 'calc(100vw - 32px)',
+                                background: 'white', borderRadius: 18,
+                                boxShadow: '0 20px 60px rgba(0,0,0,0.15)', zIndex: 100,
+                                border: '1px solid #F1F5F9', overflow: 'hidden'
+                              }}>
+                                <div className="phone-dropdown-scroll" style={{ maxHeight: 220, overflowY: 'auto' }}>
                                   {PHONE_CODES.map(pc => (
-                                    <button key={pc.code} onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
-                                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: phoneCode.code === pc.code ? `${C.green}08` : 'transparent', border: 'none', borderBottom: `1px solid ${C.g50}`, cursor: 'pointer', textAlign: 'left' }}>
+                                    <button
+                                      key={pc.code}
+                                      onClick={() => { setPhoneCode(pc); setShowCodes(false); }}
+                                      style={{
+                                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                        padding: '11px 16px', background: phoneCode.code === pc.code ? 'rgba(45,106,79,0.06)' : 'transparent',
+                                        border: 'none', borderBottom: '1px solid #F8FAFC',
+                                        cursor: 'pointer', textAlign: 'left', fontSize: 13,
+                                        fontFamily: "'Inter', sans-serif",
+                                      }}
+                                    >
                                       <span style={{ fontSize: 20 }}>{pc.flag}</span>
-                                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.g700 }}>{pc.name}</span>
-                                      <span style={{ fontSize: 12, fontWeight: 700, color: phoneCode.code === pc.code ? C.green : C.g400 }}>{pc.code}</span>
+                                      <span style={{ flex: 1, fontWeight: 600, color: '#334155' }}>{pc.name}</span>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: phoneCode.code === pc.code ? '#2D6A4F' : '#94A3B8' }}>
+                                        {pc.code}
+                                      </span>
                                     </button>
                                   ))}
                                 </div>
                               </div>
                             )}
                           </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ position: 'relative' }}>
-                              <Phone size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                              <input type="tel" value={phone} placeholder="e.g. 244 123 4567"
-                                onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} className="pq-inp"
-                                style={inpWithIcon(!!phone, errs.phone)}/>
-                            </div>
+                          <div style={{ flex: 1, position: 'relative' }}>
+                            <Phone size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                            <input 
+                              type="tel"
+                              value={phone}
+                              placeholder="244 123 4567"
+                              onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                              className="form-input-focus"
+                              style={{ ...inputStyle(!!phone, errs.phone), paddingLeft: 38 }}
+                            />
                           </div>
                         </div>
-                        <ErrMsg text={errs.phone}/>
+                        {errs.phone && (
+                          <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                            <AlertCircle size={10} />{errs.phone}
+                          </p>
+                        )}
                       </div>
                     )}
 
                     {/* Full Name */}
                     <div>
-                      <Label>Full Name</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Full Name
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <User size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type="text" value={fullName} placeholder="John Doe"
-                          onChange={e => setFullName(e.target.value)} className="pq-inp"
-                          style={inpWithIcon(!!fullName, errs.fullName)}/>
+                        <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input 
+                          type="text"
+                          value={fullName}
+                          placeholder="John Doe"
+                          onChange={e => setFullName(e.target.value)}
+                          className="form-input-focus"
+                          style={inputStyle(!!fullName, errs.fullName)}
+                        />
                       </div>
-                      <ErrMsg text={errs.fullName}/>
+                      {errs.fullName && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                          <AlertCircle size={10} />{errs.fullName}
+                        </p>
+                      )}
                     </div>
 
                     {/* Username */}
                     <div>
-                      <Label>Username</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Username
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <AtSign size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type="text" value={username} placeholder="john_doe"
-                          onChange={e => setUsername(e.target.value.toLowerCase())} className="pq-inp"
-                          style={inpWithIcon(!!username, errs.username)}/>
+                        <AtSign size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input 
+                          type="text"
+                          value={username}
+                          placeholder="john_doe"
+                          onChange={e => setUsername(e.target.value.toLowerCase())}
+                          className="form-input-focus"
+                          style={inputStyle(!!username, errs.username)}
+                        />
                       </div>
-                      <ErrMsg text={errs.username}/>
+                      {errs.username && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                          <AlertCircle size={10} />{errs.username}
+                        </p>
+                      )}
                     </div>
 
                     {/* Password */}
                     <div>
-                      <Label>Password</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Password
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type={showPw ? 'text' : 'password'} value={password} placeholder="Create a strong password"
-                          onChange={e => setPassword(e.target.value)} className="pq-inp"
-                          style={inpIconRight(!!password, errs.password)}/>
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4, display: 'flex', alignItems: 'center' }}>
-                          {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input 
+                          type={showPw ? 'text' : 'password'}
+                          value={password}
+                          placeholder="••••••••"
+                          onChange={e => setPassword(e.target.value)}
+                          className="form-input-focus"
+                          style={inputWithRightIcon(!!password, errs.password)}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPw(!showPw)}
+                          style={{
+                            position: 'absolute', right: 14, top: '50%',
+                            transform: 'translateY(-50%)', background: 'none',
+                            border: 'none', cursor: 'pointer', color: '#94A3B8',
+                            padding: 4, display: 'flex', alignItems: 'center'
+                          }}
+                        >
+                          {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
                       </div>
-                      <ErrMsg text={errs.password}/>
-                      <PwStrength password={password}/>
+                      {errs.password && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                          <AlertCircle size={10} />{errs.password}
+                        </p>
+                      )}
+                      <PwStrength password={password} />
                     </div>
 
                     {/* Confirm Password */}
                     <div>
-                      <Label>Confirm Password</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Confirm Password
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type={showConfirm ? 'text' : 'password'} value={confirm} placeholder="Repeat your password"
-                          onChange={e => setConfirm(e.target.value)} className="pq-inp"
-                          style={inpIconRight(!!confirm, errs.confirm)}/>
-                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4, display: 'flex', alignItems: 'center' }}>
-                          {showConfirm ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input 
+                          type={showConfirm ? 'text' : 'password'}
+                          value={confirm}
+                          placeholder="Repeat your password"
+                          onChange={e => setConfirm(e.target.value)}
+                          className="form-input-focus"
+                          style={inputWithRightIcon(!!confirm, errs.confirm)}
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowConfirm(!showConfirm)}
+                          style={{
+                            position: 'absolute', right: 14, top: '50%',
+                            transform: 'translateY(-50%)', background: 'none',
+                            border: 'none', cursor: 'pointer', color: '#94A3B8',
+                            padding: 4, display: 'flex', alignItems: 'center'
+                          }}
+                        >
+                          {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
                       </div>
-                      <ErrMsg text={errs.confirm}/>
+                      {errs.confirm && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                          <AlertCircle size={10} />{errs.confirm}
+                        </p>
+                      )}
                     </div>
 
                     {/* Terms */}
                     <div>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
-                        <div onClick={() => setAgreed(!agreed)}
-                          style={{ width: 22, height: 22, borderRadius: 7, border: `2px solid ${agreed ? C.green : errs.agreed ? C.danger : C.g300}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, background: agreed ? C.green : 'transparent', transition: 'all 0.15s', cursor: 'pointer' }}>
-                          {agreed && <Check size={11} color="white"/>}
+                      <div 
+                        onClick={() => setAgreed(!agreed)}
+                        style={{ 
+                          display: 'flex', alignItems: 'flex-start', gap: 10, 
+                          cursor: 'pointer', padding: 4, borderRadius: 10,
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          width: 22, height: 22, borderRadius: 7,
+                          border: `2px solid ${errs.agreed ? '#EF4444' : agreed ? '#2D6A4F' : '#CBD5E1'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0, marginTop: 1, transition: 'all 0.2s',
+                          cursor: 'pointer', background: agreed ? '#2D6A4F' : 'transparent'
+                        }}>
+                          {agreed && <Check size={12} color="white" />}
                         </div>
-                        <p style={{ fontSize: 12, lineHeight: 1.6, color: C.g600, margin: 0 }}>
+                        <p style={{ fontSize: 12, lineHeight: 1.5, color: '#64748B', margin: 0 }}>
                           I agree to the{' '}
-                          <a href="/terms" style={{ fontWeight: 700, color: C.green }}>Terms of Service</a>
+                          <a href="/terms" style={{ color: '#2D6A4F', fontWeight: 700, textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+                            Terms of Service
+                          </a>
                           {' '}and{' '}
-                          <a href="/privacy" style={{ fontWeight: 700, color: C.green }}>Privacy Policy</a>.
+                          <a href="/privacy" style={{ color: '#2D6A4F', fontWeight: 700, textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+                            Privacy Policy
+                          </a>.
                           I understand all trades are escrow-protected.
                         </p>
-                      </label>
-                      <ErrMsg text={errs.agreed}/>
+                      </div>
+                      {errs.agreed && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}>
+                          <AlertCircle size={10} />{errs.agreed}
+                        </p>
+                      )}
                     </div>
 
-                    <PrimaryBtn onClick={handleRegister} disabled={loading}>
-                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Creating Account…</> : <>Create Account <ArrowRight size={15}/></>}
-                    </PrimaryBtn>
+                    {/* Submit */}
+                    <button 
+                      onClick={handleRegister}
+                      disabled={loading}
+                      className="submit-btn"
+                    >
+                      {loading ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          Creating Account…
+                        </>
+                      ) : (
+                        <>
+                          Create Account
+                          <ArrowRight size={16} />
+                        </>
+                      )}
+                    </button>
 
-                    <p style={{ textAlign: 'center', fontSize: 13, color: C.g500, margin: 0 }}>
+                    {/* Sign In Link */}
+                    <p style={{ textAlign: 'center', fontSize: 13, color: '#64748B', margin: 0 }}>
                       Already have an account?{' '}
-                      <Link to="/login" style={{ fontWeight: 800, color: C.green }}>Log In</Link>
+                      <Link to="/login" style={{ color: '#2D6A4F', fontWeight: 700, textDecoration: 'none' }}>
+                        Sign In
+                      </Link>
                     </p>
-                  </>
+                  </div>
                 )}
 
-                {/* ─── FORGOT f1 ─── */}
+                {/* FORGOT PASSWORD f1 */}
                 {step === 'f1' && (
-                  <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {globalError && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger, border: '1.5px solid #FECACA' }}>
-                        <AlertCircle size={13} style={{ flexShrink: 0 }}/>{globalError}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '10px 14px', borderRadius: 12, fontSize: 12,
+                        background: '#FEF2F2', color: '#EF4444',
+                        border: '1.5px solid #FECACA'
+                      }}>
+                        <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                        {globalError}
                       </div>
                     )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 5, borderRadius: 14, background: C.g100 }}>
-                      {[{ val: 'email', Icon: AtSign, label: 'Email' }, { val: 'phone', Icon: Smartphone, label: 'Phone' }].map(({ val, Icon, label }) => (
-                        <button key={val} onClick={() => { setMethod(val); setErrs({}); }}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: method === val ? C.white : 'transparent', color: method === val ? C.green : C.g500, boxShadow: method === val ? '0 1px 6px rgba(0,0,0,0.10)' : 'none' }}>
-                          <Icon size={14}/>{label}
-                        </button>
-                      ))}
+                    <div className="method-toggle">
+                      <button onClick={() => setMethod('email')} className={`method-btn ${method === 'email' ? 'active' : ''}`}>
+                        <Mail size={14} />Email
+                      </button>
+                      <button onClick={() => setMethod('phone')} className={`method-btn ${method === 'phone' ? 'active' : ''}`}>
+                        <Smartphone size={14} />Phone
+                      </button>
                     </div>
 
                     {method === 'email' ? (
                       <div>
-                        <Label>Email Address</Label>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Email Address
+                        </label>
                         <div style={{ position: 'relative' }}>
-                          <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
+                          <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
                           <input type="email" value={email} placeholder="you@example.com"
-                            onChange={e => setEmail(e.target.value)} className="pq-inp"
-                            style={inpWithIcon(!!email, errs.email)}/>
+                            onChange={e => setEmail(e.target.value)} className="form-input-focus"
+                            style={inputStyle(!!email, errs.email)} />
                         </div>
-                        <ErrMsg text={errs.email}/>
+                        {errs.email && <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}><AlertCircle size={10} />{errs.email}</p>}
                       </div>
                     ) : (
                       <div>
-                        <Label>Phone Number</Label>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Phone Number
+                        </label>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => setShowCodes(!showCodes)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px 12px', border: `2px solid ${C.g200}`, borderRadius: 14, background: C.white, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.g700, flexShrink: 0 }}>
+                          <button onClick={() => setShowCodes(!showCodes)} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '13px 14px', border: '2px solid #E2E8F0',
+                            borderRadius: 14, background: 'white', cursor: 'pointer',
+                            fontSize: 13, fontWeight: 600, color: '#334155', flexShrink: 0,
+                            fontFamily: "'Inter', sans-serif",
+                          }}>
                             <span style={{ fontSize: 18 }}>{phoneCode.flag}</span>
                             <span>{phoneCode.code}</span>
                           </button>
                           <div style={{ flex: 1, position: 'relative' }}>
-                            <Phone size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                            <input type="tel" value={phone} placeholder="24 XXX XXXX"
-                              onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} className="pq-inp"
-                              style={inpWithIcon(!!phone, errs.phone)}/>
+                            <Phone size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                            <input type="tel" value={phone} placeholder="244 123 4567"
+                              onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} className="form-input-focus"
+                              style={{ ...inputStyle(!!phone, errs.phone), paddingLeft: 38 }} />
                           </div>
                         </div>
-                        <ErrMsg text={errs.phone}/>
+                        {errs.phone && <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}><AlertCircle size={10} />{errs.phone}</p>}
                       </div>
                     )}
 
-                    <PrimaryBtn onClick={sendOTP} disabled={loading}>
-                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Sending code…</> : <>Send Reset Code <ArrowRight size={15}/></>}
-                    </PrimaryBtn>
+                    <button onClick={sendOTP} disabled={loading} className="submit-btn">
+                      {loading ? <><RefreshCw size={16} className="animate-spin" />Sending code…</> : <>Send Reset Code <ArrowRight size={16} /></>}
+                    </button>
 
-                    <button onClick={backToRegister} style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, color: C.g500 }}>
+                    <button onClick={backToRegister} style={{
+                      width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600, color: '#64748B', padding: 8,
+                      fontFamily: "'Inter', sans-serif",
+                    }}>
                       ← Back to Register
                     </button>
-                  </>
+                  </div>
                 )}
 
-                {/* ─── FORGOT f2 OTP ─── */}
+                {/* FORGOT f2 OTP */}
                 {step === 'f2' && (
-                  <>
-                    <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                      <div style={{ width: 60, height: 60, borderRadius: 20, background: `${C.green}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{
+                        width: 56, height: 56, borderRadius: 16,
+                        background: 'rgba(45,106,79,0.08)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 12px', fontSize: 26
+                      }}>
                         {method === 'email' ? '📧' : '📱'}
                       </div>
-                      <p style={{ fontSize: 12, color: C.g500, margin: '0 0 4px' }}>We sent a 6-digit code to</p>
-                      <p style={{ fontSize: 14, fontWeight: 900, color: C.forest, margin: 0 }}>{contact}</p>
+                      <p style={{ fontSize: 12, color: '#64748B', margin: '0 0 4px' }}>We sent a 6-digit code to</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#1B4332', margin: 0, wordBreak: 'break-all' }}>{contact}</p>
                     </div>
 
                     {globalError && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger }}>
-                        <AlertCircle size={13}/>{globalError}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: '#EF4444' }}>
+                        <AlertCircle size={14} />{globalError}
                       </div>
                     )}
 
-                    <OTPInput value={otp} onChange={setOtp} hasError={!!otpError}/>
+                    <OTPInput value={otp} onChange={setOtp} hasError={!!otpError} />
 
                     {otpError && (
-                      <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 600, color: C.danger, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, margin: 0 }}>
-                        <AlertCircle size={11}/>{otpError}
+                      <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, margin: 0 }}>
+                        <AlertCircle size={11} />{otpError}
                       </p>
                     )}
 
-                    <PrimaryBtn onClick={verifyOTP} disabled={loading || otp.length < 6}>
-                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Verifying…</> : <>Verify Code <ArrowRight size={15}/></>}
-                    </PrimaryBtn>
+                    <button onClick={verifyOTP} disabled={loading || otp.length < 6} className="submit-btn">
+                      {loading ? <><RefreshCw size={16} className="animate-spin" />Verifying…</> : <>Verify Code <ArrowRight size={16} /></>}
+                    </button>
 
                     <div style={{ textAlign: 'center' }}>
-                      {otpTimer > 0
-                        ? <p style={{ fontSize: 12, color: C.g400, margin: 0 }}>Resend in <span style={{ fontWeight: 700, color: C.green }}>{otpTimer}s</span></p>
-                        : <button onClick={() => { setOtp(''); sendOTP(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.green, display: 'flex', alignItems: 'center', gap: 5, margin: '0 auto' }}>
-                            <RefreshCw size={11}/>Resend Code
-                          </button>
-                      }
+                      {otpTimer > 0 ? (
+                        <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+                          Resend in <span style={{ fontWeight: 700, color: '#2D6A4F' }}>{otpTimer}s</span>
+                        </p>
+                      ) : (
+                        <button onClick={() => { setOtp(''); sendOTP(); }} style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 12, fontWeight: 700, color: '#2D6A4F',
+                          display: 'flex', alignItems: 'center', gap: 5, margin: '0 auto',
+                          fontFamily: "'Inter', sans-serif",
+                        }}>
+                          <RefreshCw size={11} />Resend Code
+                        </button>
+                      )}
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '12px 14px', borderRadius: 12, background: `${C.gold}12`, fontSize: 12, color: C.g600 }}>
-                      <span style={{ flexShrink: 0, marginTop: 1 }}>💡</span>
-                      Check your spam/junk folder if you don't see it. Codes expire in 10 minutes.
-                    </div>
-                  </>
+                  </div>
                 )}
 
-                {/* ─── FORGOT f3 new password ─── */}
+                {/* FORGOT f3 New Password */}
                 {step === 'f3' && (
-                  <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {globalError && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: C.danger }}>
-                        <AlertCircle size={13}/>{globalError}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, fontSize: 12, background: '#FEF2F2', color: '#EF4444' }}>
+                        <AlertCircle size={14} />{globalError}
                       </div>
                     )}
 
                     <div>
-                      <Label>New Password</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        New Password
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type={showPw ? 'text' : 'password'} value={password} placeholder="Create a new strong password"
-                          onChange={e => setPassword(e.target.value)} className="pq-inp"
-                          style={inpIconRight(!!password, errs.password)}/>
-                        <button type="button" onClick={() => setShowPw(!showPw)}
-                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4 }}>
-                          {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input type={showPw ? 'text' : 'password'} value={password}
+                          placeholder="Create a new strong password"
+                          onChange={e => setPassword(e.target.value)} className="form-input-focus"
+                          style={inputWithRightIcon(!!password, errs.password)} />
+                        <button type="button" onClick={() => setShowPw(!showPw)} style={{
+                          position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8',
+                          padding: 4, display: 'flex', alignItems: 'center'
+                        }}>
+                          {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
                       </div>
-                      <ErrMsg text={errs.password}/>
-                      <PwStrength password={password}/>
+                      {errs.password && <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}><AlertCircle size={10} />{errs.password}</p>}
+                      <PwStrength password={password} />
                     </div>
 
                     <div>
-                      <Label>Confirm New Password</Label>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Confirm New Password
+                      </label>
                       <div style={{ position: 'relative' }}>
-                        <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: C.g400, pointerEvents: 'none' }}/>
-                        <input type={showConfirm ? 'text' : 'password'} value={confirm} placeholder="Repeat your password"
-                          onChange={e => setConfirm(e.target.value)} className="pq-inp"
-                          style={inpIconRight(!!confirm, errs.confirm)}/>
-                        <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.g400, padding: 4 }}>
-                          {showConfirm ? <EyeOff size={17}/> : <Eye size={17}/>}
+                        <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none', zIndex: 1 }} />
+                        <input type={showConfirm ? 'text' : 'password'} value={confirm}
+                          placeholder="Repeat your password"
+                          onChange={e => setConfirm(e.target.value)} className="form-input-focus"
+                          style={inputWithRightIcon(!!confirm, errs.confirm)} />
+                        <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{
+                          position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8',
+                          padding: 4, display: 'flex', alignItems: 'center'
+                        }}>
+                          {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
                       </div>
-                      <ErrMsg text={errs.confirm}/>
+                      {errs.confirm && <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444', marginTop: 5, fontWeight: 500 }}><AlertCircle size={10} />{errs.confirm}</p>}
                     </div>
 
-                    <PrimaryBtn onClick={handleResetPassword} disabled={loading}>
-                      {loading ? <><RefreshCw size={15} className="pq-spin"/>Resetting…</> : <>Reset Password <ArrowRight size={15}/></>}
-                    </PrimaryBtn>
-                  </>
+                    <button onClick={handleResetPassword} disabled={loading} className="submit-btn">
+                      {loading ? <><RefreshCw size={16} className="animate-spin" />Resetting…</> : <>Reset Password <ArrowRight size={16} /></>}
+                    </button>
+                  </div>
                 )}
 
-                {/* ─── REGISTER step 4 success ─── */}
+                {/* Success States */}
                 {step === 4 && (
-                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${C.success}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-                      <CheckCircle size={42} style={{ color: C.success }}/>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{
+                      width: 80, height: 80, borderRadius: '50%',
+                      background: 'rgba(16,185,129,0.1)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 20px'
+                    }}>
+                      <CheckCircle size={42} style={{ color: '#10B981' }} />
                     </div>
-                    <h3 style={{ fontSize: 22, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", margin: '0 0 8px' }}>Welcome to PRAQEN! 🎉</h3>
-                    <p style={{ fontSize: 13, color: C.g500, margin: '0 0 24px' }}>Your account is ready. Redirecting to the marketplace…</p>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: C.g400 }}>
-                      <RefreshCw size={12} className="pq-spin"/>Taking you to live offers…
+                    <h3 style={{ fontSize: 24, fontWeight: 800, color: '#1B4332', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                      Welcome to <span className="shimmer-text">PRAQEN</span>! 🎉
+                    </h3>
+                    <p style={{ fontSize: 14, color: '#64748B', margin: '0 0 16px', lineHeight: 1.6 }}>
+                      Your account is ready. Redirecting to the marketplace…
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 12, color: '#94A3B8' }}>
+                      <RefreshCw size={12} className="animate-spin" />
+                      Taking you to live offers…
                     </div>
                   </div>
                 )}
 
-                {/* ─── FORGOT f4 success ─── */}
                 {step === 'f4' && (
-                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${C.success}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
-                      <CheckCircle size={42} style={{ color: C.success }}/>
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{
+                      width: 80, height: 80, borderRadius: '50%',
+                      background: 'rgba(16,185,129,0.1)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      margin: '0 auto 20px'
+                    }}>
+                      <CheckCircle size={42} style={{ color: '#10B981' }} />
                     </div>
-                    <h3 style={{ fontSize: 22, fontWeight: 900, color: C.forest, fontFamily: "'Syne',sans-serif", margin: '0 0 8px' }}>Password Reset! ✅</h3>
-                    <p style={{ fontSize: 13, color: C.g500, margin: '0 0 24px' }}>You can now log in with your new password.</p>
-                    <PrimaryBtn onClick={() => navigate('/login')}>Go to Login →</PrimaryBtn>
+                    <h3 style={{ fontSize: 24, fontWeight: 800, color: '#1B4332', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                      Password Reset! ✅
+                    </h3>
+                    <p style={{ fontSize: 14, color: '#64748B', margin: '0 0 20px', lineHeight: 1.6 }}>
+                      You can now log in with your new password.
+                    </p>
+                    <button onClick={() => navigate('/login')} className="submit-btn">
+                      Go to Login <ArrowRight size={16} />
+                    </button>
                   </div>
                 )}
-
               </div>
 
-              {/* Card footer */}
+              {/* Card Footer */}
               {step !== 4 && step !== 'f4' && (
-                <div style={{ padding: '11px 16px', borderTop: `1px solid ${C.g100}`, background: C.g50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                    <Shield size={10} style={{ color: C.g400 }}/>
-                    <span style={{ fontSize: 10, color: C.g400 }}>SSL · Zero fraud</span>
+                <div className="card-footer-bar">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8' }}>
+                    <Shield size={11} />
+                    <span>SSL · Zero fraud</span>
                   </div>
-                  <div style={{ flexShrink: 0 }}>
+                  <div>
                     {mode === 'register' && step === 1 && (
-                      <button onClick={startForgot} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.green, whiteSpace: 'nowrap' }}>
+                      <button onClick={startForgot} style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 12, fontWeight: 600, color: '#2D6A4F',
+                        fontFamily: "'Inter', sans-serif", padding: '4px 8px',
+                        borderRadius: 8, transition: 'background 0.2s'
+                      }}>
                         Forgot password?
                       </button>
                     )}
                     {mode === 'forgot' && (
-                      <button onClick={backToRegister} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.g500, whiteSpace: 'nowrap' }}>
+                      <button onClick={backToRegister} style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 12, fontWeight: 600, color: '#64748B',
+                        fontFamily: "'Inter', sans-serif", padding: '4px 8px',
+                        borderRadius: 8,
+                      }}>
                         ← Register instead
                       </button>
                     )}
@@ -802,32 +1599,9 @@ export default function Register({ onLogin }) {
                 </div>
               )}
             </div>
-
-            {step === 1 && mode === 'register' && (
-              <p style={{ textAlign: 'center', fontSize: 13, color: C.g500, marginTop: 16 }}>
-                Already have an account?{' '}
-                <Link to="/login" style={{ fontWeight: 800, color: C.green }}>Sign In</Link>
-              </p>
-            )}
           </div>
         </div>
       </div>
-
-      {/* ── Mobile bottom nav ─────────────────────────────────────────────── */}
-      <div className="pq-bottom-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: C.white, borderTop: `1px solid ${C.g200}`, zIndex: 40, paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 20px rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '8px 0' }}>
-        <style>{`@media(min-width:1024px){ .pq-bottom-nav { display:none !important; } }`}</style>
-        {[
-          { Icon: Home,  label: 'Home',    path: '/' },
-          { Icon: Gift,  label: 'Gifts',   path: '/gift-cards' },
-          { Icon: LogIn, label: 'Sign In', path: '/login' },
-        ].map(({ Icon, label, path }) => (
-          <button key={label} onClick={() => navigate(path)}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '6px 22px', borderRadius: 12, background: 'none', border: 'none', cursor: 'pointer', color: C.g400 }}>
-            <Icon size={21} strokeWidth={1.8}/>
-            <span style={{ fontSize: 10, fontWeight: 700 }}>{label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+    </>
   );
 }

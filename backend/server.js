@@ -21,6 +21,7 @@ const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 const twilioVerifySid = process.env.TWILIO_VERIFY_SID || 'VAddba23c45841679ed249d49be8a90bbe';
 const CoinbaseWalletService = require('./services/coinbaseWallet');
 const quoteService          = require('./services/quoteService');
+const { E, S }              = require('./utils/apiErrors');
 
 // ── 2. Read & validate env vars immediately after loading ──────────────────
 const SUPABASE_URL              = process.env.SUPABASE_URL;
@@ -218,7 +219,7 @@ async function sendVerificationEmail(email, code) {
     const year = new Date().getFullYear();
     try {
         await transporter.sendMail({
-            from: '"PRAQEN" <kendevdash@gmail.com>',
+            from: `"PRAQEN" <${process.env.EMAIL_USER || 'kendevdash@gmail.com'}>`,
             to: email,
             subject: '🔐 Your PRAQEN verification code',
             html: `<!DOCTYPE html>
@@ -588,13 +589,13 @@ async function releaseFundsToBuyer(tradeId, buyerId, amountBtc, tradeAmountUsd) 
 
 function verifyToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
+  if (!token) return res.status(401).json({ error: E.NO_TOKEN });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
     next();
   } catch {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: E.INVALID_TOKEN });
   }
 }
 
@@ -653,20 +654,20 @@ app.post('/api/auth/register', async (req, res) => {
 
     // ── Validate inputs ────────────────────────────────────────────────────
     if (!email || !password || !username) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: E.MISSING_FIELDS });
     }
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({ error: E.PASSWORD_TOO_SHORT });
     }
 
     // ── Check uniqueness (fast DB lookups) ─────────────────────────────────
     const { data: existingUser } = await supabaseAdmin
       .from('users').select('email').eq('email', email.toLowerCase().trim()).single();
-    if (existingUser) return res.status(400).json({ error: 'An account with this email already exists.' });
+    if (existingUser) return res.status(400).json({ error: E.EMAIL_TAKEN });
 
     const { data: existingUsername } = await supabaseAdmin
       .from('users').select('id').eq('username', username.trim()).single();
-    if (existingUsername) return res.status(400).json({ error: 'That username is already taken. Please choose a different one.' });
+    if (existingUsername) return res.status(400).json({ error: E.USERNAME_TAKEN });
 
     // ── Referral lookup ────────────────────────────────────────────────────
     let referrerId = null;
@@ -704,7 +705,7 @@ app.post('/api/auth/register', async (req, res) => {
       console.error('[Register] DB insert error:', error);
       return res.status(400).json({ error: error.message });
     }
-    if (!data || data.length === 0) return res.status(400).json({ error: 'Failed to create user' });
+    if (!data || data.length === 0) return res.status(400).json({ error: E.REGISTER_FAILED });
 
     const newUser = data[0];
 
@@ -1065,8 +1066,8 @@ app.post('/api/auth/send-verification', async (req, res) => {
       <div class="code">${code}</div><p>This code expires in 10 minutes.</p></div>
       <div class="footer"><p>&copy; 2024 PRAQEN. All rights reserved.</p></div>
     </div></body></html>`;
-    await emailTransporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@praqen.com', to: email,
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `"PRAQEN" <${process.env.EMAIL_USER}>`, to: email,
       subject: 'Verify Your Email - PRAQEN',
       text: `Your PRAQEN verification code is: ${code}\nExpires in 10 minutes.`,
       html: htmlContent,
@@ -1145,30 +1146,33 @@ app.post('/api/auth/verify-code', async (req, res) => {
 // Called from Profile page after user is logged in
 // ============================================================
 
-// POST /api/users/resend-verification — resend email code to logged-in user
+// POST /api/users/resend-verification — send email verification code to logged-in user
 app.post('/api/users/resend-verification', verifyToken, async (req, res) => {
   try {
     const { data: user } = await supabaseAdmin
       .from('users').select('email, is_email_verified').eq('id', req.userId).single();
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.is_email_verified) return res.json({ success: true, message: 'Email already verified' });
+    if (!user.email) return res.status(400).json({ error: 'No email address on your account.' });
 
     const code      = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000;
+
+    // Store in memory and DB before sending
     verificationCodes.set(user.email, { code, expiresAt, userId: req.userId });
     await supabaseAdmin.from('users').update({
       verification_code:         code,
-      verification_code_expires: new Date(expiresAt),
+      verification_code_expires: new Date(expiresAt).toISOString(),
     }).eq('id', req.userId);
 
-    // Fire-and-forget — never block response on SMTP
-    sendVerificationEmail(user.email, code)
-      .catch(e => console.error('[resend-verification] Email failed:', e.message));
+    // Await email so we return a real error if SMTP fails
+    await sendVerificationEmail(user.email, code);
 
+    console.log(`[resend-verification] Code sent to ${user.email}`);
     res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (err) {
     console.error('[resend-verification]', err.message);
-    res.status(500).json({ error: 'Failed to send code. Try again.' });
+    res.status(500).json({ error: 'Failed to send email. Please check your inbox or try again.' });
   }
 });
 
@@ -1394,33 +1398,92 @@ app.post('/api/users/heartbeat', verifyToken, async (req, res) => {
 
 app.get('/api/users/profile', verifyToken, async (req, res) => {
   try {
+    // Core columns — confirmed to exist in every PRAQEN DB schema
     const { data, error } = await supabaseAdmin.from('users')
-      .select('id, email, username, full_name, bio, location, website, phone, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, email_verified, is_phone_verified, phone_verified, kyc_verified, kyc_status, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc, username_changed, preferred_currency, preferred_language, hide_full_name')
+      .select('id, email, username, full_name, bio, location, website, phone, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge')
       .eq('id', req.userId).single();
-    if (error) return res.status(400).json({ error: error.message });
-    const { data: wallet } = await supabaseAdmin.from('mock_wallets').select('*').eq('user_id', req.userId).single();
-    const { data: balance } = await supabaseAdmin.from('user_balances').select('balance_btc, balance_usd').eq('user_id', req.userId).single();
+    if (error) {
+      console.error('[GET /api/users/profile] DB error:', error.message);
+      return res.status(500).json({ error: 'Could not load your profile. Please try again.' });
+    }
+    if (!data) return res.status(404).json({ error: 'Profile not found.' });
+
+    // Optional columns — isolated so a missing column never breaks the response
+    let extraFields = {};
+    try {
+      const { data: extra } = await supabaseAdmin.from('users')
+        .select('email_verified, is_phone_verified, phone_verified, kyc_verified, kyc_status, username_changed, preferred_currency, preferred_language, hide_full_name, referral_code, total_referrals, referral_earnings_btc')
+        .eq('id', req.userId).single();
+      if (extra) extraFields = extra;
+    } catch {}
+
+    // Balance — non-critical, silently ignored on error
+    let balance = { balance_btc: 0, balance_usd: 0 };
+    try {
+      const { data: bal } = await supabaseAdmin.from('user_balances').select('balance_btc, balance_usd').eq('user_id', req.userId).single();
+      if (bal) balance = bal;
+    } catch {}
+
     res.json({
-      user: { ...data, is_admin: data.is_admin || false, is_moderator: data.is_moderator || false, referral_code: data.referral_code || null },
-      wallet, balance: balance || { balance_btc: 0, balance_usd: 0 },
+      user: {
+        ...data,
+        ...extraFields,
+        is_admin: data.is_admin || false,
+        is_moderator: data.is_moderator || false,
+      },
+      balance,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[GET /api/users/profile] Unexpected error:', error.message);
+    res.status(500).json({ error: 'Could not load your profile. Please try again.' });
   }
 });
 
 app.get('/api/users/:userId', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin.from('users')
-      .select('id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, referral_code, total_referrals, referral_earnings_btc')
-      .eq('id', req.params.userId).single();
-    if (error) return res.status(404).json({ error: 'User not found' });
-    const { data: reviews } = await supabaseAdmin.from('reviews')
-      .select('*, reviewer:reviewer_id(id, username)').eq('reviewee_id', req.params.userId)
-      .order('created_at', { ascending: false }).limit(20);
-    res.json({ user: data, reviews: reviews || [] });
+    const param  = req.params.userId?.trim();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
+    // Core fields only — avoid non-existent columns causing 500s
+    const coreFields = 'id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge';
+
+    let data = null;
+
+    // Try UUID lookup first
+    if (isUUID) {
+      const { data: byId } = await supabaseAdmin.from('users').select(coreFields).eq('id', param).single();
+      data = byId;
+    }
+
+    // Fall back to username lookup (handles /profile/username URLs)
+    if (!data) {
+      const { data: byUsername } = await supabaseAdmin.from('users').select(coreFields).eq('username', param).single();
+      data = byUsername;
+    }
+
+    if (!data) return res.status(404).json({ error: 'User not found. They may have changed their username or the profile may no longer exist.' });
+
+    // Optional extra fields — silently ignored if columns don't exist
+    let extraFields = {};
+    try {
+      const { data: extra } = await supabaseAdmin.from('users')
+        .select('referral_code, total_referrals, referral_earnings_btc')
+        .eq('id', data.id).single();
+      if (extra) extraFields = extra;
+    } catch {}
+
+    // Reviews — silently ignored if table doesn't exist
+    let reviews = [];
+    try {
+      const { data: rv } = await supabaseAdmin.from('reviews')
+        .select('*, reviewer:reviewer_id(id, username)').eq('reviewee_id', data.id)
+        .order('created_at', { ascending: false }).limit(20);
+      reviews = rv || [];
+    } catch {}
+
+    res.json({ user: { ...data, ...extraFields }, reviews });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[GET /api/users/:userId]', error.message);
+    res.status(500).json({ error: 'We couldn\'t load this profile right now. Please try again.' });
   }
 });
 
@@ -1575,21 +1638,49 @@ app.post('/api/listings', verifyToken, async (req, res) => {
     const maxLocal    = parseFloat(b.max_limit_local) || 0;
 
     // ── Verification level checks ──────────────────────────────────────────────
-    const { data: listingUser } = await supabaseAdmin
-      .from('users').select('is_email_verified, is_phone_verified, is_id_verified')
+    // Use only columns confirmed to exist in the DB schema
+    const { data: listingUser, error: listingUserErr } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified, is_id_verified, phone')
       .eq('id', req.userId).single();
 
-    const isSellListing = listingType === 'SELL' || listingType === 'SELL_BITCOIN';
-    if (isSellListing && !listingUser?.is_email_verified) {
+    let hasEmail = false, hasPhone = false, hasKyc = false;
+    if (listingUserErr) {
+      // Fallback: column mismatch — try bare minimum safe columns
+      const { data: safeUser } = await supabaseAdmin
+        .from('users').select('is_email_verified, is_id_verified, phone')
+        .eq('id', req.userId).single();
+      hasEmail = !!(safeUser?.is_email_verified);
+      hasKyc   = !!(safeUser?.is_id_verified);
+      hasPhone = !!(safeUser?.phone);
+    } else {
+      hasEmail = !!(listingUser?.is_email_verified);
+      hasPhone = !!(listingUser?.is_phone_verified || listingUser?.phone);
+      hasKyc   = !!(listingUser?.is_id_verified);
+    }
+    const verifCount = [hasEmail, hasPhone, hasKyc].filter(Boolean).length;
+
+    // Rule 1: Any 1 verification (email OR phone) lets you create buy AND sell offers
+    if (verifCount < 1) {
       return res.status(403).json({
-        error: 'Please verify your email to create sell offers.',
-        requireVerification: 'email'
+        error: 'Please verify your email or phone number to create offers. Go to Profile → Verification to get started.',
+        requireVerification: 'any',
       });
     }
-    if (maxUSD >= 10000 && (!listingUser?.is_email_verified || !listingUser?.is_phone_verified || !listingUser?.is_id_verified)) {
+
+    // Rule 2: Gift card listings require 2 verifications (higher-risk trades)
+    const isGiftCard = listingType === 'BUY_GIFT_CARD' || listingType === 'SELL_GIFT_CARD' || listingType === 'GIFT_CARD';
+    if (isGiftCard && verifCount < 2) {
       return res.status(403).json({
-        error: 'Trades of $10,000 or more require email, phone, and ID verification.',
-        requireVerification: 'all'
+        error: 'Gift card offers require 2 verifications. Please verify your email and phone number.',
+        requireVerification: 'two',
+      });
+    }
+
+    // Rule 3: Very large trades ($10k+) still require all 3
+    if (maxUSD >= 10000 && verifCount < 3) {
+      return res.status(403).json({
+        error: 'Offers over $10,000 require email, phone, and ID verification.',
+        requireVerification: 'all',
       });
     }
 
@@ -1661,9 +1752,9 @@ app.get('/api/listings', async (req, res) => {
       time_limit, trade_instructions, listing_terms, description, created_at,
       card_values, card_type, face_value,
       users:seller_id(id, username, average_rating, total_trades, completion_rate,
-        avatar_url, is_id_verified, is_email_verified, last_login, created_at,
+        avatar_url, is_id_verified, is_email_verified, last_login, last_seen_at, created_at,
         total_feedback_count, positive_feedback, negative_feedback, country, bio, badge)
-    `).neq('status', 'DELETED').order('created_at', { ascending: false });
+    `).eq('status', 'ACTIVE').order('created_at', { ascending: false });
     if (brand) query = query.ilike('gift_card_brand', `%${brand}%`);
     if (minPrice) query = query.gte('bitcoin_price', parseFloat(minPrice));
     if (maxPrice) query = query.lte('bitcoin_price', parseFloat(maxPrice));
@@ -1678,7 +1769,7 @@ app.get('/api/listings', async (req, res) => {
 app.get('/api/listings/:id', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('listings')
-      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, badge, country, is_id_verified, is_email_verified, bio)`)
+      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, is_id_verified, is_email_verified, bio)`)
       .eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Listing not found' });
     res.json({ listing: data });
@@ -1927,15 +2018,38 @@ app.post('/api/trades', verifyToken, async (req, res) => {
     console.log(`[Trade] type:${listingTypeUpper} → buyer:${buyerId.slice(0,8)} seller:${sellerId.slice(0,8)} btcProvider:${btcProviderId.slice(0,8)}`);
 
     // ── Fetch trade opener verification status for permission checks ───────────
-    const { data: tradeOpener } = await supabaseAdmin
-      .from('users').select('is_email_verified, is_phone_verified, is_id_verified')
+    const { data: tradeOpener, error: tradeOpenerErr } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified, is_id_verified, phone')
       .eq('id', req.userId).single();
 
-    // Level 1: Email required to sell Bitcoin
-    if (sellerId === req.userId && !tradeOpener?.is_email_verified) {
+    let tHasEmail = false, tHasPhone = false, tHasKyc = false;
+    if (tradeOpenerErr) {
+      const { data: safeOpener } = await supabaseAdmin
+        .from('users').select('is_email_verified, is_id_verified, phone')
+        .eq('id', req.userId).single();
+      tHasEmail = !!(safeOpener?.is_email_verified);
+      tHasPhone = !!(safeOpener?.phone);
+      tHasKyc   = !!(safeOpener?.is_id_verified);
+    } else {
+      tHasEmail = !!(tradeOpener?.is_email_verified);
+      tHasPhone = !!(tradeOpener?.is_phone_verified || tradeOpener?.phone);
+      tHasKyc   = !!(tradeOpener?.is_id_verified);
+    }
+    const tVerifCount = [tHasEmail, tHasPhone, tHasKyc].filter(Boolean).length;
+
+    // Rule 1: Any 1 verification to open any trade
+    if (tVerifCount < 1) {
       return res.status(403).json({
-        error: 'Please verify your email to sell Bitcoin.',
-        requireVerification: 'email'
+        error: 'Please verify your email or phone number before trading. Go to Profile → Verification.',
+        requireVerification: 'any',
+      });
+    }
+
+    // Rule 2: Gift card trades require 2 verifications
+    if (listingTypeUpper.includes('GIFT_CARD') && tVerifCount < 2) {
+      return res.status(403).json({
+        error: 'Gift card trades require 2 verifications. Please verify your email and phone number.',
+        requireVerification: 'two',
       });
     }
 
@@ -2018,11 +2132,11 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       });
     }
 
-    // Level 2+: Large trades ($10k+) require email + phone + ID
-    if (tradeAmountUsd >= 10000 && (!tradeOpener?.is_email_verified || !tradeOpener?.is_phone_verified || !tradeOpener?.is_id_verified)) {
+    // Rule 3: Large trades ($10k+) require all 3 verifications
+    if (tradeAmountUsd >= 10000 && tVerifCount < 3) {
       return res.status(403).json({
         error: 'Trades of $10,000 or more require email, phone, and ID verification.',
-        requireVerification: 'all'
+        requireVerification: 'all',
       });
     }
 
@@ -2837,6 +2951,140 @@ app.post('/api/wallet/withdraw', verifyToken, async (req, res) => {
     await supabaseAdmin.from('wallet_transactions').insert({ user_id: req.userId, type: 'WITHDRAWAL', amount_btc: amount, status: 'PENDING', destination_address: address, created_at: new Date() }).maybeSingle();
     res.json({ success: true, message: `Withdrawal of ${amount} BTC to ${address} is pending processing.`, new_balance: newBal, note: 'Withdrawals are processed manually within 24 hours. Contact support@praqen.com for urgent requests.' });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/wallet/internal-transfer
+// FREE instant balance-to-balance transfer between two PRAQEN users.
+// No on-chain broadcast, no PRAQEN platform fee, no network miner fee.
+// Only trades (Buy/Sell/Gift Card) carry the 0.5% fee.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/wallet/internal-transfer', verifyToken, async (req, res) => {
+  try {
+    const { toUsername, toAddress, amountBtc } = req.body;
+    const amount = parseFloat(amountBtc);
+
+    if ((!toUsername && !toAddress) || !amountBtc || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Recipient (username or address) and a positive amount are required' });
+    }
+
+    // ── Find the recipient PRAQEN user ─────────────────────────────────────
+    let recipientId, recipientUsername;
+
+    if (toUsername) {
+      const { data: recipient } = await supabaseAdmin
+        .from('users').select('id, username').eq('username', toUsername.trim()).single();
+      if (!recipient) return res.status(404).json({ error: `@${toUsername} not found on PRAQEN` });
+      recipientId       = recipient.id;
+      recipientUsername = recipient.username;
+
+    } else {
+      // Look up BTC address in user_wallets — if found it is an internal PRAQEN address
+      const { data: wallet } = await supabaseAdmin
+        .from('user_wallets').select('user_id').eq('btc_address', toAddress.trim()).single();
+      if (!wallet) {
+        return res.status(404).json({
+          error: 'Address not registered on PRAQEN. Use on-chain send for external addresses.',
+          isExternal: true,
+        });
+      }
+      recipientId = wallet.user_id;
+      const { data: ru } = await supabaseAdmin.from('users').select('username').eq('id', recipientId).single();
+      recipientUsername = ru?.username || 'PRAQEN User';
+    }
+
+    if (String(recipientId) === String(req.userId)) {
+      return res.status(400).json({ error: 'Cannot transfer to yourself' });
+    }
+
+    // ── Check sender balance ───────────────────────────────────────────────
+    const { data: senderBal } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', req.userId).single();
+
+    const available = parseFloat(senderBal?.balance_btc || 0);
+    if (available < amount) {
+      return res.status(400).json({
+        error: `Insufficient balance. Available: ${available.toFixed(8)} BTC, Requested: ${amount.toFixed(8)} BTC`,
+      });
+    }
+
+    // ── Deduct from sender ─────────────────────────────────────────────────
+    const newSenderBalance = parseFloat((available - amount).toFixed(8));
+    await supabaseAdmin.from('user_balances')
+      .update({ balance_btc: newSenderBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', req.userId);
+    await supabaseAdmin.from('user_wallets')
+      .update({ balance_btc: newSenderBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', req.userId);
+
+    // ── Credit recipient ───────────────────────────────────────────────────
+    const { data: recipBal } = await supabaseAdmin
+      .from('user_balances').select('balance_btc').eq('user_id', recipientId).single();
+    const newRecipientBalance = parseFloat((parseFloat(recipBal?.balance_btc || 0) + amount).toFixed(8));
+    await supabaseAdmin.from('user_balances')
+      .upsert({ user_id: recipientId, balance_btc: newRecipientBalance, updated_at: new Date().toISOString() });
+    await supabaseAdmin.from('user_wallets')
+      .update({ balance_btc: newRecipientBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', recipientId);
+
+    // ── Generate transfer reference ────────────────────────────────────────
+    const crypto = require('crypto');
+    const txRef  = 'INT_' + crypto
+      .createHash('sha256')
+      .update(`${req.userId}:${recipientId}:${amount}:${Date.now()}`)
+      .digest('hex').slice(0, 20).toUpperCase();
+
+    // ── Log for sender (TRANSFER_OUT) ──────────────────────────────────────
+    await supabaseAdmin.from('wallet_transactions').insert({
+      user_id:    req.userId,
+      type:       'TRANSFER_OUT',
+      amount_btc: amount,
+      status:     'CONFIRMED',
+      tx_hash:    txRef,
+      notes:      `Internal transfer → @${recipientUsername} · No fee`,
+      created_at: new Date().toISOString(),
+    });
+
+    // ── Log for recipient (TRANSFER_IN) ───────────────────────────────────
+    await supabaseAdmin.from('wallet_transactions').insert({
+      user_id:    recipientId,
+      type:       'TRANSFER_IN',
+      amount_btc: amount,
+      status:     'CONFIRMED',
+      tx_hash:    txRef,
+      notes:      `Internal transfer received · No fee`,
+      created_at: new Date().toISOString(),
+    });
+
+    // ── Notify recipient ───────────────────────────────────────────────────
+    const { data: senderUser } = await supabaseAdmin.from('users').select('username').eq('id', req.userId).single();
+    await supabaseAdmin.from('notifications').insert({
+      user_id:    recipientId,
+      type:       'wallet',
+      title:      '₿ Bitcoin Received!',
+      message:    `₿${amount.toFixed(8)} sent to your wallet by @${senderUser?.username || 'a PRAQEN user'} — instant & free`,
+      action:     '/wallet',
+      is_read:    false,
+      created_at: new Date().toISOString(),
+    });
+
+    console.log(`[InternalTransfer] @${senderUser?.username} → @${recipientUsername} | ₿${amount} | FREE | ref:${txRef}`);
+
+    res.json({
+      success:     true,
+      txRef,
+      amount_btc:  amount,
+      fee:         0,
+      fee_label:   'Free — internal PRAQEN transfer',
+      to:          recipientUsername,
+      new_balance: newSenderBalance,
+      message:     `₿${amount.toFixed(8)} sent to @${recipientUsername} — instantly & free!`,
+    });
+
+  } catch (error) {
+    console.error('[POST /api/wallet/internal-transfer]', error.message);
     res.status(500).json({ error: error.message });
   }
 });

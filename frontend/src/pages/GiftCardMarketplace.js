@@ -131,7 +131,7 @@ const getUser     = (u) => Array.isArray(u)?u[0]:(u||{});
 const isVerified  = (u) => !!(u?.kyc_verified||u?.is_verified||u?.is_id_verified||u?.is_email_verified);
 const getTrades   = (u) => parseInt(u?.total_trades??u?.trade_count??0);
 const getLastSeen = (u) => {
-  const d=u?.last_login||u?.last_seen||u?.updated_at||u?.created_at;
+  const d=u?.last_seen_at||u?.last_login||u?.updated_at||u?.created_at;
   if(!d) return {label:'—',online:false};
   const s=(Date.now()-new Date(d))/1000;
   if(s<300)   return {label:'ACTIVE NOW', online:true};
@@ -387,7 +387,7 @@ function GCCard({listing, btcPriceUSD, onViewSeller, onTrade}) {
 }
 
 // ── Seller Modal ──────────────────────────────────────────────────────────────
-function SellerModal({seller, listing, onClose, onTrade}) {
+function SellerModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
   const [tab, setTab] = useState('rules');
   const {rates:USD_RATES} = useRates();
   if(!seller) return null;
@@ -402,7 +402,7 @@ function SellerModal({seller, listing, onClose, onTrade}) {
   const cur    = listing?.currency||'USD';
   const sym    = listing?.currency_symbol||CUR_SYM[cur]||'$';
   const usdRate= USD_RATES[cur]||1;
-  const rate   = getRateUSD(listing||{},68000)*usdRate;
+  const rate   = getRateUSD(listing||{},btcPriceUSD||68000)*usdRate;
   const margin = parseFloat(listing?.margin||0);
   const ccCode = (u?.country_code||u?.country||'gh').toLowerCase();
 
@@ -627,6 +627,7 @@ export default function GiftCards({user}) {
   const [modal,        setModal]        = useState(null);
   const [activeTrades, setActiveTrades] = useState([]);
   const [showAllTrades, setShowAllTrades] = useState(false);
+  const [pausedOffer,  setPausedOffer]  = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
   const [brandSearch,    setBrandSearch]    = useState('');
   const [countrySearch,  setCountrySearch]  = useState('');
@@ -639,6 +640,11 @@ export default function GiftCards({user}) {
     loadListings();
     const interval = setInterval(loadListings, 60000);
     return () => clearInterval(interval);
+  },[]);
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    if (!tk) return;
+    axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
   },[]);
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -670,6 +676,18 @@ export default function GiftCards({user}) {
       const data=all.filter(l=>l.listing_type==='BUY_GIFT_CARD'||l.listing_type==='SELL_GIFT_CARD');
       setListings(data);
       try { sessionStorage.setItem('praqen_gc', JSON.stringify({data, ts:Date.now()})); } catch {}
+
+      // Check if logged-in user has a paused gift card offer due to empty wallet
+      const tk=localStorage.getItem('token');
+      if(tk){
+        try{
+          const myR=await axios.get(`${API_URL}/my-listings`,{headers:{Authorization:`Bearer ${tk}`}});
+          const myPaused=(myR.data.listings||[]).filter(l=>
+            l.status==='PAUSED'&&(l.listing_type==='BUY_GIFT_CARD'||l.listing_type==='SELL_GIFT_CARD')
+          );
+          setPausedOffer(myPaused.length>0);
+        }catch{}
+      }
     } catch { if (!listings.length) toast.error('Failed to load gift card marketplace'); }
     finally { setLoading(false); }
   };
@@ -718,7 +736,7 @@ export default function GiftCards({user}) {
   const sym         = selCurrency.symbol||'₵';
   const usdRate     = USD_RATES[cur]||1;
   const btcLocal    = btcPrice*usdRate;
-  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_login||0))/1000<300).length;
+  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_seen_at||l.users?.last_login||0))/1000<300).length;
   const sellerCount = new Set(listings.map(l=>l.seller_id)).size;
   const hasFilters  = amountInput.trim()!==''||selBrand!=='All Brands'||selCountry.code!=='ALL'||traderSearch.trim()!==''||sortBy!=='rate_low';
 
@@ -804,6 +822,31 @@ export default function GiftCards({user}) {
         </div>
       </div>
 
+      {/* ══ PAUSED OFFER BANNER — shown to seller when their gift card offer is paused ══ */}
+      {pausedOffer && (
+        <div className="flex-shrink-0 px-3 pt-3">
+          <div className="max-w-7xl mx-auto rounded-2xl p-4 flex items-start gap-3"
+            style={{backgroundColor:'#FFFBEB', border:'1.5px solid #FCD34D'}}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{backgroundColor:'#FEF3C7'}}>
+              <Wallet size={16} style={{color:'#D97706'}}/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black" style={{color:'#92400E'}}>Your gift card offer is off the market</p>
+              <p className="text-xs mt-0.5 leading-relaxed" style={{color:'#B45309'}}>
+                Your Bitcoin wallet is empty, so your offer has been automatically paused. Top up your wallet to bring it back to the marketplace.
+              </p>
+            </div>
+            <button
+              onClick={()=>window.location.href='/wallet'}
+              className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-black text-white"
+              style={{backgroundColor:'#D97706'}}>
+              Top Up Wallet
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════
           4. FILTER BAR
       ══════════════════════════════════════════════════ */}
@@ -858,8 +901,8 @@ export default function GiftCards({user}) {
                     style={{color:C.g400}}/>
                 </button>
                 {showCurrency&&(
-                  <div className="dropdown-panel absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                    style={{borderColor:C.g100,minWidth:'200px',width:'max-content'}}>
+                  <div className="dropdown-panel absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                    style={{borderColor:C.g100,minWidth:'200px',maxWidth:'calc(100vw - 24px)'}}>
                     <div className="px-2 py-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="Search currency..." value={currencySearch}
                         onChange={e=>setCurrencySearch(e.target.value)} onClick={e=>e.stopPropagation()}
@@ -943,8 +986,8 @@ export default function GiftCards({user}) {
                     style={{color:selCountry.code!=='ALL'?C.forest:C.g400}}/>
                 </button>
                 {showCountry&&(
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                    style={{borderColor:C.g100,maxWidth:'calc(100vw - 24px)'}}>
+                  <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                    style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
                     <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
                       <input type="text" placeholder="🔍  Search country…"
                         value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
@@ -1116,6 +1159,7 @@ export default function GiftCards({user}) {
         <SellerModal
           seller={modal.seller}
           listing={modal.listing}
+          btcPriceUSD={btcPrice}
           onClose={()=>setModal(null)}
           onTrade={()=>handleTrade(modal.listing?.id)}
         />

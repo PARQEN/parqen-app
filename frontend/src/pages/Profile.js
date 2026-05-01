@@ -108,27 +108,34 @@ function EmailVerifyModal({userEmail,onClose,onSuccess}){
   const [step,setStep]=useState(1);
   const [code,setCode]=useState('');
   const [loading,setLoading]=useState(false);
+  const [sendErr,setSendErr]=useState('');
+
   const sendCode=async()=>{
-    setLoading(true);
+    setLoading(true); setSendErr('');
     try{
       const tk=localStorage.getItem('token');
       await axios.post(`${API_URL}/users/resend-verification`,{},{headers:{Authorization:`Bearer ${tk}`}});
-      toast.success('Verification code sent to your email!');
       setStep(2);
-    }catch(e){toast.error(e.response?.data?.error||'Failed to send code');}
+    }catch(e){
+      const msg=e?.response?.data?.error||'Failed to send code. Please try again.';
+      setSendErr(msg);
+      toast.error(msg);
+    }
     finally{setLoading(false);}
   };
+
   const verify=async()=>{
-    if(code.length<6){toast.error('Enter the 6-digit code');return;}
+    if(code.length<6){toast.error('Enter the full 6-digit code');return;}
     setLoading(true);
     try{
       const tk=localStorage.getItem('token');
       await axios.post(`${API_URL}/users/verify-email-code`,{code},{headers:{Authorization:`Bearer ${tk}`}});
-      toast.success('Email verified!');
+      toast.success('Email verified successfully!');
       onSuccess();
-    }catch(e){toast.error(e.response?.data?.error||'Invalid or expired code');}
+    }catch(e){toast.error(e?.response?.data?.error||'Incorrect or expired code. Try again.');}
     finally{setLoading(false);}
   };
+
   return(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{backgroundColor:'rgba(0,0,0,0.55)',backdropFilter:'blur(4px)'}}>
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl" style={{maxHeight:'90vh',overflowY:'auto'}}>
@@ -142,22 +149,34 @@ function EmailVerifyModal({userEmail,onClose,onSuccess}){
         <div className="p-5 sm:p-6">
           {step===1?(
             <>
-              <div className="text-center mb-6">
+              <div className="text-center mb-5">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{backgroundColor:`${C.paid}10`}}><Mail size={28} style={{color:C.paid}}/></div>
                 <p className="font-black text-base mb-1" style={{color:C.forest}}>Verify Your Email</p>
-                <p className="text-xs leading-relaxed" style={{color:C.g400}}>We'll send a 6-digit code to <strong style={{color:C.g700}}>{userEmail}</strong></p>
+                <p className="text-xs leading-relaxed" style={{color:C.g400}}>
+                  We'll send a 6-digit code to:<br/>
+                  <strong style={{color:C.forest,fontSize:13}}>{userEmail}</strong>
+                </p>
               </div>
-              <button onClick={sendCode} disabled={loading} className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50" style={{backgroundColor:C.green}}>
+              {sendErr&&(
+                <div className="p-3 mb-3 rounded-xl text-xs font-bold flex items-center gap-2" style={{backgroundColor:'#FEF2F2',color:'#DC2626',border:'1px solid #FECACA'}}>
+                  <AlertTriangle size={12}/>{sendErr}
+                </div>
+              )}
+              <button onClick={sendCode} disabled={loading} className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50" style={{backgroundColor:C.paid}}>
                 {loading?<RefreshCw size={14} className="animate-spin"/>:<Mail size={14}/>}
                 {loading?'Sending…':'Send Verification Code'}
               </button>
+              <p className="text-center text-xs mt-3" style={{color:C.g400}}>Check your spam/junk folder if you don't see it.</p>
             </>
           ):(
             <>
               <div className="text-center mb-5">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{backgroundColor:`${C.success}10`}}><CheckCircle size={28} style={{color:C.success}}/></div>
                 <p className="font-black text-base mb-1" style={{color:C.forest}}>Enter the Code</p>
-                <p className="text-xs" style={{color:C.g400}}>Check your inbox — the code expires in 15 minutes</p>
+                <p className="text-xs" style={{color:C.g400}}>
+                  Code sent to <strong style={{color:C.g700}}>{userEmail}</strong>.<br/>
+                  Check your inbox and spam folder. Expires in 10 minutes.
+                </p>
               </div>
               <input type="text" inputMode="numeric" maxLength={6} value={code}
                 onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))}
@@ -165,12 +184,12 @@ function EmailVerifyModal({userEmail,onClose,onSuccess}){
                 className="w-full text-center text-3xl font-black px-4 py-4 border-2 rounded-2xl focus:outline-none mb-4"
                 style={{borderColor:code.length===6?C.success:C.g200,color:C.forest,letterSpacing:'0.35em'}}
               />
-              <button onClick={verify} disabled={loading||code.length<6} className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50" style={{backgroundColor:C.green}}>
+              <button onClick={verify} disabled={loading||code.length<6} className="w-full py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-50" style={{backgroundColor:C.success}}>
                 {loading?<RefreshCw size={14} className="animate-spin"/>:<CheckCircle size={14}/>}
                 {loading?'Verifying…':'Verify Email'}
               </button>
-              <button onClick={()=>{setStep(1);setCode('');}} className="w-full py-2 mt-2 text-xs font-bold" style={{color:C.g400}}>
-                Didn't receive it? Send again
+              <button onClick={()=>{setStep(1);setCode('');setSendErr('');}} className="w-full py-2 mt-2 text-xs font-bold" style={{color:C.g400}}>
+                Didn't receive it? Send code again
               </button>
             </>
           )}
@@ -448,7 +467,8 @@ export default function Profile({userId:propUserId}){
   const {id:urlId}=useParams(); const navigate=useNavigate(); const fileRef=useRef(null);
   const userId=urlId||propUserId;
   const [user,setUser]=useState(null); const [reviews,setReviews]=useState([]);
-  const [loading,setLoading]=useState(true); const [tab,setTab]=useState('overview');
+  const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
+  const [tab,setTab]=useState('overview');
   const [uploading,setUploading]=useState(false); const [own,setOwn]=useState(false);
   const [editing,setEditing]=useState(false); const [saving,setSaving]=useState(false);
   const [badges,setBadges]=useState([]);
@@ -456,63 +476,75 @@ export default function Profile({userId:propUserId}){
   const [showPhoneModal,setShowPhoneModal]=useState(false);
   const [showKycModal,setShowKycModal]=useState(false);
   const [form,setForm]=useState({username:'',full_name:'',bio:'',location:'Ghana',website:''});
-  const [userCountry, setUserCountry] = useState('GH');
-
-  // Detect user country by IP
-  useEffect(() => {
-    const detectCountry = async () => {
-      try {
-        const response = await axios.get('https://ipapi.co/json/');
-        const countryCode = response.data.country_code || 'GH';
-        setUserCountry(countryCode.toUpperCase());
-      } catch (error) {
-        // Fallback to GH if detection fails
-        setUserCountry('GH');
-      }
-    };
-    detectCountry();
-  }, []);
+  const [userCountry] = useState('GH'); // default country; detected server-side via user.country
 
   useEffect(()=>{
-    if(!userId){const cu=JSON.parse(localStorage.getItem('user')||'{}');cu.id?navigate(`/profile/${cu.id}`):navigate('/login');return;}
-    const cu=JSON.parse(localStorage.getItem('user')||'{}'); setOwn(cu.id===userId);
+    if(!userId){
+      let cu={};try{cu=JSON.parse(localStorage.getItem('user')||'{}');}catch{}
+      cu.id?navigate(`/profile/${cu.id}`):navigate('/login');
+      return;
+    }
+    let cu={};try{cu=JSON.parse(localStorage.getItem('user')||'{}');}catch{}
+    setOwn(cu.id===userId);
   },[userId]);
-  useEffect(()=>{if(userId)load();},[userId,own]);
+
+  // Load profile only when userId changes — NOT when `own` changes.
+  // `own` is also computed fresh inside load() to avoid stale closure issues.
+  useEffect(()=>{if(userId)load();},[userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load=async()=>{
     setLoading(true);
+    setLoadError(false);
     try{
       const tk=localStorage.getItem('token');
-      // Re-derive isOwn here so the first call is always correct,
-      // regardless of whether the `own` state has been set yet.
-      const cu=JSON.parse(localStorage.getItem('user')||'{}');
+      let cu={};
+      try{ cu=JSON.parse(localStorage.getItem('user')||'{}'); }catch{ cu={}; }
+      // Compute isOwn fresh — do NOT call setOwn here (would trigger useEffect loop)
       const isOwn=!!(tk&&cu.id&&cu.id===userId);
-      if(isOwn!==own) setOwn(isOwn);
 
       if(isOwn){
-        // Always fetch fresh authenticated data — never read from localStorage cache
+        // Own profile — always fetch fresh authenticated data
         const r=await axios.get(`${API_URL}/users/profile`,{headers:{Authorization:`Bearer ${tk}`}});
-        const u=r.data.user; setUser(u); localStorage.setItem('user',JSON.stringify(u));
+        const u=r.data.user||r.data;
+        if(!u||!u.id) throw new Error('profile_empty');
+        setUser(u);
+        try{ localStorage.setItem('user',JSON.stringify(u)); }catch{}
         setForm({username:u.username||'',full_name:u.full_name||'',bio:u.bio||'',location:u.location||'Ghana',website:u.website||''});
       } else {
-        // Viewing another user's profile — fetch public data
+        // Another user's profile — accepts both UUID and username in URL
         const r=await axios.get(`${API_URL}/users/${userId}`);
-        setUser(r.data.user); setReviews(r.data.reviews||[]);
+        const u=r.data.user;
+        if(!u||!u.id) throw new Error('profile_empty');
+        setUser(u); setReviews(r.data.reviews||[]);
       }
 
-      if (isOwn) {
-        try {
-          const badgeRes = await axios.post(`${API_URL}/users/check-badges`, {}, { headers: { Authorization: `Bearer ${tk}` } });
-          setBadges(badgeRes.data.badges || []);
-        } catch {
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser) {
-            const { data: badgesData } = await supabase.from('user_badges').select('badge_name, is_unlocked').eq('user_id', currentUser.id);
-            setBadges(badgesData || []);
-          }
+      // Badge check — isolated, NEVER allowed to break the profile load
+      if(isOwn && tk){
+        try{
+          const badgeRes=await axios.post(`${API_URL}/users/check-badges`,{},{headers:{Authorization:`Bearer ${tk}`}});
+          setBadges(badgeRes.data.badges||[]);
+        }catch{
+          setBadges([]);
         }
       }
-    }catch(e){toast.error('Failed to load profile');}
+    }catch(e){
+      console.error('[Profile] load error:', e?.response?.status, e?.response?.data || e?.message);
+      const status=e?.response?.status;
+      if(status===404){
+        // Genuinely doesn't exist — show not-found UI
+        setUser(null);
+        setLoadError(false);
+      } else if(status===401){
+        setLoadError(true);
+        toast.error('Please log in to view this profile.');
+      } else if(e?.message==='profile_empty'){
+        setLoadError(true);
+        toast.error('This profile could not be loaded. Please try again.');
+      } else {
+        setLoadError(true);
+        toast.error('We couldn\'t load this profile. Please check your connection and try again.');
+      }
+    }
     finally{setLoading(false);}
   };
 
@@ -540,7 +572,39 @@ export default function Profile({userId:propUserId}){
   };
 
   if(loading)return(<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}><div className="w-12 h-12 border-4 rounded-full animate-spin" style={{borderColor:C.sage,borderTopColor:'transparent'}}/></div>);
-  if(!user)return(<div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}><div className="text-center"><p className="text-sm mb-4" style={{color:C.g500}}>Profile not found</p><button onClick={()=>navigate('/buy-bitcoin')} className="px-5 py-2 rounded-xl text-white font-bold" style={{backgroundColor:C.green}}>Go Home</button></div></div>);
+  if(!loading&&loadError)return(
+    <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor:C.mist}}>
+      <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full shadow-sm" style={{border:`1px solid ${C.g200}`}}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{backgroundColor:'#FFF7ED'}}>
+          <span style={{fontSize:32}}>⚠️</span>
+        </div>
+        <h2 className="font-black text-lg mb-2" style={{color:C.forest}}>Couldn't Load Profile</h2>
+        <p className="text-sm mb-6 leading-relaxed" style={{color:C.g500}}>
+          Something went wrong loading this profile. Please check your connection and try again.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button onClick={()=>load()} className="px-5 py-2.5 rounded-xl text-white font-bold text-sm" style={{backgroundColor:C.green}}>Try Again</button>
+          <button onClick={()=>navigate('/buy-bitcoin')} className="px-5 py-2.5 rounded-xl font-bold text-sm" style={{backgroundColor:C.g100,color:C.g700}}>Go to Marketplace</button>
+        </div>
+      </div>
+    </div>
+  );
+  if(!loading&&!user)return(
+    <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor:C.mist}}>
+      <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full shadow-sm" style={{border:`1px solid ${C.g200}`}}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{backgroundColor:'#FEF2F2'}}>
+          <span style={{fontSize:32}}>👤</span>
+        </div>
+        <h2 className="font-black text-lg mb-2" style={{color:C.forest}}>Profile Not Found</h2>
+        <p className="text-sm mb-6 leading-relaxed" style={{color:C.g500}}>
+          This profile doesn't exist or may have been removed.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button onClick={()=>navigate('/buy-bitcoin')} className="px-5 py-2.5 rounded-xl text-white font-bold text-sm" style={{backgroundColor:C.green}}>Go to Marketplace</button>
+        </div>
+      </div>
+    </div>
+  );
 
   // Country codes — uppercase for FLAGS lookup
   const userCC  = (user.country||userCountry||'GH').toUpperCase().slice(0,2);
@@ -1109,17 +1173,87 @@ export default function Profile({userId:propUserId}){
               <div className="h-2.5 rounded-full bg-white/20"><div className="h-2.5 rounded-full" style={{width:`${verifPct}%`,backgroundColor:C.gold}}/></div>
             </div>
 
-            <div className="bg-white rounded-2xl border shadow-sm p-4 space-y-3" style={{borderColor:C.g200}}>
-              <p className="font-black text-sm" style={{color:C.forest}}>Verification Steps</p>
-              <VerifRow icon={Mail} label="Email Verification" desc="Verify your email to secure your account and enable notifications."
-                status={emailOk?'verified':'not_submitted'} color={C.paid}
-                onVerify={own&&!emailOk?()=>setShowEmailModal(true):null}/>
-              <VerifRow icon={Phone} label="Phone Verification" desc="Add your phone number for SMS alerts and two-factor authentication."
-                status={phoneOk?'verified':user.phone?'pending':'not_submitted'} color={C.success}
-                onVerify={own&&!phoneOk?()=>setShowPhoneModal(true):null}/>
-              <VerifRow icon={FileText} label="KYC Identity Verification" desc="Upload government ID to unlock Advanced ($10,000) and VIP ($50,000) trade limits."
-                status={kycOk?'verified':user.kyc_status==='pending'?'pending':'not_submitted'} color={C.gold}
-                onVerify={own&&!kycOk&&user.kyc_status!=='pending'?()=>setShowKycModal(true):null}/>
+            <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>
+              <p className="font-black text-sm mb-1" style={{color:C.forest}}>Verify Your Account</p>
+              <p className="text-xs mb-4" style={{color:C.g400}}>Choose any step to verify — no set order required.</p>
+              <div className="space-y-3">
+                {/* Email */}
+                <div className="rounded-2xl border-2 p-4 flex items-center gap-3 transition-all"
+                  style={{borderColor:emailOk?C.success:C.g200,backgroundColor:emailOk?'#ECFDF5':'white'}}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{backgroundColor:emailOk?`${C.success}15`:`${C.paid}15`}}>
+                    {emailOk?<CheckCircle size={18} style={{color:C.success}}/>:<Mail size={18} style={{color:C.paid}}/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-black" style={{color:C.forest}}>Email</p>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor:emailOk?`${C.success}15`:'#EFF6FF',color:emailOk?C.success:C.paid}}>
+                        {emailOk?'✓ Verified':'Standard'}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-0.5 truncate" style={{color:C.g500}}>
+                      {emailOk?`${user.email||''}  — verified`:'Verify your email for account security & notifications'}
+                    </p>
+                  </div>
+                  {own&&!emailOk&&(
+                    <button onClick={()=>setShowEmailModal(true)}
+                      className="px-3 py-2 rounded-xl text-white text-xs font-black flex-shrink-0"
+                      style={{backgroundColor:C.paid}}>Verify</button>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div className="rounded-2xl border-2 p-4 flex items-center gap-3 transition-all"
+                  style={{borderColor:phoneOk?C.success:C.g200,backgroundColor:phoneOk?'#ECFDF5':'white'}}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{backgroundColor:phoneOk?`${C.success}15`:`${C.success}15`}}>
+                    {phoneOk?<CheckCircle size={18} style={{color:C.success}}/>:<Phone size={18} style={{color:C.success}}/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-black" style={{color:C.forest}}>Phone Number</p>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor:phoneOk?`${C.success}15`:'#F1F5F9',color:phoneOk?C.success:C.g500}}>
+                        {phoneOk?'✓ Verified':'Standard'}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-0.5 truncate" style={{color:C.g500}}>
+                      {phoneOk?`${user.phone||''}  — verified`:'Add your phone for SMS alerts & 2-factor security'}
+                    </p>
+                  </div>
+                  {own&&!phoneOk&&(
+                    <button onClick={()=>setShowPhoneModal(true)}
+                      className="px-3 py-2 rounded-xl text-white text-xs font-black flex-shrink-0"
+                      style={{backgroundColor:C.success}}>Verify</button>
+                  )}
+                </div>
+
+                {/* KYC */}
+                <div className="rounded-2xl border-2 p-4 flex items-center gap-3 transition-all"
+                  style={{borderColor:kycOk?C.success:user.kyc_status==='pending'?C.warn:C.g200,backgroundColor:kycOk?'#ECFDF5':user.kyc_status==='pending'?'#FFFBEB':'white'}}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{backgroundColor:kycOk?`${C.success}15`:`${C.gold}15`}}>
+                    {kycOk?<CheckCircle size={18} style={{color:C.success}}/>:<FileText size={18} style={{color:C.gold}}/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-black" style={{color:C.forest}}>Identity (KYC)</p>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{backgroundColor:kycOk?`${C.success}15`:user.kyc_status==='pending'?'#FFFBEB':'#FFFBEB',color:kycOk?C.success:C.warn}}>
+                        {kycOk?'✓ Verified':user.kyc_status==='pending'?'Under Review':'Advanced'}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{color:C.g500}}>
+                      {kycOk?'ID verified — Advanced & VIP limits unlocked':user.kyc_status==='pending'?'Your documents are under review (24–48 hrs)':'National ID / Passport + selfie — unlocks $10,000 limit'}
+                    </p>
+                  </div>
+                  {own&&!kycOk&&user.kyc_status!=='pending'&&(
+                    <button onClick={()=>setShowKycModal(true)}
+                      className="px-3 py-2 rounded-xl text-white text-xs font-black flex-shrink-0"
+                      style={{backgroundColor:C.gold}}>Verify</button>
+                  )}
+                  {user.kyc_status==='pending'&&<Clock size={16} style={{color:C.warn,flexShrink:0}}/>}
+                </div>
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border shadow-sm p-4" style={{borderColor:C.g200}}>

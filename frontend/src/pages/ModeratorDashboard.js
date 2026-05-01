@@ -17,11 +17,21 @@ const PRAQEN = {
   success: '#10B981', warning: '#F59E0B', info: '#3B82F6',
 };
 
-function ModeratorLogin({ onLogin }) {
+const ADMIN_EMAIL = 'parqen5@gmail.com';
+
+function ModeratorLogin({ onLogin, user }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const VALID = ['PRAQEN_MOD_2024', 'admin', 'moderator', 'praqen_mod'];
+  const VALID = ['PRAQEN_MOD_2024', 'admin', 'moderator', 'praqen_mod', ADMIN_EMAIL];
+
+  // Auto-login for admin email — skip code entry entirely
+  useEffect(() => {
+    if (user?.email === ADMIN_EMAIL) {
+      localStorage.setItem('mod_token', 'praqen_admin');
+      onLogin('PRAQEN Admin');
+    }
+  }, [user]);
 
   const handleLogin = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
@@ -37,6 +47,18 @@ function ModeratorLogin({ onLogin }) {
     } catch { setError('Invalid moderator code. Access denied.'); }
     setLoading(false);
   };
+
+  // If admin email is logged in, show a brief loading state while auto-login fires
+  if (user?.email === ADMIN_EMAIL) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: PRAQEN.lightBg }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 rounded-full animate-spin mx-auto mb-4" style={{ borderColor: PRAQEN.purple, borderTopColor: PRAQEN.secondary }} />
+          <p className="font-bold" style={{ color: PRAQEN.primary }}>Authenticating admin…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: PRAQEN.lightBg }}>
@@ -102,7 +124,19 @@ export default function ModeratorDashboard({ user }) {
   const [showGuidelines, setShowGuidelines] = useState(false);
   const chatEndRef = useRef(null);
 
-  useEffect(() => { const t = localStorage.getItem('mod_token'); if (t) { setLoggedIn(true); setModName(user?.username || 'PRAQEN Moderator'); } }, []);
+  useEffect(() => {
+    const t = localStorage.getItem('mod_token');
+    if (t) { setLoggedIn(true); setModName(user?.username || 'PRAQEN Moderator'); }
+  }, []);
+
+  // Admin email always gets instant access
+  useEffect(() => {
+    if (user?.email === ADMIN_EMAIL && !loggedIn) {
+      localStorage.setItem('mod_token', 'praqen_admin');
+      setLoggedIn(true);
+      setModName('PRAQEN Admin');
+    }
+  }, [user]);
   useEffect(() => { if (loggedIn) { loadDisputes(); loadResolved(); } }, [loggedIn]);
   useEffect(() => {
     if (selectedDispute && (activeTab === 'chat' || activeTab === 'evidence' || activeTab === 'user-history')) {
@@ -197,7 +231,7 @@ export default function ModeratorDashboard({ user }) {
     return <span className="px-3 py-1 rounded-full text-sm font-bold" style={{ backgroundColor: cfg.bg, color: cfg.c }}>{cfg.l}</span>;
   };
 
-  if (!loggedIn) return <ModeratorLogin onLogin={name => { setLoggedIn(true); setModName(name); }} />;
+  if (!loggedIn && user?.email !== ADMIN_EMAIL) return <ModeratorLogin user={user} onLogin={name => { setLoggedIn(true); setModName(name); }} />;
 
   const openDisputes = disputes.filter(d => d.status === 'OPEN' || d.status === 'DISPUTED');
   const inReviewDisputes = disputes.filter(d => d.status === 'IN_REVIEW');
@@ -221,7 +255,15 @@ export default function ModeratorDashboard({ user }) {
         <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-4xl font-black" style={{ color: PRAQEN.primary }}>🔨 Moderator Dashboard</h1>
-            <p className="text-gray-600 mt-1 font-semibold">Logged in as: <span style={{ color: PRAQEN.purple }}>{modName}</span></p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <p className="text-gray-600 font-semibold">Logged in as: <span style={{ color: PRAQEN.purple }}>{modName}</span></p>
+              {user?.email === ADMIN_EMAIL && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black text-white"
+                  style={{ backgroundColor: PRAQEN.purple }}>
+                  <Shield size={10} /> ADMIN · {ADMIN_EMAIL}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setShowGuidelines(!showGuidelines)} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow border hover:shadow-md transition">

@@ -7,6 +7,7 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const hdWallet = require('./hdWalletService');
 const { checkAndAwardBadges } = require('./badgeService');
+const { updateOfferStatus } = require('./offerStatusService');
 
 // ── Supabase admin (bypasses RLS) ─────────────────────────────────────────────
 const supabaseAdmin = createClient(
@@ -477,8 +478,8 @@ class TradeEscrowService {
         console.error(`⚠️ [Escrow] Fee collection failed (trade still COMPLETED):`, feeErr.message);
     }
 
-    // ── Auto-pause seller's SELL offers if their wallet is now empty ──────
-    pauseSellOffersIfEmpty(btcProviderId).catch(() => {});
+    // ── Re-evaluate offer status for the BTC provider after balance change ──
+    updateOfferStatus(btcProviderId).catch(() => {});
 
     // ── Award badges to both participants (fire and forget) ────────────────
     checkAndAwardBadges(tradeData.seller_id).catch(() => {});
@@ -598,6 +599,12 @@ class TradeEscrowService {
     }
 
     console.log(`✅ Trade ${tradeId.slice(0,8)} cancelled`);
+
+    // Refund restored the BTC provider's balance — re-evaluate their offer status
+    if (escrow) {
+      const btcProviderId = escrow.seller_id || trade.seller_id;
+      if (btcProviderId) updateOfferStatus(btcProviderId).catch(() => {});
+    }
 
     return {
       success: true,

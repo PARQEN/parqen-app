@@ -59,6 +59,7 @@ const depositMonitor  = require('./services/depositMonitor');
 const hdWalletRoutes  = require('./routes/hdWalletRoutes');
 const tradeEscrowService    = require('./services/tradeEscrowService');
 const { checkAndAwardBadges } = require('./services/badgeService');
+const { syncAllOfferStatuses } = require('./services/offerStatusService');
 app.use('/api/hd-wallet', hdWalletRoutes);
 
 // NOTE: walletRoutes removed — wallet routes are defined inline below
@@ -1760,7 +1761,49 @@ app.get('/api/listings', async (req, res) => {
     if (maxPrice) query = query.lte('bitcoin_price', parseFloat(maxPrice));
     const { data, error } = await query;
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ listings: data || [] });
+
+    let listings = data || [];
+
+    // For SELL / SELL_BITCOIN offers: filter out sellers with insufficient balance.
+    // This is a defence-in-depth check — the DB status may lag behind the true balance.
+    const sellListings = listings.filter(l =>
+      l.listing_type === 'SELL' || l.listing_type === 'SELL_BITCOIN'
+    );
+
+    if (sellListings.length > 0) {
+      const sellerIds = [...new Set(sellListings.map(l => l.seller_id))];
+
+      const { data: wallets } = await supabaseAdmin
+        .from('user_wallets')
+        .select('user_id, balance_btc')
+        .in('user_id', sellerIds);
+
+      const balMap = {};
+      (wallets || []).forEach(w => { balMap[w.user_id] = parseFloat(w.balance_btc || 0); });
+
+      const staleIds = [];
+      listings = listings.filter(l => {
+        if (l.listing_type !== 'SELL' && l.listing_type !== 'SELL_BITCOIN') return true;
+        const balance      = balMap[l.seller_id] || 0;
+        const btcPrice     = parseFloat(l.bitcoin_price) || 88000;
+        const minBtcNeeded = parseFloat(l.min_limit_usd || 0) / btcPrice;
+        const ok = balance > 0 && balance >= minBtcNeeded;
+        if (!ok) staleIds.push(l.id);
+        return ok;
+      });
+
+      // Async DB fix — mark the stale ones PAUSED so they stop showing up next time
+      if (staleIds.length > 0) {
+        supabaseAdmin
+          .from('listings')
+          .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
+          .in('id', staleIds)
+          .then(() => console.log(`[listings] Auto-paused ${staleIds.length} insufficient offer(s)`))
+          .catch(err => console.error('[listings] Auto-pause error:', err.message));
+      }
+    }
+
+    res.json({ listings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1859,10 +1902,31 @@ app.patch('/api/listings/:id/status', verifyToken, async (req, res) => {
     if (!status) return res.status(400).json({ error: 'Status is required' });
     const validStatuses = ['ACTIVE', 'PAUSED', 'CLOSED', 'DELETED'];
     if (!validStatuses.includes(status)) return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
-    const { data: listing, error: findError } = await supabaseAdmin.from('listings').select('seller_id').eq('id', id).single();
+
+    const { data: listing, error: findError } = await supabaseAdmin
+      .from('listings')
+      .select('seller_id, listing_type, min_limit_usd, bitcoin_price')
+      .eq('id', id).single();
     if (findError || !listing) return res.status(404).json({ error: 'Listing not found' });
     if (listing.seller_id !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
-    const { data, error } = await supabaseAdmin.from('listings').update({ status, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+
+    // Block manual reactivation of SELL offers when balance is still insufficient
+    if (status === 'ACTIVE' && ['SELL', 'SELL_BITCOIN'].includes(listing.listing_type)) {
+      const { data: wallet } = await supabaseAdmin
+        .from('user_wallets').select('balance_btc').eq('user_id', req.userId).single();
+      const availableBtc = parseFloat(wallet?.balance_btc || 0);
+      const btcPrice     = parseFloat(listing.bitcoin_price) || 88000;
+      const minBtcNeeded = parseFloat(listing.min_limit_usd || 0) / btcPrice;
+      if (availableBtc <= 0 || availableBtc < minBtcNeeded) {
+        return res.status(400).json({
+          error: `Insufficient balance. You need at least ₿${minBtcNeeded.toFixed(8)} to activate this offer, but your available balance is ₿${availableBtc.toFixed(8)}. Top up your wallet first.`,
+          insufficientBalance: true,
+        });
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('listings').update({ status, updated_at: new Date().toISOString() }).eq('id', id).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true, listing: data });
   } catch (error) {
@@ -2571,10 +2635,13 @@ app.post('/api/trades/:id/moderator-join', verifyToken, async (req, res) => {
   }
 });
 
+const ADMIN_EMAIL = 'parqen5@gmail.com';
+
 app.get('/api/admin/disputes', verifyToken, async (req, res) => {
   try {
-    const { data: userData } = await supabaseAdmin.from('users').select('is_moderator, is_admin').eq('id', req.userId).single();
-    if (!userData?.is_moderator && !userData?.is_admin) return res.status(403).json({ error: 'Access denied' });
+    const { data: userData } = await supabaseAdmin.from('users').select('is_moderator, is_admin, email').eq('id', req.userId).single();
+    const isAdmin = userData?.is_admin || userData?.is_moderator || userData?.email === ADMIN_EMAIL;
+    if (!isAdmin) return res.status(403).json({ error: 'Access denied' });
     const { data, error } = await supabaseAdmin.from('trades')
       .select('*, buyer:buyer_id(id, username), seller:seller_id(id, username)')
       .eq('status', 'DISPUTED').order('created_at', { ascending: false });
@@ -2592,8 +2659,9 @@ app.get('/api/admin/disputes', verifyToken, async (req, res) => {
 app.post('/api/admin/disputes/:id/resolve', verifyToken, async (req, res) => {
   try {
     const { resolution, notes } = req.body;
-    const { data: userData } = await supabaseAdmin.from('users').select('is_admin, is_moderator, username').eq('id', req.userId).single();
-    if (!userData?.is_admin && !userData?.is_moderator) return res.status(403).json({ error: 'Access denied' });
+    const { data: userData } = await supabaseAdmin.from('users').select('is_admin, is_moderator, username, email').eq('id', req.userId).single();
+    const isAdmin = userData?.is_admin || userData?.is_moderator || userData?.email === ADMIN_EMAIL;
+    if (!isAdmin) return res.status(403).json({ error: 'Access denied' });
     const { data: trade } = await supabaseAdmin.from('trades').select('*').eq('id', req.params.id).single();
     if (!trade) return res.status(404).json({ error: 'Trade not found' });
     let msg = '';
@@ -2625,8 +2693,10 @@ app.post('/api/admin/moderator-login', verifyToken, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Access code required' });
-    const { data: user } = await supabaseAdmin.from('users').select('id, username, is_moderator, is_admin').eq('id', req.userId).single();
-    if (user?.is_moderator || user?.is_admin) return res.json({ success: true, moderator: { username: user.username, role: 'moderator' } });
+    const { data: user } = await supabaseAdmin.from('users').select('id, username, is_moderator, is_admin, email').eq('id', req.userId).single();
+    if (user?.is_moderator || user?.is_admin || user?.email === ADMIN_EMAIL) {
+      return res.json({ success: true, moderator: { username: user?.email === ADMIN_EMAIL ? 'PRAQEN Admin' : user.username, role: user?.email === ADMIN_EMAIL ? 'admin' : 'moderator' } });
+    }
     const envCode = process.env.MODERATOR_ACCESS_CODE || 'PRAQEN_MOD_2024';
     if (code !== envCode) return res.status(403).json({ error: 'Invalid moderator code' });
     res.json({ success: true, token: `mod_${req.userId}`, moderator: { username: user?.username || 'Moderator', role: 'moderator' } });
@@ -3307,6 +3377,9 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ PRAQEN Backend running on http://localhost:${PORT}`);
   console.log('📋 Routes: /api/auth, /api/users, /api/listings, /api/trades, /api/my-trades, /api/wallet, /api/hd-wallet, /api/notifications');
+
+  // Immediately pause all sell offers whose seller balance is insufficient
+  syncAllOfferStatuses().catch(err => console.error('[startup] syncAllOfferStatuses:', err.message));
 
   // Start deposit monitor background job (mainnet only)
   if (process.env.HD_NETWORK === 'mainnet') {

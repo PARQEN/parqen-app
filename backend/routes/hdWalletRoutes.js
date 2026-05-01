@@ -7,6 +7,7 @@ const express      = require('express');
 const router       = express.Router();
 const hdWallet     = require('../services/hdWalletService');
 const depositMonitor = require('../services/depositMonitor');
+const { updateOfferStatus } = require('../services/offerStatusService');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -194,6 +195,9 @@ router.get('/balance', verifyToken, async (req, res) => {
 router.post('/check-deposit', verifyToken, async (req, res) => {
   try {
     const result = await depositMonitor.checkAddressNow(req.userId);
+
+    // Deposit may have changed balance — re-evaluate offer status (fire and forget)
+    updateOfferStatus(req.userId).catch(() => {});
 
     res.json({
       success:     true,
@@ -392,8 +396,8 @@ router.post('/send', verifyToken, async (req, res) => {
 
     console.log(`✅ [hdWalletRoutes] On-chain sent ₿${amount} — TX: ${result.txid}`);
 
-    // Auto-pause sell offers if wallet is now empty
-    pauseSellOffersIfEmpty(userId).catch(() => {});
+    // Re-evaluate offer status after withdrawal reduces available balance
+    updateOfferStatus(userId).catch(() => {});
 
     res.json({
       success:     true,

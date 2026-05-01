@@ -12,6 +12,7 @@
 require('dotenv').config();
 const axios      = require('axios');
 const nodemailer = require('nodemailer');
+const { updateOfferStatus } = require('./offerStatusService');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseAdmin = createClient(
@@ -362,7 +363,10 @@ class DepositMonitor {
             created_at: new Date().toISOString(),
           });
 
-        // ── 5. SMS + Email (fire-and-forget) ──────────────────────────────────
+        // ── 5. Re-evaluate offer status — deposit may restore paused offers ───
+        updateOfferStatus(userId).catch(() => {});
+
+        // ── 6. SMS + Email (fire-and-forget) ──────────────────────────────────
         Promise.allSettled([
           this.sendDepositSMS(userId, depositBTC, newBalance),
           this.sendDepositEmail(userId, username, depositBTC, newBalance, txid),

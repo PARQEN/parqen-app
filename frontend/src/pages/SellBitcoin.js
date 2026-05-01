@@ -14,6 +14,7 @@ import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 import { TRUST_MAP, deriveBadge } from '../lib/badge';
 import ActiveTradeCard from '../components/ActiveTradeCard';
+import PRQFooter from '../components/PRQFooter';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -37,6 +38,41 @@ const CUR_SYM = {
   VND:'₫', THB:'฿', MYR:'RM', SGD:'S$', AED:'AED', SAR:'SR',
   BRL:'R$', MXN:'MX$', COP:'COP$', TRY:'₺', PLN:'zł', UAH:'₴',
 };
+
+const CURRENCIES = [
+  {code:'USD', symbol:'$',    name:'US Dollar'},
+  {code:'GHS', symbol:'₵',    name:'Ghana Cedi'},
+  {code:'NGN', symbol:'₦',    name:'Nigerian Naira'},
+  {code:'KES', symbol:'KSh',  name:'Kenyan Shilling'},
+  {code:'ZAR', symbol:'R',    name:'SA Rand'},
+  {code:'UGX', symbol:'USh',  name:'Uganda Shilling'},
+  {code:'TZS', symbol:'TSh',  name:'Tanzania Shilling'},
+  {code:'RWF', symbol:'RF',   name:'Rwanda Franc'},
+  {code:'XOF', symbol:'CFA',  name:'CFA Franc (West)'},
+  {code:'XAF', symbol:'CFA',  name:'CFA Franc (Central)'},
+  {code:'EGP', symbol:'E£',   name:'Egyptian Pound'},
+  {code:'MAD', symbol:'MAD',  name:'Moroccan Dirham'},
+  {code:'GBP', symbol:'£',    name:'British Pound'},
+  {code:'EUR', symbol:'€',    name:'Euro'},
+  {code:'INR', symbol:'₹',    name:'Indian Rupee'},
+  {code:'CNY', symbol:'¥',    name:'Chinese Yuan'},
+  {code:'PHP', symbol:'₱',    name:'Philippine Peso'},
+  {code:'IDR', symbol:'Rp',   name:'Indonesian Rupiah'},
+  {code:'PKR', symbol:'₨',    name:'Pakistani Rupee'},
+  {code:'BDT', symbol:'৳',    name:'Bangladeshi Taka'},
+  {code:'VND', symbol:'₫',    name:'Vietnamese Dong'},
+  {code:'THB', symbol:'฿',    name:'Thai Baht'},
+  {code:'MYR', symbol:'RM',   name:'Malaysian Ringgit'},
+  {code:'SGD', symbol:'S$',   name:'Singapore Dollar'},
+  {code:'AED', symbol:'AED',  name:'UAE Dirham'},
+  {code:'SAR', symbol:'SR',   name:'Saudi Riyal'},
+  {code:'BRL', symbol:'R$',   name:'Brazilian Real'},
+  {code:'MXN', symbol:'MX$',  name:'Mexican Peso'},
+  {code:'COP', symbol:'COP$', name:'Colombian Peso'},
+  {code:'TRY', symbol:'₺',    name:'Turkish Lira'},
+  {code:'PLN', symbol:'zł',   name:'Polish Zloty'},
+  {code:'UAH', symbol:'₴',    name:'Ukrainian Hryvnia'},
+];
 
 const COUNTRY_REGIONS = {
   Africa:'#10B981', Asia:'#3B82F6', 'Middle East':'#F97316',
@@ -634,8 +670,13 @@ export default function SellBitcoin({user}) {
   const [sellAmt,      setSellAmt]      = useState('');
   const [activeTrades, setActiveTrades] = useState([]);
   const [showAllTrades, setShowAllTrades] = useState(false);
-  const countryRef = useRef(null);
-  const paymentRef = useRef(null);
+  const [traderSearch,   setTraderSearch]   = useState('');
+  const [selCurrency,    setSelCurrency]    = useState(CURRENCIES[0]);
+  const [showCurrency,   setShowCurrency]   = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const currencyRef = useRef(null);
+  const countryRef  = useRef(null);
+  const paymentRef  = useRef(null);
 
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{
@@ -663,8 +704,9 @@ export default function SellBitcoin({user}) {
   }, []);
   useEffect(()=>{
     const h = e => {
-      if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false);
-      if(paymentRef.current&&!paymentRef.current.contains(e.target)) { setShowPayment(false); setPaymentSearch(''); }
+      if(currencyRef.current&&!currencyRef.current.contains(e.target)){setShowCurrency(false);setCurrencySearch('');}
+      if(countryRef.current&&!countryRef.current.contains(e.target)){setShowCountry(false);setCountrySearch('');}
+      if(paymentRef.current&&!paymentRef.current.contains(e.target)){setShowPayment(false);setPaymentSearch('');}
     };
     document.addEventListener('mousedown',h);
     return () => document.removeEventListener('mousedown',h);
@@ -687,7 +729,7 @@ export default function SellBitcoin({user}) {
     if (selPayment!=='all')      list=list.filter(l=>String(l.payment_method||'').toLowerCase().includes(selPayment));
     if (sellAmt && parseFloat(sellAmt)>0) {
       const a = parseFloat(sellAmt);
-      const _cur  = selCountry.currency || 'GHS';
+      const _cur  = selCurrency.code;
       const _rate = USD_RATES[_cur] || 1;
       list=list.filter(l=>{
         if (l.min_limit_local && l.max_limit_local && l.currency===_cur) {
@@ -700,6 +742,10 @@ export default function SellBitcoin({user}) {
     if (sortBy==='rate_high') list.sort((a,b)=>parseFloat(b.margin||0)-parseFloat(a.margin||0));
     else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
     else if (sortBy==='trades') list.sort((a,b)=>getTrades(b.users)-getTrades(a.users));
+
+    if (traderSearch.trim()) list = list.filter(l =>
+      (l.users?.username||'').toLowerCase().includes(traderSearch.trim().toLowerCase())
+    );
 
     // One offer per buyer per payment method
     const seen = new Set();
@@ -719,17 +765,17 @@ export default function SellBitcoin({user}) {
   };
 
   const filtered   = getFiltered();
-  const cur        = selCountry.currency || 'GHS';
-  const sym        = CUR_SYM[cur] || '₵';
+  const cur        = selCurrency.code;
+  const sym        = selCurrency.symbol;
   const usdRate    = USD_RATES[cur] || 1;
   const btcLocal   = btcPrice * usdRate;
   const selPmInfo  = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
   const onlineCnt   = offers.filter(l=>(Date.now()-new Date(l.users?.last_seen_at||l.users?.last_login||0))/1000<300).length;
   const buyerCount  = new Set(offers.map(l=>l.seller_id)).size;
-  const hasFilters  = selPayment!=='all' || sellAmt || selCountry.code!=='ALL';
+  const hasFilters  = selPayment!=='all' || sellAmt || selCountry.code!=='ALL' || selCurrency.code!=='USD' || !!traderSearch.trim();
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0 overflow-x-hidden"
+    <div className="min-h-screen flex flex-col pb-0 overflow-x-hidden"
       style={{backgroundColor:C.g100, fontFamily:"'DM Sans',sans-serif"}}>
 
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -810,157 +856,222 @@ export default function SellBitcoin({user}) {
 
       {/* ══ 3. FILTER BAR ══════════════════════════════════════ */}
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
-        <div className="max-w-7xl mx-auto px-3 py-3 space-y-3">
+        <div className="max-w-7xl mx-auto px-3 py-3 space-y-2">
 
-          {/* AMOUNT — full width */}
-          <div>
-            <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>AMOUNT</p>
-            <div className="flex items-center border-2 rounded-xl overflow-hidden"
-              style={{borderColor:sellAmt ? C.sell : C.g200}}>
-              <input
-                type="number"
-                value={sellAmt}
-                onChange={e=>setSellAmt(e.target.value)}
-                placeholder="e.g. 500"
-                className="flex-1 pl-3 pr-1 py-2.5 font-bold focus:outline-none bg-transparent min-w-0"
-                style={{color:C.g800, fontSize:'16px'}}/>
-              <span className="pr-3 text-xs font-black flex-shrink-0" style={{color:C.g400}}>{cur}</span>
-            </div>
-          </div>
+          {/* 2×2 on mobile, 4-col on sm+ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 
-          {/* CURRENCY + PAYMENT grid */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* CURRENCY (country) dropdown */}
+            {/* ── AMOUNT ── */}
             <div>
-              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>CURRENCY</p>
-              <div className="relative" ref={countryRef}>
-                <button
-                  onClick={()=>{setShowCountry(!showCountry);setShowPayment(false);}}
-                  className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
-                  style={{
-                    borderColor:     selCountry.code!=='ALL' ? C.sell : C.g200,
-                    color:           selCountry.code!=='ALL' ? C.sell : C.g600,
-                    backgroundColor: selCountry.code!=='ALL' ? `${C.sell}08` : 'transparent',
-                  }}>
-                  <span className="text-sm leading-none flex-shrink-0">{selCountry.flag}</span>
-                  <span className="text-xs font-black truncate flex-1 text-left">{selCountry.name}</span>
-                  <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showCountry?'rotate-180':''}`}
-                    style={{color:selCountry.code!=='ALL' ? C.sell : C.g400}}/>
-                </button>
-                {showCountry && (
-                  <div className="absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                    style={{borderColor:C.g100,minWidth:'240px',right:'auto',maxWidth:'calc(100vw - 24px)'}}>
-                    <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
-                      <input type="text" placeholder="🔍  Search country…"
-                        value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
-                        className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
-                        style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
-                    </div>
-                    <div className="overflow-y-auto max-h-60">
-                      {(() => {
-                        const q = countrySearch.toLowerCase();
-                        const filtered = COUNTRIES.filter(c=>!q||c.name.toLowerCase().includes(q));
-                        let lastReg = null;
-                        return filtered.map(c=>{
-                          const regHdr = !q && c.region && c.region!==lastReg
-                            ? (lastReg=c.region, <div key={`r-${c.region}`} className="px-3 py-1" style={{backgroundColor:'#F8FAFC'}}>
-                                <span className="text-xs font-black uppercase tracking-wider" style={{color:COUNTRY_REGIONS[c.region]||C.g500}}>{c.region}</span>
-                              </div>)
-                            : (c.region&&(lastReg=c.region), null);
-                          return [regHdr,
-                            <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);setCountrySearch('');}}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
-                              style={{backgroundColor:selCountry.code===c.code?`${C.sell}08`:'transparent'}}>
-                              <span className="text-base flex-shrink-0">{c.flag}</span>
-                              <div className="flex-1 text-left min-w-0">
-                                <p className="font-bold text-xs truncate" style={{color:C.g800}}>{c.name}</p>
-                                {c.currency&&<p className="text-xs" style={{color:C.g400}}>{c.symbol} {c.currency}</p>}
-                              </div>
-                              {selCountry.code===c.code&&<CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
-                            </button>
-                          ];
-                        });
-                      })()}
-                    </div>
-                  </div>
+              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>AMOUNT</p>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black pointer-events-none select-none"
+                  style={{color:sellAmt?C.sell:C.g400}}>{sym}</span>
+                <input
+                  type="number" min="0" placeholder="e.g. 500"
+                  value={sellAmt}
+                  onChange={e=>setSellAmt(e.target.value)}
+                  className="w-full pl-6 pr-7 py-2.5 rounded-xl border-2 font-black focus:outline-none"
+                  style={{borderColor:sellAmt?C.sell:C.g200, color:C.g800, backgroundColor:sellAmt?`${C.sell}08`:'transparent', fontSize:'16px'}}
+                />
+                {sellAmt&&(
+                  <button onClick={()=>setSellAmt('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full"
+                    style={{backgroundColor:C.g200}}>
+                    <X size={9} style={{color:C.g600}}/>
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* PAYMENT dropdown */}
-            <div>
+            {/* ── CURRENCY (own currency list) ── */}
+            <div className="relative" ref={currencyRef}>
+              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>CURRENCY</p>
+              <button
+                onClick={()=>{setShowCurrency(!showCurrency);setShowCountry(false);setShowPayment(false);}}
+                className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
+                style={{
+                  borderColor:     selCurrency.code!=='USD' ? C.sell : C.g200,
+                  color:           selCurrency.code!=='USD' ? C.sell : C.g600,
+                  backgroundColor: selCurrency.code!=='USD' ? `${C.sell}08` : 'transparent',
+                }}>
+                <span className="text-xs font-black flex-shrink-0">{selCurrency.symbol}</span>
+                <span className="text-xs font-black flex-1 text-left truncate">{selCurrency.code}</span>
+                <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showCurrency?'rotate-180':''}`}
+                  style={{color:selCurrency.code!=='USD' ? C.sell : C.g400}}/>
+              </button>
+              {showCurrency && (
+                <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
+                  <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                    <input type="text" placeholder="🔍  Search currency…"
+                      value={currencySearch} onChange={e=>setCurrencySearch(e.target.value)}
+                      autoFocus
+                      className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                      style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
+                  </div>
+                  <div className="overflow-y-auto max-h-56">
+                    {CURRENCIES.filter(c=>!currencySearch||c.code.toLowerCase().includes(currencySearch.toLowerCase())||c.name.toLowerCase().includes(currencySearch.toLowerCase())).map(c=>(
+                      <button key={c.code} onClick={()=>{setSelCurrency(c);setShowCurrency(false);setCurrencySearch('');}}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
+                        style={{borderColor:C.g50,backgroundColor:selCurrency.code===c.code?`${C.sell}08`:'transparent'}}>
+                        <span className="text-sm font-black flex-shrink-0 w-8 text-center" style={{color:C.g700}}>{c.symbol}</span>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="font-bold text-xs" style={{color:C.g800}}>{c.code}</p>
+                          <p className="text-xs truncate" style={{color:C.g400}}>{c.name}</p>
+                        </div>
+                        {selCurrency.code===c.code&&<CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── PAYMENT ── */}
+            <div className="relative" ref={paymentRef}>
               <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>PAYMENT</p>
-              <div className="relative" ref={paymentRef}>
-                <button
-                  onClick={()=>{setShowPayment(!showPayment);setShowCountry(false);}}
-                  className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
-                  style={{
-                    borderColor:     selPayment!=='all' ? C.sell : C.g200,
-                    color:           selPayment!=='all' ? C.sell : C.g600,
-                    backgroundColor: selPayment!=='all' ? `${C.sell}08` : 'transparent',
-                  }}>
-                  <span className="text-sm leading-none flex-shrink-0">{PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.icon||'💳'}</span>
-                  <span className="text-xs font-black truncate flex-1 text-left">
-                    {PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.label||'All Methods'}
-                  </span>
-                  <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showPayment?'rotate-180':''}`}
-                    style={{color:selPayment!=='all' ? C.sell : C.g400}}/>
-                </button>
-                {showPayment && (
-                  <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
-                    style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
-                    <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
-                      <input type="text" placeholder="🔍  Search payment…"
-                        value={paymentSearch} onChange={e=>setPaymentSearch(e.target.value)}
-                        className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
-                        style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
-                    </div>
-                    <div className="overflow-y-auto max-h-56">
+              <button
+                onClick={()=>{setShowPayment(!showPayment);setShowCurrency(false);setShowCountry(false);}}
+                className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
+                style={{
+                  borderColor:     selPayment!=='all' ? C.sell : C.g200,
+                  color:           selPayment!=='all' ? C.sell : C.g600,
+                  backgroundColor: selPayment!=='all' ? `${C.sell}08` : 'transparent',
+                }}>
+                <span className="text-sm leading-none flex-shrink-0">{PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.icon||'💳'}</span>
+                <span className="text-xs font-black truncate flex-1 text-left">
+                  {PAYMENT_OPTIONS.find(p=>p.value===selPayment)?.label||'All Methods'}
+                </span>
+                <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showPayment?'rotate-180':''}`}
+                  style={{color:selPayment!=='all' ? C.sell : C.g400}}/>
+              </button>
+              {showPayment && (
+                <div className="absolute top-full left-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,minWidth:'220px',maxWidth:'calc(100vw - 24px)'}}>
+                  <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                    <input type="text" placeholder="🔍  Search payment…"
+                      value={paymentSearch} onChange={e=>setPaymentSearch(e.target.value)}
+                      autoFocus
+                      className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                      style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
+                  </div>
+                  <div className="overflow-y-auto max-h-56">
+                  {(() => {
+                    const q = paymentSearch.toLowerCase();
+                    let lastCat = null;
+                    return PAYMENT_OPTIONS.filter(p=>!q||p.label.toLowerCase().includes(q)||p.value.toLowerCase().includes(q)).map(p => {
+                      const catHeader = !q && p.cat && p.cat !== lastCat ? (lastCat = p.cat, (
+                        <div key={`h-${p.cat}`} className="px-3 py-1" style={{backgroundColor:'#F8FAFC'}}>
+                          <span className="text-xs font-black uppercase tracking-wider" style={{color:PM_CAT_COLORS[p.cat]||C.g500}}>{p.cat}</span>
+                        </div>
+                      )) : (lastCat = p.cat || lastCat, null);
+                      return [catHeader, (
+                        <button key={p.value} onClick={()=>{setSelPayment(p.value);setShowPayment(false);setPaymentSearch('');}}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
+                          style={{backgroundColor:selPayment===p.value?`${C.sell}08`:'transparent'}}>
+                          <span className="text-sm flex-shrink-0">{p.icon}</span>
+                          <span className="flex-1 text-left font-semibold text-xs leading-tight" style={{color:C.g800}}>{p.label}</span>
+                          {selPayment===p.value && <CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
+                        </button>
+                      )];
+                    });
+                  })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── COUNTRY ── */}
+            <div className="relative" ref={countryRef}>
+              <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>COUNTRY</p>
+              <button
+                onClick={()=>{setShowCountry(!showCountry);setShowCurrency(false);setShowPayment(false);}}
+                className="w-full flex items-center gap-1.5 px-2.5 py-2.5 rounded-xl border-2 font-bold transition"
+                style={{
+                  borderColor:     selCountry.code!=='ALL' ? C.sell : C.g200,
+                  color:           selCountry.code!=='ALL' ? C.sell : C.g600,
+                  backgroundColor: selCountry.code!=='ALL' ? `${C.sell}08` : 'transparent',
+                }}>
+                <span className="text-sm leading-none flex-shrink-0">{selCountry.flag}</span>
+                <span className="text-xs font-black truncate flex-1 text-left">{selCountry.name}</span>
+                <ChevronDown size={11} className={`transition-transform flex-shrink-0 ${showCountry?'rotate-180':''}`}
+                  style={{color:selCountry.code!=='ALL' ? C.sell : C.g400}}/>
+              </button>
+              {showCountry && (
+                <div className="absolute top-full right-0 mt-1.5 bg-white rounded-2xl shadow-2xl z-50 border overflow-hidden"
+                  style={{borderColor:C.g100,minWidth:'240px',maxWidth:'calc(100vw - 24px)'}}>
+                  <div className="p-2 border-b sticky top-0 bg-white" style={{borderColor:C.g100}}>
+                    <input type="text" placeholder="🔍  Search country…"
+                      value={countrySearch} onChange={e=>setCountrySearch(e.target.value)}
+                      autoFocus
+                      className="w-full px-3 py-1.5 font-semibold rounded-xl border focus:outline-none"
+                      style={{borderColor:C.g200,color:C.g800,fontSize:'16px'}}/>
+                  </div>
+                  <div className="overflow-y-auto max-h-60">
                     {(() => {
-                      const q = paymentSearch.toLowerCase();
-                      let lastCat = null;
-                      return PAYMENT_OPTIONS.filter(p=>!q||p.label.toLowerCase().includes(q)||p.value.toLowerCase().includes(q)).map(p => {
-                        const catHeader = !q && p.cat && p.cat !== lastCat ? (lastCat = p.cat, (
-                          <div key={`h-${p.cat}`} className="px-3 py-1 sticky top-0" style={{backgroundColor:'#F8FAFC'}}>
-                            <span className="text-xs font-black uppercase tracking-wider" style={{color:PM_CAT_COLORS[p.cat]||C.g500}}>{p.cat}</span>
-                          </div>
-                        )) : (lastCat = p.cat || lastCat, null);
-                        return [catHeader, (
-                          <button key={p.value} onClick={()=>{setSelPayment(p.value);setShowPayment(false);setPaymentSearch('');}}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition"
-                            style={{backgroundColor:selPayment===p.value?`${C.sell}08`:'transparent'}}>
-                            <span className="text-sm flex-shrink-0">{p.icon}</span>
-                            <span className="flex-1 text-left font-semibold text-xs leading-tight" style={{color:C.g800}}>{p.label}</span>
-                            {selPayment===p.value && <CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
+                      const q = countrySearch.toLowerCase();
+                      const filtered = COUNTRIES.filter(c=>!q||c.name.toLowerCase().includes(q));
+                      let lastReg = null;
+                      return filtered.map(c=>{
+                        const regHdr = !q && c.region && c.region!==lastReg
+                          ? (lastReg=c.region, <div key={`r-${c.region}`} className="px-3 py-1" style={{backgroundColor:'#F8FAFC'}}>
+                              <span className="text-xs font-black uppercase tracking-wider" style={{color:COUNTRY_REGIONS[c.region]||C.g500}}>{c.region}</span>
+                            </div>)
+                          : (c.region&&(lastReg=c.region), null);
+                        return [regHdr,
+                          <button key={c.code} onClick={()=>{setSelCountry(c);setShowCountry(false);setCountrySearch('');}}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 border-b last:border-0 transition"
+                            style={{borderColor:C.g50,backgroundColor:selCountry.code===c.code?`${C.sell}08`:'transparent'}}>
+                            <span className="text-base flex-shrink-0">{c.flag}</span>
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="font-bold text-xs truncate" style={{color:C.g800}}>{c.name}</p>
+                              {c.currency&&<p className="text-xs" style={{color:C.g400}}>{c.symbol} {c.currency}</p>}
+                            </div>
+                            {selCountry.code===c.code&&<CheckCircle size={11} style={{color:C.sell,flexShrink:0}}/>}
                           </button>
-                        )];
+                        ];
                       });
                     })()}
-                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Sort + Create Offer row */}
+          {/* Sort + Search + Create + Clear — all on one line */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
             <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-              className="flex-1 min-w-0 px-2.5 py-2 font-bold border-2 rounded-xl focus:outline-none"
-              style={{borderColor:sortBy!=='rate_high'?C.sell:C.g200, color:C.g800, fontSize:'16px'}}>
+              className="flex-shrink-0 px-2 py-2 font-bold border-2 rounded-xl focus:outline-none"
+              style={{borderColor:sortBy!=='rate_high'?C.sell:C.g200, color:C.g800, fontSize:'13px', width:'105px'}}>
               <option value="rate_high">Best Rate</option>
               <option value="rating">Top Rated</option>
               <option value="trades">Most Trades</option>
             </select>
+            <div className="flex-1 min-w-0 flex items-center border-2 rounded-xl overflow-hidden"
+              style={{borderColor:traderSearch.trim()?C.sell:C.g200}}>
+              <input
+                type="text"
+                placeholder="Search buyer…"
+                value={traderSearch}
+                onChange={e=>setTraderSearch(e.target.value)}
+                className="flex-1 min-w-0 px-2.5 py-2 font-bold focus:outline-none bg-transparent"
+                style={{color:C.g800, fontSize:'16px'}}/>
+              {traderSearch.trim()&&(
+                <button onClick={()=>setTraderSearch('')} className="px-2 flex-shrink-0" style={{color:C.g400}}>
+                  <X size={12}/>
+                </button>
+              )}
+            </div>
             <button onClick={()=>navigate('/create-offer')}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
               style={{backgroundColor:C.sell, whiteSpace:'nowrap'}}>
-              <PlusCircle size={13}/> + Create
+              <PlusCircle size={12}/> Create
             </button>
             {hasFilters && (
-              <button onClick={()=>{setSellAmt('');setSelPayment('all');setSelCountry(COUNTRIES[0]);setSortBy('rate_high');setPaymentSearch('');}}
-                className="flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-black border-2 transition"
+              <button onClick={()=>{setSellAmt('');setSelPayment('all');setSelCountry(COUNTRIES[0]);setSelCurrency(CURRENCIES[0]);setSortBy('rate_high');setPaymentSearch('');setTraderSearch('');setCurrencySearch('');setCountrySearch('');}}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-xs font-black border-2 transition"
                 style={{borderColor:C.danger, color:C.danger, backgroundColor:'#FEF2F2'}}>
                 ✕
               </button>
@@ -1044,7 +1155,10 @@ export default function SellBitcoin({user}) {
         </div>
       </div>
 
-      {/* ══ 5. BOTTOM NAV ══════════════════════════════════════ */}
+      {/* ══ 5. FOOTER ══════════════════════════════════════════ */}
+      <PRQFooter/>
+
+      {/* ══ 6. BOTTOM NAV ══════════════════════════════════════ */}
       <BottomNav/>
 
       {modal && (

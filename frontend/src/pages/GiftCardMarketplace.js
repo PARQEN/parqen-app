@@ -14,6 +14,7 @@ import { toast } from 'react-toastify';
 import CountryFlag from '../components/CountryFlag';
 import { TRUST_MAP, deriveBadge } from '../lib/badge';
 import ActiveTradeCard from '../components/ActiveTradeCard';
+import PRQFooter from '../components/PRQFooter';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -741,7 +742,7 @@ export default function GiftCards({user}) {
   const hasFilters  = amountInput.trim()!==''||selBrand!=='All Brands'||selCountry.code!=='ALL'||traderSearch.trim()!==''||sortBy!=='rate_low';
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0 overflow-x-hidden"
+    <div className="min-h-screen flex flex-col pb-0 overflow-x-hidden"
       style={{backgroundColor:C.g100,fontFamily:"'DM Sans',sans-serif"}}>
 
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -1023,51 +1024,44 @@ export default function GiftCards({user}) {
             </div>
           </div>
 
-          {/* Sort + Create Offer + Trader Search row */}
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
-              <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                className="flex-1 min-w-0 px-2.5 py-2 font-bold border-2 rounded-xl focus:outline-none"
-                style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200,color:C.g800,fontSize:'16px'}}>
-                <option value="rate_low">Best Rate</option>
-                <option value="rate_high">Highest Rate</option>
-                <option value="rating">Top Rated</option>
-                <option value="trades">Most Trades</option>
-              </select>
-              <button onClick={()=>navigate('/create-offer')}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
-                style={{backgroundColor:C.accent, whiteSpace:'nowrap'}}>
-                <PlusCircle size={13}/> + Create
-              </button>
-              {hasFilters&&(
-                <button onClick={()=>{setAmountInput('');setSelBrand('All Brands');setSelCountry(COUNTRIES[0]);setTraderSearch('');setSortBy('rate_low');setCountrySearch('');}}
-                  className="flex-shrink-0 px-2.5 py-2 rounded-xl text-xs font-black border-2 transition"
-                  style={{borderColor:C.danger,color:C.danger,backgroundColor:'#FEF2F2'}}>
-                  ✕
+          {/* Sort + Search + Create + Clear — all on one line */}
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+              className="flex-shrink-0 px-2 py-2 font-bold border-2 rounded-xl focus:outline-none"
+              style={{borderColor:sortBy!=='rate_low'?C.forest:C.g200,color:C.g800,fontSize:'13px',width:'105px'}}>
+              <option value="rate_low">Best Rate</option>
+              <option value="rate_high">Highest Rate</option>
+              <option value="rating">Top Rated</option>
+              <option value="trades">Most Trades</option>
+            </select>
+            <div className="flex-1 min-w-0 flex items-center border-2 rounded-xl overflow-hidden"
+              style={{borderColor:traderSearch.trim()?C.forest:C.g200}}>
+              <input
+                type="text"
+                placeholder="Search trader…"
+                value={traderSearch}
+                onChange={e=>setTraderSearch(e.target.value)}
+                className="flex-1 min-w-0 px-2.5 py-2 font-bold focus:outline-none bg-transparent"
+                style={{color:C.g800, fontSize:'16px'}}/>
+              {traderSearch.trim()&&(
+                <button onClick={()=>setTraderSearch('')} className="px-2 flex-shrink-0" style={{color:C.g400}}>
+                  <X size={12}/>
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Search:</span>
-              <div className="flex-1 flex items-center border-2 rounded-xl overflow-hidden"
-                style={{borderColor:traderSearch.trim()?C.forest:C.g200}}>
-                <input
-                  type="text"
-                  placeholder="Search trader by username…"
-                  value={traderSearch}
-                  onChange={e=>setTraderSearch(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-xs font-bold focus:outline-none bg-transparent"
-                  style={{color:C.g800, fontSize:'16px'}}/>
-                {traderSearch.trim()&&(
-                  <button onClick={()=>setTraderSearch('')}
-                    className="px-2 flex-shrink-0"
-                    style={{color:C.g400}}>
-                    <X size={12}/>
-                  </button>
-                )}
-              </div>
-            </div>
+            <button onClick={()=>navigate('/create-offer')}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl text-white font-black text-xs transition hover:opacity-90 active:scale-[0.97]"
+              style={{backgroundColor:C.accent, whiteSpace:'nowrap'}}>
+              <PlusCircle size={12}/> Create
+            </button>
+            {hasFilters&&(
+              <button onClick={()=>{setAmountInput('');setSelBrand('All Brands');setSelCountry(COUNTRIES[0]);setTraderSearch('');setSortBy('rate_low');setCountrySearch('');}}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-xs font-black border-2 transition"
+                style={{borderColor:C.danger,color:C.danger,backgroundColor:'#FEF2F2'}}>
+                ✕
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1151,7 +1145,12 @@ export default function GiftCards({user}) {
       </div>
 
       {/* ══════════════════════════════════════════════════
-          6. BOTTOM NAVIGATION (mobile only)
+          6. FOOTER
+      ══════════════════════════════════════════════════ */}
+      <PRQFooter/>
+
+      {/* ══════════════════════════════════════════════════
+          7. BOTTOM NAVIGATION (mobile only)
       ══════════════════════════════════════════════════ */}
       <BottomNav/>
 

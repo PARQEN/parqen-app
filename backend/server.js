@@ -1444,7 +1444,7 @@ app.get('/api/users/:userId', async (req, res) => {
     const param  = req.params.userId?.trim();
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
     // Core fields only — avoid non-existent columns causing 500s
-    const coreFields = 'id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge';
+    const coreFields = 'id, username, full_name, bio, location, website, avatar_url, average_rating, total_trades, completion_rate, created_at, is_admin, is_moderator, is_id_verified, is_email_verified, is_phone_verified, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, country_code, trust_score, blocks_received';
 
     let data = null;
 
@@ -1746,7 +1746,7 @@ app.get('/api/listings', async (req, res) => {
   try {
     const { brand, minPrice, maxPrice } = req.query;
     let query = supabaseAdmin.from('listings').select(`
-      id, listing_type, gift_card_brand, status, bitcoin_price, margin, pricing_type,
+      id, seller_id, listing_type, gift_card_brand, status, bitcoin_price, margin, pricing_type,
       currency, currency_symbol, country, country_name, payment_method, payment_methods,
       amount_usd, min_limit_usd, max_limit_usd, min_limit_local, max_limit_local,
       time_limit, trade_instructions, listing_terms, description, created_at,
@@ -1769,7 +1769,7 @@ app.get('/api/listings', async (req, res) => {
 app.get('/api/listings/:id', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('listings')
-      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, is_id_verified, is_email_verified, bio)`)
+      .select(`*, users:seller_id(id, username, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, badge, country, country_code, is_id_verified, is_email_verified, is_phone_verified, bio, trust_score, blocks_received)`)
       .eq('id', req.params.id).single();
     if (error) return res.status(404).json({ error: 'Listing not found' });
     res.json({ listing: data });

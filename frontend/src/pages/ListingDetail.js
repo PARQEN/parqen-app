@@ -77,8 +77,10 @@ export default function ListingDetail({ user }) {
   const [seller,     setSeller]     = useState(null);
   const [btcPrice,   setBtcPrice]   = useState(68000);
   const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState(false);
   const [payAmt,     setPayAmt]     = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [tradeError, setTradeError] = useState('');
   const [quote,             setQuote]             = useState(null);
   const [quoteFetching,     setQuoteFetching]     = useState(false);
   const [showSellerProfile, setShowSellerProfile] = useState(false);
@@ -120,30 +122,45 @@ export default function ListingDetail({ user }) {
 
   const loadAll = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const r = await axios.get(`${API_URL}/listings/${id}`);
+      const r = await axios.get(`${API_URL}/listings/${id}`, { timeout: 12000 });
       const l = r.data.listing;
       setListing(l);
-      // Use embedded user data first (includes badge, feedback, etc.)
       const embeddedUser = Array.isArray(l?.users) ? l.users[0] : l?.users;
       if (embeddedUser) setSeller(embeddedUser);
-      // Fetch full profile to enrich (bio, country_code, etc.) — merge with embedded
       if (l?.seller_id) {
         try {
-          const sr = await axios.get(`${API_URL}/users/${l.seller_id}`);
+          const sr = await axios.get(`${API_URL}/users/${l.seller_id}`, { timeout: 8000 });
           const full = sr.data.user;
-          // Prefer the database badge field — merge full profile over embedded
           setSeller(prev => ({ ...(prev || {}), ...full }));
         } catch {}
       }
       axios.post(`${API_URL}/listings/${id}/view`).catch(() => {});
-    } catch { toast.error('Failed to load listing'); }
+    } catch {
+      setLoadError(true);
+      toast.error('Could not load listing — check your connection and try again.');
+    }
     finally { setLoading(false); }
   };
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
-      <div className="w-10 h-10 border-4 rounded-full animate-spin" style={{borderColor:C.sage,borderTopColor:'transparent'}}/>
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 rounded-full animate-spin mx-auto mb-4" style={{borderColor:C.sage,borderTopColor:'transparent'}}/>
+        <p className="text-sm font-bold" style={{color:C.g500}}>Loading offer…</p>
+      </div>
+    </div>
+  );
+  if (loadError) return (
+    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor:C.mist}}>
+      <div className="text-center px-6">
+        <p className="text-4xl mb-3">📡</p>
+        <p className="font-black text-sm mb-2" style={{color:C.g800}}>Connection problem</p>
+        <p className="text-xs mb-4" style={{color:C.g500}}>Could not reach the server. Make sure the backend is running.</p>
+        <button onClick={loadAll} className="px-6 py-2.5 rounded-xl text-white font-bold text-sm mr-2" style={{backgroundColor:C.green}}>Try Again</button>
+        <button onClick={()=>navigate(-1)} className="px-5 py-2.5 rounded-xl font-bold text-sm border-2" style={{color:C.g600,borderColor:C.g200}}>Go Back</button>
+      </div>
     </div>
   );
   if (!listing) return (
@@ -159,7 +176,6 @@ export default function ListingDetail({ user }) {
   // ── Derived values ──────────────────────────────────────────────────────────
   const cfg      = getListingConfig(listing);
   const isGiftCard = listing.listing_type?.toUpperCase().includes('GIFT');
-  const countryCode = (seller?.country_code || seller?.country || 'gh').toLowerCase();
 
   const cur      = listing.currency || 'USD';
   const sym      = listing.currency_symbol || CUR_SYM[cur] || '$';
@@ -193,36 +209,47 @@ export default function ListingDetail({ user }) {
   const pmRaw    = listing.payment_method || (Array.isArray(listing.payment_methods) ? listing.payment_methods[0] : '') || '';
 
   const trades         = parseInt(seller?.total_trades || 0);
-  const reviews        = parseInt(seller?.review_count || seller?.total_reviews || trades);
-  const lastSeen       = fmtAge(seller?.last_login || seller?.updated_at);
-  const isOnline       = seller?.last_login && (Date.now() - new Date(seller.last_login)) / 1000 < 300;
+  const lastSeen       = fmtAge(seller?.last_login || seller?.last_seen_at || seller?.updated_at);
+  const isOnline       = (seller?.last_login || seller?.last_seen_at) && (Date.now() - new Date(seller.last_login || seller.last_seen_at)) / 1000 < 300;
   const posFeedback    = parseInt(seller?.positive_feedback || 0);
   const negFeedback    = parseInt(seller?.negative_feedback || 0);
+  const totalFeedback  = parseInt(seller?.total_feedback_count || posFeedback + negFeedback || 0);
+  const rating         = parseFloat(seller?.average_rating || 0);
   const responseTime   = seller?.avg_response_time || '<1m';
+  const hasPhone       = !!(seller?.is_phone_verified);
+  const hasEmail       = !!(seller?.is_email_verified);
+  const hasKyc         = !!(seller?.is_id_verified || seller?.kyc_verified);
+  const accountAge     = seller?.created_at ? Math.floor((Date.now() - new Date(seller.created_at)) / 86400000) : 0;
+  const blocksRcvd     = parseInt(seller?.blocks_received || 0);
+  const dbTrustScore   = parseInt(seller?.trust_score || 0);
+  const trustScore     = dbTrustScore > 0 ? dbTrustScore
+    : Math.min(100, (hasEmail?25:0) + (hasPhone?25:0) + (hasKyc?25:0) + Math.min(25, Math.floor(trades/20)*5));
+  const sellerCountryCode = (seller?.country_code || seller?.country || 'gh').toLowerCase().slice(0,2);
 
 
   const handleStartTrade = async () => {
+    setTradeError('');
     if (!user)                           { toast.info('Please login to start trading'); navigate('/login'); return; }
     if (isOwner)                         { toast.info('This is your listing'); return; }
-    if (!payAmt || payAmtNum <= 0)       { toast.error('Enter an amount to trade'); return; }
-    if (payAmtNum < minLocal)            { toast.error(`Minimum is ${sym}${fmt(minLocal)}`); return; }
-    if (payAmtNum > maxLocal)            { toast.error(`Maximum is ${sym}${fmt(maxLocal)}`); return; }
-    if (btcGross <= 0 || !isFinite(btcGross)) { toast.error('Invalid amount'); return; }
+    if (!payAmt || payAmtNum <= 0)       { setTradeError('Please enter an amount to trade.'); return; }
+    if (payAmtNum < minLocal)            { setTradeError(`Minimum is ${sym}${fmt(minLocal)}.`); return; }
+    if (payAmtNum > maxLocal)            { setTradeError(`Maximum is ${sym}${fmt(maxLocal)}.`); return; }
+    if (btcGross <= 0 || !isFinite(btcGross)) { setTradeError('Invalid amount — please try again.'); return; }
 
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      if (!token) { navigate('/login?message=Please log in to trade'); return; }
 
-      // Ensure we have a fresh, valid quote before creating the trade
       let activeQuote = (quote && Date.now() < quote.expiresAt) ? quote : null;
       if (!activeQuote) {
         try {
-          const qr = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id });
+          const qr = await axios.post(`${API_URL}/quotes`, { listingId: listing.id || id }, { timeout: 10000 });
           activeQuote = { quoteId: qr.data.quoteId, executableRate: qr.data.executableRate, expiresAt: Date.now() + qr.data.expiresIn * 1000 };
           setQuote(activeQuote);
-        } catch {
-          toast.error('Could not fetch a rate quote. Please try again.');
-          setSubmitting(false);
+        } catch(qe) {
+          const msg = qe.response?.data?.error || 'Could not lock a rate — check your connection and try again.';
+          setTradeError(msg);
           return;
         }
       }
@@ -241,13 +268,20 @@ export default function ListingDetail({ user }) {
         trade_type:      (listing.listing_type === 'SELL' || listing.listing_type === 'SELL_GIFT_CARD') ? 'BUY' : 'SELL',
         sellerRateLocal: parseFloat(activeQuote.executableRate.toFixed(2)),
         sellerRateUsd:   parseFloat(sellerRateUSD.toFixed(2)),
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.data.success || r.data.trade) {
-        toast.success('Trade opened! Escrow activated.');
-        navigate(`/trade/${r.data.trade.id}`);
+      }, { headers: { Authorization: `Bearer ${token}` }, timeout: 20000 });
+
+      const tradeData = r.data.trade || r.data;
+      const tradeId   = tradeData?.id || tradeData?.trade?.id;
+      if (tradeId) {
+        toast.success('Trade opened! BTC locked in escrow.');
+        navigate(`/trade/${tradeId}`);
+      } else {
+        setTradeError('Trade was created but we could not navigate to it. Check My Trades.');
       }
     } catch(e) {
-      toast.error(e.response?.data?.error || 'Failed to create trade');
+      const msg = e.response?.data?.error || e.message || 'Failed to create trade — please try again.';
+      setTradeError(msg);
+      toast.error(msg);
     } finally { setSubmitting(false); }
   };
 
@@ -373,7 +407,7 @@ export default function ListingDetail({ user }) {
                 <BadgeChip user={seller} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.g400, fontWeight: 600 }}>
-                <CountryFlag countryCode={countryCode} className="w-4 h-3" />
+                <CountryFlag countryCode={sellerCountryCode} className="w-4 h-3" />
                 <span>{seller?.country || ''}</span>
               </div>
             </div>
@@ -411,70 +445,151 @@ export default function ListingDetail({ user }) {
         {/* ── Seller profile popup ── */}
         {showSellerProfile && (
           <div onClick={() => setShowSellerProfile(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter:'blur(3px)' }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+              style={{ background: '#fff', borderRadius: '22px 22px 0 0', width: '100%', maxWidth: 480, boxShadow: '0 -8px 50px rgba(0,0,0,0.22)', overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
 
-              {/* Popup header — brand green */}
-              <div style={{ background: `linear-gradient(135deg, ${C.forest}, ${C.green})`, padding: '14px 16px 16px', textAlign: 'center' }}>
-                <div style={{ width: 32, height: 3, background: 'rgba(255,255,255,0.3)', borderRadius: 4, margin: '0 auto 12px' }} />
-                <div style={{ position: 'relative', width: 52, height: 52, margin: '0 auto 8px' }}>
-                  <Avatar user={seller} size={52} />
-                  <div style={{ position: 'absolute', bottom: 1, right: 1, width: 13, height: 13, borderRadius: '50%', border: '2px solid #fff', backgroundColor: isOnline ? C.online : C.g300 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>{seller?.username || 'Seller'}</span>
-                  {seller?.kyc_verified && <BadgeCheck size={14} color="#6EE7B7" />}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <BadgeChip user={seller} />
-                  <span style={{ fontSize: 11, color: isOnline ? '#6EE7B7' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
-                    {isOnline ? '● Online' : `Seen ${lastSeen}`}
-                  </span>
-                </div>
+              {/* Drag handle */}
+              <div style={{ padding: '10px 0 4px', display:'flex', justifyContent:'center', flexShrink:0 }}>
+                <div style={{ width:34, height:4, borderRadius:4, background:C.g200 }}/>
               </div>
 
-              {/* Stats grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderBottom: `1px solid ${C.g100}` }}>
-                <div style={{ padding: '12px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}` }}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:15, fontWeight:900, color:C.forest }}>
+              {/* Scrollable body */}
+              <div style={{ overflowY:'auto', flex:1, WebkitOverflowScrolling:'touch' }}>
+
+              {/* Header — green gradient */}
+              <div style={{ background: `linear-gradient(135deg, ${C.forest}, ${C.mint})`, padding: '16px 16px 20px', position: 'relative' }}>
+                {/* Avatar + online dot */}
+                <div style={{ display:'flex', alignItems:'flex-start', gap:14 }}>
+                  <div style={{ position:'relative', flexShrink:0 }}>
+                    <Avatar user={seller} size={60} />
+                    <div style={{ position:'absolute', bottom:1, right:1, width:14, height:14, borderRadius:'50%', border:'2.5px solid #fff', backgroundColor: isOnline ? C.online : C.g400 }}/>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    {/* Name + KYC */}
+                    <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:5 }}>
+                      <span style={{ fontSize:17, fontWeight:900, color:'#fff', lineHeight:1 }}>{seller?.username || 'Seller'}</span>
+                      {hasKyc && <BadgeCheck size={15} color="#6EE7B7"/>}
+                    </div>
+                    {/* Badge + country flag */}
+                    <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:5 }}>
+                      <BadgeChip user={seller}/>
+                      {seller?.country && (
+                        <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+                          <CountryFlag countryCode={sellerCountryCode} className="w-4 h-3"/>
+                          <span style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.75)' }}>{seller.country}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Last seen + account age */}
+                    <div style={{ fontSize:11, color: isOnline ? '#6EE7B7':'rgba(255,255,255,0.55)', fontWeight:700 }}>
+                      {isOnline ? '● Online Now' : `Seen ${lastSeen}`}
+                      {accountAge > 0 && <span style={{ marginLeft:8, color:'rgba(255,255,255,0.4)' }}>· Member {accountAge}d</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rating bar */}
+                {rating > 0 && (
+                  <div style={{ marginTop:12, background:'rgba(255,255,255,0.12)', borderRadius:10, padding:'8px 12px', display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:18 }}>⭐</span>
+                    <div>
+                      <span style={{ fontSize:18, fontWeight:900, color:'#fff', lineHeight:1 }}>{rating.toFixed(1)}</span>
+                      <span style={{ fontSize:11, color:'rgba(255,255,255,0.6)', marginLeft:4, fontWeight:600 }}>/ 5.0 · {totalFeedback} reviews</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Stats strip — Trades / Feedback / Rating */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', borderBottom:`1px solid ${C.g100}` }}>
+                <div style={{ padding:'12px 8px', textAlign:'center', borderRight:`1px solid ${C.g100}` }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:16, fontWeight:900, color:C.forest, marginBottom:2 }}>
                     <Repeat2 size={13} strokeWidth={2.5}/>{fmt(trades)}
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Trades</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:C.g400, textTransform:'uppercase', letterSpacing:0.5 }}>Trades</div>
                 </div>
-                <div style={{ padding: '12px 8px', textAlign: 'center', borderRight: `1px solid ${C.g100}` }}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:3, fontSize:14, fontWeight:900, color:'#16A34A' }}>
-                    <ThumbsUp size={12} strokeWidth={2.5}/>{posFeedback}
+                <div style={{ padding:'12px 8px', textAlign:'center', borderRight:`1px solid ${C.g100}`, background:C.g50 }}>
+                  <div style={{ fontSize:16, fontWeight:900, color:C.g800, marginBottom:3, lineHeight:1 }}>{totalFeedback}</div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:5, marginBottom:3 }}>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:2, fontSize:11, fontWeight:800, color:'#16A34A' }}>
+                      <ThumbsUp size={9} strokeWidth={2.5}/>{posFeedback}
+                    </span>
+                    <span style={{ fontSize:10, color:C.g300 }}>·</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:2, fontSize:11, fontWeight:800, color:'#DC2626' }}>
+                      <ThumbsDown size={9} strokeWidth={2.5}/>{negFeedback}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Positive</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:C.g400, textTransform:'uppercase', letterSpacing:0.5 }}>Feedback</div>
                 </div>
-                <div style={{ padding: '12px 8px', textAlign: 'center' }}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:3, fontSize:14, fontWeight:900, color:'#DC2626' }}>
-                    <ThumbsDown size={12} strokeWidth={2.5}/>{negFeedback}
+                <div style={{ padding:'12px 8px', textAlign:'center' }}>
+                  <div style={{ fontSize:16, fontWeight:900, color:C.forest, marginBottom:2, lineHeight:1 }}>
+                    {rating > 0 ? rating.toFixed(1) : '—'}
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>Negative</div>
+                  <div style={{ fontSize:11, marginBottom:2 }}>{'⭐'.repeat(Math.round(rating))}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:C.g400, textTransform:'uppercase', letterSpacing:0.5 }}>Rating</div>
                 </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
-                {[
-                  { label: 'Response', value: responseTime },
-                  { label: 'Country',  value: seller?.country || '—' },
-                  { label: 'KYC',      value: seller?.kyc_verified ? '✓ Verified' : 'Unverified' },
-                ].map((s, i) => (
-                  <div key={s.label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: i < 2 ? `1px solid ${C.g100}` : 'none', background: C.g50 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: C.g800 }}>{s.value}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.g400, marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ))}
               </div>
 
-              {/* Close */}
-              <div style={{ padding: '12px 16px 28px' }}>
+              {/* Verification list */}
+              <div style={{ padding:'14px 16px', borderBottom:`1px solid ${C.g100}` }}>
+                <p style={{ fontSize:10, fontWeight:800, color:C.g500, textTransform:'uppercase', letterSpacing:0.8, marginBottom:10, margin:'0 0 10px' }}>Verification</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {[
+                    { label:'Phone',  ok:hasPhone,  icon:'📱', yes:'Verified',    no:'Not verified' },
+                    { label:'Email',  ok:hasEmail,  icon:'✉️',  yes:'Verified',    no:'Not verified' },
+                    { label:'KYC ID', ok:hasKyc,    icon:'🪪',  yes:'100% Verified', no:'Not verified' },
+                  ].map(v => (
+                    <div key={v.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:10, background: v.ok ? '#F0FDF4' : C.g50, border:`1px solid ${v.ok ? '#BBF7D0' : C.g200}` }}>
+                      <span style={{ fontSize:16, flexShrink:0 }}>{v.icon}</span>
+                      <span style={{ flex:1, fontSize:13, fontWeight:800, color:C.g700 }}>{v.label}</span>
+                      {v.ok
+                        ? <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:800, color:'#16A34A' }}>
+                            <BadgeCheck size={13} color="#16A34A"/> {v.yes}
+                          </span>
+                        : <span style={{ fontSize:12, fontWeight:700, color:C.g400 }}>{v.no}</span>
+                      }
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trust Score + Blocks */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'14px 16px', borderBottom:`1px solid ${C.g100}` }}>
+                <div style={{ background: trustScore >= 70 ? '#F0FDF4' : trustScore >= 40 ? '#FFFBEB' : '#FEF2F2', borderRadius:12, padding:'12px', border:`1px solid ${trustScore >= 70 ? '#BBF7D0' : trustScore >= 40 ? '#FDE68A' : '#FECACA'}` }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:C.g500, textTransform:'uppercase', letterSpacing:0.5, marginBottom:6 }}>Trust Score</div>
+                  <div style={{ fontSize:24, fontWeight:900, color: trustScore >= 70 ? '#16A34A' : trustScore >= 40 ? '#D97706' : '#DC2626', lineHeight:1, marginBottom:6 }}>{trustScore}</div>
+                  <div style={{ height:5, borderRadius:10, background:C.g200, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${trustScore}%`, borderRadius:10, background: trustScore >= 70 ? '#16A34A' : trustScore >= 40 ? '#D97706' : '#DC2626', transition:'width 0.4s' }}/>
+                  </div>
+                  <div style={{ fontSize:10, color:C.g400, marginTop:4, fontWeight:600 }}>/ 100</div>
+                </div>
+                <div style={{ background: blocksRcvd === 0 ? '#F0FDF4' : '#FEF2F2', borderRadius:12, padding:'12px', border:`1px solid ${blocksRcvd === 0 ? '#BBF7D0' : '#FECACA'}` }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:C.g500, textTransform:'uppercase', letterSpacing:0.5, marginBottom:6 }}>Blocks</div>
+                  <div style={{ fontSize:24, fontWeight:900, color: blocksRcvd === 0 ? '#16A34A' : '#DC2626', lineHeight:1, marginBottom:4 }}>{blocksRcvd}</div>
+                  <div style={{ fontSize:10, color: blocksRcvd === 0 ? '#16A34A' : '#DC2626', fontWeight:700 }}>
+                    {blocksRcvd === 0 ? 'No blocks received' : blocksRcvd === 1 ? '1 user blocked them' : `${blocksRcvd} users blocked them`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio if available */}
+              {seller?.bio && (
+                <div style={{ padding:'12px 16px', borderBottom:`1px solid ${C.g100}` }}>
+                  <p style={{ fontSize:10, fontWeight:800, color:C.g500, textTransform:'uppercase', letterSpacing:0.8, marginBottom:6 }}>About</p>
+                  <p style={{ fontSize:13, color:C.g600, lineHeight:1.6, margin:0 }}>{seller.bio}</p>
+                </div>
+              )}
+
+              {/* Close button */}
+              <div style={{ padding:'14px 16px 32px', flexShrink:0 }}>
                 <button onClick={() => setShowSellerProfile(false)}
-                  style={{ width: '100%', padding: '12px', borderRadius: 12, background: C.forest, color: '#fff', border: 'none', fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>
-                  Close
+                  style={{ width:'100%', padding:'13px', borderRadius:13, background:C.forest, color:'#fff', border:'none', fontWeight:900, fontSize:14, cursor:'pointer', letterSpacing:0.3 }}>
+                  Close Profile
                 </button>
               </div>
+
+              </div>{/* end scroll */}
             </div>
           </div>
         )}
@@ -537,7 +652,7 @@ export default function ListingDetail({ user }) {
                   <input
                     type="number"
                     value={payAmt}
-                    onChange={e => setPayAmt(e.target.value)}
+                    onChange={e => { setPayAmt(e.target.value); setTradeError(''); }}
                     placeholder="0.00"
                     style={{
                       width: '100%', boxSizing: 'border-box',
@@ -583,7 +698,21 @@ export default function ListingDetail({ user }) {
                 </div>
               )}
 
+              {/* Inline trade error */}
+              {tradeError && (
+                <div style={{ marginBottom:14, padding:'10px 14px', borderRadius:10, background:'#FEF2F2', border:'1.5px solid #FECACA', fontSize:13, fontWeight:700, color:'#B91C1C', display:'flex', alignItems:'flex-start', gap:8 }}>
+                  <span style={{ flexShrink:0, fontSize:16 }}>⚠️</span>
+                  <span>{tradeError}</span>
+                </div>
+              )}
+
               {/* CTA */}
+              {listing.status === 'PAUSED' ? (
+                <div style={{ padding:'14px', borderRadius:14, background:'#FFFBEB', border:'2px solid #F59E0B', textAlign:'center' }}>
+                  <p style={{ fontSize:14, fontWeight:900, color:'#92400E', margin:'0 0 4px' }}>⏸ Offer Paused</p>
+                  <p style={{ fontSize:12, color:'#B45309', margin:0 }}>The seller has temporarily paused this offer. Try another offer.</p>
+                </div>
+              ) : (
               <button
                 onClick={handleStartTrade}
                 disabled={submitting || !payAmt || payAmtNum <= 0 || payAmtNum < minLocal || payAmtNum > maxLocal}
@@ -603,6 +732,7 @@ export default function ListingDetail({ user }) {
                   ? <><RefreshCw size={15} className="animate-spin" /> Opening trade…</>
                   : <><Lock size={14} /> Proceed to Payment <ArrowRight size={14} /></>}
               </button>
+              )}
 
               {/* Simple steps */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.g100}` }}>

@@ -20,8 +20,11 @@ const STATUS_MAP = {
 };
 const getStatus = s => STATUS_MAP[s?.toUpperCase()] || STATUS_MAP.CREATED;
 
-const symMap = { GHS:'₵', NGN:'₦', KES:'KSh', ZAR:'R', USD:'$', GBP:'£', EUR:'€' };
+const symMap = { GHS:'₵', NGN:'₦', KES:'KSh', ZAR:'R', USD:'$', GBP:'£', EUR:'€', UGX:'USh' };
 const fmt    = n => new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
+const flag   = code => !code||code.length!==2?'🌍':code.toUpperCase().replace(/./g,c=>String.fromCodePoint(0x1F1E0+c.charCodeAt(0)-65));
+const isGiftTrade = t => !!(t.trade_type?.toUpperCase().includes('GIFT')||t.listing?.listing_type?.toUpperCase().includes('GIFT'));
+const tradeColor  = (isGift, isBuyer) => isGift ? '#8B5CF6' : isBuyer ? '#F59E0B' : '#2D6A4F';
 
 // Only real DB active statuses — COMPLETED and CANCELLED are NOT active
 const ACTIVE_STATUSES = new Set(['CREATED','FUNDS_LOCKED','PAYMENT_SENT','PAID','DISPUTED']);
@@ -55,72 +58,84 @@ const markSeen = ids => {
 };
 
 // ─── Individual trade card ───────────────────────────────────────────────────
-function TradeCard({ trade, user, onClose }) {
-  const isBuyer  = String(user?.id) === String(trade.buyer_id);
-  const st       = getStatus(trade.status);
-  const cpName   = isBuyer
-    ? (trade.seller?.username || trade.seller_name || '—')
-    : (trade.buyer?.username  || trade.buyer_name  || '—');
+function TradeCard({ trade, user, onClose, onExpire }) {
+  const isBuyer   = String(user?.id) === String(trade.buyer_id);
+  const st        = getStatus(trade.status);
+  const cp        = isBuyer ? (trade.seller||{}) : (trade.buyer||{});
+  const cpName    = cp.username||(isBuyer?trade.seller_name:trade.buyer_name)||'—';
+  const cpFlag    = flag(cp.country_code||trade.listing?.country_code||'');
+  const isGift    = isGiftTrade(trade);
+  const typeColor = tradeColor(isGift, isBuyer);
+  const typeLabel = isGift ? '🎁 GIFT CARD' : isBuyer ? '🛒 BUYING BTC' : '💰 SELLING BTC';
 
-  const cur      = trade.local_currency || trade.currency || '';
-  const sym      = symMap[cur] || '';
-  const localAmt = trade.amount_local  || trade.local_amount || 0;
-  const payDisp  = localAmt
-    ? `${sym}${fmt(localAmt)} ${cur}`
-    : `$${fmt(trade.amount_usd || 0)} USD`;
-  const btcAmt   = parseFloat(trade.amount_btc || 0).toFixed(8);
+  const cur       = trade.local_currency || trade.currency || '';
+  const sym       = symMap[cur] || '';
+  const localAmt  = trade.amount_local || trade.local_amount || 0;
+  const btcAmt    = parseFloat(trade.amount_btc || 0);
+  const btcNet    = btcAmt * 0.995;
+  const payDisp   = localAmt ? `${sym}${fmt(localAmt)} ${cur}` : `$${fmt(trade.amount_usd||0)} USD`;
 
-  // Live countdown
-  const minsLimit = parseInt(trade.time_limit || 30);
-  const deadline  = new Date(new Date(trade.created_at).getTime() + minsLimit * 60000);
-  const [timeLeft, setTimeLeft] = useState('');
+  // Hard 30-minute timer
+  const deadline  = new Date(trade.created_at).getTime() + 30*60*1000;
+  const [timeLeft, setTimeLeft] = useState(null);
   const [isUrgent, setIsUrgent] = useState(false);
+  const expiredRef = React.useRef(false);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const tick = () => {
-      const diff = deadline - Date.now();
-      if (diff <= 0) { setTimeLeft('Expired'); setIsUrgent(false); return; }
-      const m = Math.floor(diff / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${m}:${String(s).padStart(2,'0')}`);
-      setIsUrgent(diff < 300000);
+      const diff = Math.max(0, deadline - Date.now());
+      const secs = Math.floor(diff / 1000);
+      setTimeLeft(secs);
+      setIsUrgent(diff > 0 && diff < 300000);
+      if (diff === 0 && !expiredRef.current) {
+        expiredRef.current = true;
+        axios.post(`${API_URL}/trades/${trade.id}/auto-cancel`,
+          { reason: '30-minute payment window expired' }, { headers }
+        ).catch(() => {});
+        setTimeout(() => onExpire && onExpire(trade.id), 2500);
+      }
     };
     tick();
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, []);
+  }, [trade.id, trade.created_at]);
 
-  const isPaid      = ['PAYMENT_SENT','PAID'].includes(trade.status?.toUpperCase());
-  const borderColor = isUrgent ? C.danger : st.color;
-  const roleColor   = isBuyer ? C.gold   : C.forest;
+  const fmtT = s => {
+    if (s === null) return '--:--';
+    if (s <= 0) return '00:00';
+    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  };
+
+  const isPaid    = ['PAYMENT_SENT','PAID'].includes(trade.status?.toUpperCase());
+  const borderCol = (isUrgent && !isPaid) ? C.danger : typeColor;
 
   const actionMsg = isBuyer
-    ? isPaid
-        ? `✅ Payment sent — awaiting release from ${cpName}`
-        : `💸 Send ${payDisp} via ${trade.payment_method || '—'} to ${cpName}`
-    : isPaid
-        ? `🔓 ${cpName} paid! Check ${trade.payment_method || '—'} and RELEASE BITCOIN`
-        : `⏳ Waiting for ${cpName} to send payment…`;
+    ? isPaid ? `✅ Payment sent — awaiting release from ${cpName}`
+             : `💸 Send ${payDisp} via ${trade.payment_method||'—'} to ${cpName}`
+    : isPaid ? `🔓 ${cpName} paid! Check ${trade.payment_method||'—'} and RELEASE BITCOIN`
+             : `⏳ Waiting for ${cpName} to send payment…`;
 
   return (
-    <div className="rounded-2xl border-2 overflow-hidden" style={{ borderColor }}>
+    <div className="rounded-2xl border-2 overflow-hidden" style={{ borderColor: borderCol }}>
 
-      {/* Role badge + timer */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5"
-        style={{ backgroundColor: isUrgent ? `${C.danger}12` : `${st.color}12` }}>
-        <span className="font-black text-xs px-3 py-1 rounded-full"
-          style={{ backgroundColor: roleColor, color: '#fff' }}>
-          {isBuyer ? '🛒 YOU ARE BUYING' : '💰 YOU ARE SELLING'}
+        style={{ backgroundColor: `${typeColor}12` }}>
+        <span className="font-black text-xs px-3 py-1 rounded-full text-white"
+          style={{ backgroundColor: typeColor }}>
+          {typeLabel}
         </span>
         <div className="flex items-center gap-2">
-          {timeLeft && timeLeft !== 'Expired' && (
-            <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-full ${isUrgent ? 'animate-pulse' : ''}`}
-              style={{ backgroundColor: isUrgent ? C.danger : st.color, color: '#fff' }}>
-              <Timer size={9} className="inline mr-0.5" />{timeLeft}
+          {timeLeft !== null && !isPaid && (
+            <span className={`font-mono text-xs font-black px-2 py-0.5 rounded-full ${isUrgent?'animate-pulse':''}`}
+              style={{ backgroundColor: isUrgent ? C.danger : typeColor, color: '#fff' }}>
+              <Timer size={9} className="inline mr-0.5" />{fmtT(timeLeft)}
             </span>
           )}
           <span className="font-mono text-xs" style={{ color: C.g400 }}>
-            #{String(trade.id || '').slice(0,8).toUpperCase()}
+            #{String(trade.id||'').slice(0,8).toUpperCase()}
           </span>
         </div>
       </div>
@@ -132,37 +147,48 @@ function TradeCard({ trade, user, onClose }) {
 
       {/* Details */}
       <div className="px-4 py-3 space-y-2 bg-white">
-        {[
-          [`👤 ${isBuyer ? 'Seller' : 'Buyer'}:`, cpName,                      C.forest],
-          ['💳 Payment:',                          trade.payment_method || '—',  null    ],
-          [`💵 You ${isBuyer ? 'Pay' : 'Get'}:`,  payDisp,                      C.forest],
-        ].map(([label, val, color]) => (
-          <div key={label} className="flex justify-between text-xs">
-            <span style={{ color: C.g500 }}>{label}</span>
-            <span className="font-bold" style={color ? { color } : {}}>{val}</span>
-          </div>
-        ))}
         <div className="flex justify-between text-xs">
-          <span style={{ color: C.g500 }}>₿ You {isBuyer ? 'Receive' : 'Send'}:</span>
-          <div className="text-right">
-            <span className="font-black" style={{ color: isBuyer ? C.success : C.danger }}>
-              ₿ {btcAmt}
-            </span>
-            <div className="text-xs font-bold" style={{ color: C.g400 }}>≈ {payDisp}</div>
-          </div>
+          <span style={{ color: C.g500 }}>👤 {isBuyer?'Seller':'Buyer'}</span>
+          <span className="font-bold" style={{ color: C.forest }}>{cpFlag} {cpName}</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span style={{ color: C.g500 }}>📊 Status:</span>
+          <span style={{ color: C.g500 }}>💳 Payment</span>
+          <span className="font-bold">{trade.payment_method||'—'}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span style={{ color: C.g500 }}>💵 {isBuyer?'You Pay':'Buyer Pays'}</span>
+          <span className="font-black" style={{ color: C.forest }}>{payDisp}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span style={{ color: C.g500 }}>🔒 BTC Escrow</span>
+          <span className="font-black" style={{ color: '#F59E0B' }}>₿{btcAmt.toFixed(8)}</span>
+        </div>
+        <div className="flex justify-between text-xs pt-1 border-t" style={{ borderColor: C.g100 }}>
+          <span style={{ color: C.g500 }}>✅ You Receive</span>
+          <span className="font-black" style={{ color: isBuyer ? C.success : typeColor }}>
+            {isBuyer ? `₿${btcNet.toFixed(8)}` : payDisp}
+          </span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span style={{ color: C.g500 }}>📊 Status</span>
           <span className="font-bold px-2 py-0.5 rounded-full text-xs"
             style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
         </div>
       </div>
 
+      {isUrgent && !isPaid && (
+        <div className="px-4 py-2 border-t animate-pulse" style={{ borderColor: C.danger, backgroundColor: `${C.danger}08` }}>
+          <p className="text-xs font-black" style={{ color: C.danger }}>
+            ⚠️ Under 5 min left! Trade cancels at 00:00 — BTC returns to wallet instantly.
+          </p>
+        </div>
+      )}
+
       {/* CTA */}
       <div className="px-4 pb-3 bg-white">
         <Link to={`/trade/${trade.id}`} onClick={onClose}
           className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-xs w-full hover:opacity-90 transition shadow"
-          style={{ backgroundColor: isUrgent ? C.danger : st.color }}>
+          style={{ backgroundColor: isUrgent ? C.danger : typeColor }}>
           <Zap size={13} /> Open Trade Now <ArrowRight size={12} />
         </Link>
       </div>
@@ -178,8 +204,13 @@ function TradeCard({ trade, user, onClose }) {
 // Popup fires ONCE per trade ID per browser session (sessionStorage).
 // After dismiss the modal is gone — no floating bubble, no re-trigger.
 export default function ActiveTradeBanner({ user, currentPage }) {
-  const [relevant,   setRelevant]   = useState([]);
-  const [showModal,  setShowModal]  = useState(false);
+  const [relevant,  setRelevant]  = useState([]);
+  const [showModal, setShowModal] = useState(false);
+
+  // Remove a trade from the relevant list when its timer hits 0
+  const handleExpire = (tradeId) => {
+    setRelevant(prev => prev.filter(t => String(t.id) !== String(tradeId)));
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -190,12 +221,8 @@ export default function ActiveTradeBanner({ user, currentPage }) {
       try {
         const r      = await axios.get(`${API_URL}/my-trades`, { headers });
         const trades = r.data.trades || [];
-
-        // Filter to trades that belong on this page
         const pageActive = trades.filter(t => matchesPage(t, currentPage));
         setRelevant(pageActive);
-
-        // Only pop for trade IDs not yet shown this session
         const fresh = pageActive.filter(t => !getSeenIds().has(String(t.id)));
         if (fresh.length > 0) {
           markSeen(fresh.map(t => t.id));
@@ -209,7 +236,11 @@ export default function ActiveTradeBanner({ user, currentPage }) {
     return () => clearInterval(iv);
   }, [user, currentPage]);
 
-  // Nothing relevant or user already dismissed — render nothing
+  // Auto-close modal if all trades expired/gone
+  useEffect(() => {
+    if (relevant.length === 0) setShowModal(false);
+  }, [relevant]);
+
   if (!showModal || relevant.length === 0) return null;
 
   return (
@@ -218,26 +249,21 @@ export default function ActiveTradeBanner({ user, currentPage }) {
       <div className="bg-white rounded-3xl shadow-2xl w-full overflow-hidden"
         style={{ maxWidth: 480, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4"
           style={{ background: `linear-gradient(135deg,${C.forest},${C.mint})` }}>
-          <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0"
-            style={{ backgroundColor: C.online }} />
-          <Bell size={16} className="text-white flex-shrink-0" />
+          <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0" style={{ backgroundColor: C.online }}/>
+          <Bell size={16} className="text-white flex-shrink-0"/>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-black text-sm">⚡ You Have an Active Trade</p>
+            <p className="text-white font-black text-sm">⚡ Active Trade — Action Required</p>
             <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              Action required — don't miss your trade window
+              30 min window · BTC in escrow
             </p>
           </div>
-          <button onClick={() => setShowModal(false)}
-            className="text-white/50 hover:text-white transition flex-shrink-0"
-            aria-label="Dismiss">
-            <X size={18} />
+          <button onClick={() => setShowModal(false)} className="text-white/50 hover:text-white transition flex-shrink-0">
+            <X size={18}/>
           </button>
         </div>
 
-        {/* Trade cards */}
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {relevant.map(trade => (
             <TradeCard
@@ -245,15 +271,15 @@ export default function ActiveTradeBanner({ user, currentPage }) {
               trade={trade}
               user={user}
               onClose={() => setShowModal(false)}
+              onExpire={handleExpire}
             />
           ))}
         </div>
 
-        {/* Footer — dismiss only, no floating re-trigger */}
         <div className="px-5 py-3 border-t flex items-center justify-between"
           style={{ borderColor: C.g200, backgroundColor: C.g50 }}>
           <div className="flex items-center gap-1.5">
-            <Shield size={12} style={{ color: C.green }} />
+            <Shield size={12} style={{ color: C.green }}/>
             <p className="text-xs font-semibold" style={{ color: C.g500 }}>
               Escrow-protected · 0.5% fee on completion only
             </p>
@@ -261,7 +287,7 @@ export default function ActiveTradeBanner({ user, currentPage }) {
           <button onClick={() => setShowModal(false)}
             className="text-xs font-bold px-4 py-2 rounded-xl border hover:bg-gray-50 transition"
             style={{ borderColor: C.g200, color: C.g600 }}>
-            Ignore
+            Dismiss
           </button>
         </div>
       </div>

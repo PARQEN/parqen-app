@@ -30,6 +30,13 @@ const fmtAge = d => {
   if(s<86400)return`${~~(s/3600)}h ago`;
   return`${~~(s/86400)}d ago`;
 };
+const flag = code => !code||code.length!==2?'🌍':code.toUpperCase().replace(/./g,c=>String.fromCodePoint(0x1F1E0+c.charCodeAt(0)-65));
+const tradeTypeOf = t => {
+  const lt = (t.listing_type||t.listing?.listing_type||'').toUpperCase();
+  if (lt.includes('GIFT')) return 'gift';
+  return 'btc';
+};
+const SYM = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'};
 
 // ─── Status config ─────────────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -61,64 +68,73 @@ function StatCard({icon:Icon, label, value, color, sub}) {
 }
 
 // ─── Active trade alert banner ──────────────────────────────────────────────
-function ActiveAlert({trade, userId, onDismiss}) {
-  const isBuyer   = String(userId)===String(trade.buyer_id);
-  const st        = getStatus(trade.status);
-  const cp        = isBuyer ? trade.seller : trade.buyer;
-  const payMethod = trade.payment_method||'Mobile Money';
-  const cur       = trade.local_currency||trade.currency||trade.listing?.currency||'GHS';
-  const sym       = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'}[cur]||'₵';
-  const localAmt  = parseFloat(trade.amount_local||trade.local_amount||0);
-  const feeBtc    = parseFloat(trade.amount_btc||0)*0.005;
-  const btcNet    = parseFloat(trade.amount_btc||0) - feeBtc;
-  const isPaid    = ['PAYMENT_SENT','PAID'].includes(trade.status?.toUpperCase());
-  const isDisputed= trade.status?.toUpperCase()==='DISPUTED';
+function ActiveAlert({trade, userId, onDismiss, onExpire}) {
+  const isBuyer    = String(userId)===String(trade.buyer_id);
+  const st         = getStatus(trade.status);
+  const cp         = isBuyer ? trade.seller : trade.buyer;
+  const payMethod  = trade.payment_method||'Mobile Money';
+  const cur        = trade.local_currency||trade.currency||trade.listing?.currency||'GHS';
+  const sym        = SYM[cur]||'₵';
+  const localAmt   = parseFloat(trade.amount_local||trade.local_amount||0);
+  const btcAmt     = parseFloat(trade.amount_btc||0);
+  const btcNet     = btcAmt * 0.995; // after 0.5% fee
+  const isPaid     = ['PAYMENT_SENT','PAID'].includes(trade.status?.toUpperCase());
+  const isDisputed = trade.status?.toUpperCase()==='DISPUTED';
+  const isGift     = tradeTypeOf(trade)==='gift';
+  const typeColor  = isDisputed ? C.danger : isGift ? C.purple : isBuyer ? C.amber : C.green;
+  const cpFlag     = flag(cp?.country_code||trade.listing?.country_code||'');
 
-  // Countdown timer
+  // Countdown — hard 30-minute limit
   const [timeLeft, setTimeLeft] = React.useState(null);
+  const expiredRef = React.useRef(false);
   React.useEffect(()=>{
     if(!trade.created_at) return;
-    const mins = parseInt(trade.time_limit||45);
+    const deadline = new Date(trade.created_at).getTime() + 30*60*1000;
     const tick = ()=>{
-      const rem = Math.max(0,Math.floor((new Date(trade.created_at).getTime()+mins*60000-Date.now())/1000));
+      const rem = Math.max(0, Math.floor((deadline - Date.now())/1000));
       setTimeLeft(rem);
+      if (rem===0 && !expiredRef.current) {
+        expiredRef.current = true;
+        axios.post(`${API_URL}/trades/${trade.id}/auto-cancel`,
+          {reason:'30-minute payment window expired'},
+          {headers:authH()}
+        ).catch(()=>{});
+        setTimeout(()=> onExpire && onExpire(trade.id), 2500);
+      }
     };
     tick();
     const iv = setInterval(tick,1000);
     return()=>clearInterval(iv);
-  },[trade.created_at,trade.time_limit]);
+  },[trade.created_at, trade.id]);
 
   const fmtTimer = s=>{
     if(s===null||s===undefined)return'--:--';
     if(s<=0)return'00:00';
-    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
-    return h>0
-      ?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`
-      :`${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+    const m=Math.floor(s/60),sc=s%60;
+    return`${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
   };
-
   const urgent = timeLeft!==null&&timeLeft<300&&timeLeft>0;
 
-  // Dynamic message by role + status
   const roleMsg = isBuyer
-    ? isPaid  ? `✅ Payment sent — awaiting release from ${cp?.username||'seller'}`
-               : `💸 Send ${sym}${fmt(localAmt)} ${cur} via ${payMethod} to ${cp?.username||'seller'}`
-    : isPaid  ? `🔓 ${cp?.username||'Buyer'} paid! Check your ${payMethod} and RELEASE BITCOIN`
-               : `⏳ ${cp?.username||'Buyer'} is sending ${sym}${fmt(localAmt)} via ${payMethod}…`;
+    ? isPaid ? `✅ Payment sent — awaiting Bitcoin release from ${cp?.username||'seller'}`
+             : `💸 Send ${sym}${fmt(localAmt)} ${cur} via ${payMethod} to ${cp?.username||'seller'}`
+    : isPaid ? `🔓 ${cp?.username||'Buyer'} paid! Check your ${payMethod} and RELEASE BITCOIN`
+             : `⏳ ${cp?.username||'Buyer'} is sending ${sym}${fmt(localAmt)} via ${payMethod}…`;
 
   return(
     <div className="rounded-2xl overflow-hidden shadow-xl border-2"
-      style={{borderColor:isDisputed?C.danger:urgent?C.danger:st.color}}>
+      style={{borderColor: urgent&&!isPaid ? C.danger : typeColor}}>
 
-      {/* Top bar — gradient with live status */}
+      {/* Top bar */}
       <div className="flex items-center gap-2 px-4 py-2"
-        style={{background:`linear-gradient(90deg,${C.forest},${isDisputed?C.danger:st.color})`}}>
+        style={{background:`linear-gradient(90deg,${C.forest},${typeColor})`}}>
         <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{backgroundColor:C.online}}/>
         <Bell size={12} className="text-white flex-shrink-0"/>
         <span className="text-xs font-black text-white flex-1">
-          {isDisputed?'🚨 DISPUTE ACTIVE — SUPPORT REVIEWING':'⚡ ACTIVE TRADE — ACTION REQUIRED'}
+          {isDisputed?'🚨 DISPUTE ACTIVE — SUPPORT REVIEWING'
+           :isGift?'🎁 GIFT CARD TRADE — ACTION REQUIRED'
+           :'⚡ ACTIVE TRADE — ACTION REQUIRED'}
         </span>
-        {/* Live countdown */}
         {timeLeft!==null&&!isPaid&&!isDisputed&&(
           <span className={`text-xs font-black px-2.5 py-0.5 rounded-full flex-shrink-0 ${urgent?'animate-pulse':''}`}
             style={{backgroundColor:urgent?C.danger:'rgba(255,255,255,0.2)',color:'#fff'}}>
@@ -131,21 +147,18 @@ function ActiveAlert({trade, userId, onDismiss}) {
         </button>
       </div>
 
-      {/* Main body */}
+      {/* Body */}
       <div className="bg-white">
-        {/* Role + action message */}
         <div className="px-4 pt-3 pb-2 border-b" style={{borderColor:C.g100}}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-xs font-black px-2 py-0.5 rounded-full"
-                  style={{backgroundColor:`${isBuyer?C.green:C.amber}15`,color:isBuyer?C.green:C.amber}}>
-                  {isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
+                  style={{backgroundColor:`${typeColor}20`,color:typeColor}}>
+                  {isGift?'🎁 GIFT CARD':isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
                 </span>
                 <span className="text-xs font-black px-2 py-0.5 rounded-full"
-                  style={{backgroundColor:st.bg,color:st.color}}>
-                  {st.label}
-                </span>
+                  style={{backgroundColor:st.bg,color:st.color}}>{st.label}</span>
                 <span className="text-xs font-mono" style={{color:C.g400}}>
                   #{String(trade.id||'').slice(0,8).toUpperCase()}
                 </span>
@@ -154,51 +167,52 @@ function ActiveAlert({trade, userId, onDismiss}) {
             </div>
             <Link to={`/trade/${trade.id}`}
               className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-white font-black text-xs hover:opacity-90 transition shadow flex-shrink-0"
-              style={{backgroundColor:isDisputed?C.danger:st.color}}>
+              style={{backgroundColor:typeColor}}>
               <Zap size={12}/> {isDisputed?'View Dispute':'Open Trade'} <ArrowRight size={11}/>
             </Link>
           </div>
         </div>
 
-        {/* Details grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x px-0" style={{borderColor:C.g100}}>
-          {/* User */}
-          <div className="px-3 py-2.5 text-center">
+        {/* 4-column details */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x" style={{divideColor:C.g100}}>
+          <div className="px-3 py-2.5 text-center border-r" style={{borderColor:C.g100}}>
             <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
               {isBuyer?'Seller':'Buyer'}
             </p>
-            <p className="text-xs font-black truncate" style={{color:C.forest}}>
-              {cp?.username||'—'}
+            <p className="text-xs font-black" style={{color:C.forest}}>
+              {cpFlag} {cp?.username||'—'}
             </p>
           </div>
-          {/* Payment method */}
-          <div className="px-3 py-2.5 text-center">
-            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>Payment</p>
-            <p className="text-xs font-black truncate" style={{color:C.forest}}>{payMethod}</p>
+          <div className="px-3 py-2.5 text-center border-r" style={{borderColor:C.g100}}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
+              {isBuyer?'You Pay':'Buyer Pays'}
+            </p>
+            <p className="text-xs font-black" style={{color:C.forest}}>
+              {sym}{fmt(localAmt,0)} {cur}
+            </p>
           </div>
-          {/* Amount */}
+          <div className="px-3 py-2.5 text-center border-r" style={{borderColor:C.g100}}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
+              BTC Escrow
+            </p>
+            <p className="text-xs font-black" style={{color:C.amber}}>₿{fmtBtc(btcAmt)}</p>
+          </div>
           <div className="px-3 py-2.5 text-center">
             <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
-              {isBuyer?'You Pay':'You Get'}
+              You Receive
             </p>
-            <p className="text-xs font-black" style={{color:C.forest}}>{sym}{fmt(localAmt)}</p>
-          </div>
-          {/* BTC */}
-          <div className="px-3 py-2.5 text-center">
-            <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{color:C.g400}}>
-              {isBuyer?'You Receive':'You Send'}
+            <p className="text-xs font-black" style={{color:isBuyer?C.success:typeColor}}>
+              {isBuyer?`₿${fmtBtc(btcNet)}`:`${sym}${fmt(localAmt,0)} ${cur}`}
             </p>
-            <p className="text-xs font-black" style={{color:C.gold}}>₿{fmtBtc(btcNet)}</p>
           </div>
         </div>
 
-        {/* Urgent time warning */}
         {urgent&&!isPaid&&(
           <div className="flex items-center gap-2 px-4 py-2 border-t animate-pulse"
-            style={{borderColor:C.danger, backgroundColor:`${C.danger}08`}}>
+            style={{borderColor:C.danger,backgroundColor:`${C.danger}08`}}>
             <AlertTriangle size={12} style={{color:C.danger,flexShrink:0}}/>
             <p className="text-xs font-black" style={{color:C.danger}}>
-              ⚠️ Less than 5 minutes left! Trade auto-cancels at 00:00.
+              ⚠️ Under 5 minutes left! Trade auto-cancels at 00:00 — BTC returns to wallet instantly.
             </p>
           </div>
         )}
@@ -209,69 +223,83 @@ function ActiveAlert({trade, userId, onDismiss}) {
 
 // ─── Trade row card ─────────────────────────────────────────────────────────
 function TradeCard({trade, userId}) {
-  const isBuyer = String(userId)===String(trade.buyer_id);
-  const st      = getStatus(trade.status);
-  const cp      = isBuyer ? trade.seller : trade.buyer;
-  const counterpartyName = cp?.username || '—';
-  const active  = isActive(trade.status);
-  
-  // Role Badge logic
-  const roleBadge = isBuyer ? '🛒 YOU ARE BUYING' : '💰 YOU ARE SELLING';
-  
-  // Payment Display - Use Actual Local Currency
-  const lcur    = trade.local_currency||trade.currency||trade.listing?.currency||'';
-  const lsym    = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',UGX:'USh',USD:'$',GBP:'£',EUR:'€'}[lcur]||'';
-  const lamount = parseFloat(trade.amount_local||trade.local_amount||0);
-  const paymentDisplay = (lamount && lcur)
-    ? `${lsym}${lamount.toLocaleString()} ${lcur}`
-    : `$${trade.amount_usd?.toLocaleString()||'0'} USD`;
+  const isBuyer  = String(userId)===String(trade.buyer_id);
+  const st       = getStatus(trade.status);
+  const cp       = isBuyer ? trade.seller : trade.buyer;
+  const active   = isActive(trade.status);
+  const isGift   = tradeTypeOf(trade)==='gift';
+  const typeColor= isGift ? C.purple : isBuyer ? C.amber : C.green;
+  const typeLabel= isGift ? '🎁 GIFT CARD' : isBuyer ? '🛒 BUYING BTC' : '💰 SELLING BTC';
 
-  // BTC display with fiat equivalent
-  const btcDisplay = `₿ ${trade.amount_btc ? parseFloat(trade.amount_btc).toFixed(8) : '0.00000000'} BTC`;
-  const fiatEquivalent = (lamount && lcur)
+  const lcur     = trade.local_currency||trade.currency||trade.listing?.currency||'';
+  const lsym     = SYM[lcur]||'';
+  const lamount  = parseFloat(trade.amount_local||trade.local_amount||0);
+  const btcAmt   = parseFloat(trade.amount_btc||0);
+  const btcNet   = btcAmt * 0.995;
+  const cpFlag   = flag(cp?.country_code||trade.listing?.country_code||'');
+
+  const payDisplay = (lamount&&lcur)
     ? `${lsym}${lamount.toLocaleString()} ${lcur}`
     : `$${trade.amount_usd?.toLocaleString()||'0'} USD`;
 
   return(
     <Link to={`/trade/${trade.id}`}
-      className={`block bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all p-4 ${active?'border-2':''}`}
-      style={{borderColor:active?st.color:C.g200}}>
-      <div className="flex justify-between items-center">
-        <span className="badge" style={{
-            backgroundColor: isBuyer ? '#F4A422' : '#1B4332',
-            color: 'white',
-            padding: '4px 12px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: 'bold'
-        }}>
-            {roleBadge}
+      className="block bg-white rounded-2xl overflow-hidden hover:shadow-md transition-all"
+      style={{border:`${active?2:1}px solid ${active?typeColor:C.g200}`}}>
+
+      {/* Header strip */}
+      <div className="flex items-center justify-between px-4 py-2.5"
+        style={{backgroundColor:active?`${typeColor}10`:C.g50}}>
+        <span className="font-black text-xs px-3 py-1 rounded-full text-white"
+          style={{backgroundColor:typeColor}}>
+          {typeLabel}
         </span>
-        <span className="text-sm text-gray-500">#{trade.id.slice(0,8).toUpperCase()}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+            style={{backgroundColor:st.bg,color:st.color}}>{st.short}</span>
+          <span className="text-xs font-mono" style={{color:C.g400}}>
+            #{String(trade.id||'').slice(0,8).toUpperCase()}
+          </span>
+        </div>
       </div>
-    
-      <div className="mt-3 space-y-2">
-        <div className="flex justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase">👤 {isBuyer ? 'Seller' : 'Buyer'}:</span>
-            <span className="font-semibold text-sm">{counterpartyName}</span>
+
+      {/* Details */}
+      <div className="px-4 py-3 space-y-2.5">
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold uppercase" style={{color:C.g500}}>
+            👤 {isBuyer?'Seller':'Buyer'}
+          </span>
+          <span className="font-bold text-sm" style={{color:C.forest}}>
+            {cpFlag} {cp?.username||'—'}
+          </span>
         </div>
-        <div className="flex justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase">💳 Payment:</span>
-            <span className="text-sm">{trade.payment_method}</span>
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold uppercase" style={{color:C.g500}}>💳 Payment</span>
+          <span className="text-sm font-medium" style={{color:C.g700}}>{trade.payment_method||'—'}</span>
         </div>
-        <div className="flex justify-between">
-            <span className="text-gray-500 text-xs font-bold uppercase">💵 You {isBuyer ? 'Pay' : 'Get'}:</span>
-            <span className="font-black text-sm" style={{color:C.forest}}>{paymentDisplay}</span>
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold uppercase" style={{color:C.g500}}>
+            💵 {isBuyer?'You Pay':'Buyer Pays'}
+          </span>
+          <span className="font-black text-sm" style={{color:C.forest}}>{payDisplay}</span>
         </div>
-        <div className="flex justify-between items-baseline">
-            <span className="text-gray-500 text-xs font-bold uppercase">🛒 You {isBuyer ? 'Receive' : 'Send'}:</span>
-            <div className="text-right">
-                <span className="font-black text-sm" style={{ color: isBuyer ? '#22C55E' : '#EF4444' }}>
-                    {btcDisplay}
-                </span>
-                <div className="text-xs font-bold text-gray-400">≈ {fiatEquivalent}</div>
-            </div>
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-bold uppercase" style={{color:C.g500}}>🔒 BTC Escrow</span>
+          <span className="font-black text-sm" style={{color:C.amber}}>₿{btcAmt.toFixed(8)}</span>
         </div>
+        <div className="flex justify-between items-center pt-1 border-t" style={{borderColor:C.g100}}>
+          <span className="text-xs font-bold uppercase" style={{color:C.g500}}>✅ You Receive</span>
+          <span className="font-black text-sm" style={{color:isBuyer?C.success:typeColor}}>
+            {isBuyer ? `₿${btcNet.toFixed(8)}` : payDisplay}
+          </span>
+        </div>
+      </div>
+
+      <div className="px-4 pb-3 flex items-center justify-between">
+        <span className="text-xs" style={{color:C.g400}}>{fmtAge(trade.created_at)}</span>
+        <span className="text-xs font-bold flex items-center gap-1" style={{color:typeColor}}>
+          View Trade <ChevronRight size={11}/>
+        </span>
       </div>
     </Link>
   );
@@ -281,99 +309,88 @@ function TradeCard({trade, userId}) {
 function ActiveTradeModal({ trades, userId, onClose }) {
   if (!trades.length) return null;
 
-  const symMap = {GHS:'₵',NGN:'₦',KES:'KSh',ZAR:'R',USD:'$',GBP:'£',EUR:'€'};
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{backgroundColor:'rgba(0,0,0,0.75)',backdropFilter:'blur(6px)'}}>
       <div className="bg-white rounded-3xl shadow-2xl w-full overflow-hidden"
         style={{maxWidth:480,maxHeight:'88vh',display:'flex',flexDirection:'column'}}>
 
-        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4"
           style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
-          <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0"
-            style={{backgroundColor:C.online}}/>
+          <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0" style={{backgroundColor:C.online}}/>
           <Bell size={16} className="text-white flex-shrink-0"/>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-black text-sm">⚡ You Have an Active Trade</p>
-            <p className="text-xs" style={{color:'rgba(255,255,255,0.7)'}}>
-              Action required — don't miss your trade window
-            </p>
+            <p className="text-white font-black text-sm">⚡ You Have {trades.length} Active Trade{trades.length>1?'s':''}</p>
+            <p className="text-xs" style={{color:'rgba(255,255,255,0.7)'}}>Action required — 30 min window per trade</p>
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white transition flex-shrink-0">
             <X size={18}/>
           </button>
         </div>
 
-        {/* Trade cards */}
         <div className="overflow-y-auto flex-1 p-4 space-y-3">
           {trades.map(trade=>{
-            const isBuyer = String(userId)===String(trade.buyer_id);
-            const st      = getStatus(trade.status);
-            const cp      = isBuyer ? trade.seller : trade.buyer;
-            // Handle both nested-object and flat-string counterparty names
-            const cpName  = cp?.username
-              || (isBuyer ? trade.seller_name : trade.buyer_name)
-              || '—';
-            // local_currency / amount_local are the primary field names from /api/my-trades
-            const cur     = trade.local_currency||trade.currency||'';
-            const sym     = symMap[cur]||'';
-            const localAmt= trade.amount_local||trade.local_amount||0;
-            const payDisp = localAmt
-              ? `${sym}${fmt(localAmt)} ${cur}`
-              : `$${fmt(trade.amount_usd||0)} USD`;
-            const roleBg  = isBuyer ? C.gold : C.forest;
+            const isBuyer  = String(userId)===String(trade.buyer_id);
+            const st       = getStatus(trade.status);
+            const cp       = isBuyer ? trade.seller : trade.buyer;
+            const cpName   = cp?.username||(isBuyer?trade.seller_name:trade.buyer_name)||'—';
+            const cpFlag   = flag(cp?.country_code||trade.listing?.country_code||'');
+            const isGift   = tradeTypeOf(trade)==='gift';
+            const typeColor= isGift ? C.purple : isBuyer ? C.amber : C.green;
+            const typeLabel= isGift ? '🎁 GIFT CARD' : isBuyer ? '🛒 BUYING BTC' : '💰 SELLING BTC';
+            const cur      = trade.local_currency||trade.currency||'';
+            const sym      = SYM[cur]||'';
+            const localAmt = trade.amount_local||trade.local_amount||0;
+            const btcAmt   = parseFloat(trade.amount_btc||0);
+            const btcNet   = btcAmt * 0.995;
+            const payDisp  = localAmt ? `${sym}${fmt(localAmt)} ${cur}` : `$${fmt(trade.amount_usd||0)} USD`;
 
             return(
               <div key={trade.id} className="rounded-2xl border-2 overflow-hidden"
-                style={{borderColor:st.color}}>
-
-                {/* Role + ID */}
+                style={{borderColor:typeColor}}>
                 <div className="flex items-center justify-between px-4 py-2.5"
-                  style={{backgroundColor:`${st.color}12`}}>
-                  <span className="font-black text-xs px-3 py-1 rounded-full"
-                    style={{backgroundColor:roleBg,color:'#fff'}}>
-                    {isBuyer?'🛒 YOU ARE BUYING':'💰 YOU ARE SELLING'}
-                  </span>
+                  style={{backgroundColor:`${typeColor}12`}}>
+                  <span className="font-black text-xs px-3 py-1 rounded-full text-white"
+                    style={{backgroundColor:typeColor}}>{typeLabel}</span>
                   <span className="font-mono text-xs" style={{color:C.g400}}>
                     #{String(trade.id||'').slice(0,8).toUpperCase()}
                   </span>
                 </div>
 
-                {/* Details */}
                 <div className="px-4 py-3 space-y-2 bg-white">
                   <div className="flex justify-between text-xs">
-                    <span style={{color:C.g500}}>👤 {isBuyer?'Seller':'Buyer'}:</span>
-                    <span className="font-bold" style={{color:C.forest}}>{cpName}</span>
+                    <span style={{color:C.g500}}>👤 {isBuyer?'Seller':'Buyer'}</span>
+                    <span className="font-bold" style={{color:C.forest}}>{cpFlag} {cpName}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span style={{color:C.g500}}>💳 Payment:</span>
+                    <span style={{color:C.g500}}>💳 Payment</span>
                     <span className="font-bold">{trade.payment_method||'—'}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span style={{color:C.g500}}>💵 You {isBuyer?'Pay':'Get'}:</span>
+                    <span style={{color:C.g500}}>💵 {isBuyer?'You Pay':'Buyer Pays'}</span>
                     <span className="font-black" style={{color:C.forest}}>{payDisp}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span style={{color:C.g500}}>₿ You {isBuyer?'Receive':'Send'}:</span>
-                    <span className="font-black"
-                      style={{color:isBuyer?C.success:C.danger}}>
-                      ₿ {parseFloat(trade.amount_btc||0).toFixed(8)}
+                    <span style={{color:C.g500}}>🔒 BTC Escrow</span>
+                    <span className="font-black" style={{color:C.amber}}>₿{btcAmt.toFixed(8)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs pt-1 border-t" style={{borderColor:C.g100}}>
+                    <span style={{color:C.g500}}>✅ You Receive</span>
+                    <span className="font-black" style={{color:isBuyer?C.success:typeColor}}>
+                      {isBuyer?`₿${btcNet.toFixed(8)}`:payDisp}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span style={{color:C.g500}}>📊 Status:</span>
-                    <span className="font-bold px-2 py-0.5 rounded-full text-xs"
+                    <span style={{color:C.g500}}>📊 Status</span>
+                    <span className="font-bold px-2 py-0.5 rounded-full"
                       style={{backgroundColor:st.bg,color:st.color}}>{st.label}</span>
                   </div>
                 </div>
 
-                {/* CTA */}
                 <div className="px-4 pb-3 bg-white">
                   <Link to={`/trade/${trade.id}`} onClick={onClose}
                     className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-xs w-full hover:opacity-90 transition shadow"
-                    style={{backgroundColor:st.color}}>
+                    style={{backgroundColor:typeColor}}>
                     <Zap size={13}/> Open Trade Now <ArrowRight size={12}/>
                   </Link>
                 </div>
@@ -382,18 +399,15 @@ function ActiveTradeModal({ trades, userId, onClose }) {
           })}
         </div>
 
-        {/* Footer */}
         <div className="px-5 py-3 border-t flex items-center justify-between"
           style={{borderColor:C.g200,backgroundColor:C.g50}}>
           <div className="flex items-center gap-1.5">
             <Shield size={12} style={{color:C.green}}/>
-            <p className="text-xs font-semibold" style={{color:C.g500}}>Escrow-protected trades</p>
+            <p className="text-xs font-semibold" style={{color:C.g500}}>Escrow-protected · 30 min window</p>
           </div>
           <button onClick={onClose}
             className="text-xs font-bold px-4 py-2 rounded-xl border hover:bg-gray-50 transition"
-            style={{borderColor:C.g200,color:C.g600}}>
-            Ignore
-          </button>
+            style={{borderColor:C.g200,color:C.g600}}>Dismiss</button>
         </div>
       </div>
     </div>
@@ -460,6 +474,13 @@ export default function MyTrades({user}) {
       setTrades(data);
       try { sessionStorage.setItem('praqen_trades', JSON.stringify({data, ts:Date.now()})); } catch {}
     }catch{}
+  };
+
+  // Called when a trade's 30-min timer hits 0 — mark it cancelled locally instantly
+  const handleExpire = (tradeId) => {
+    setTrades(prev => prev.map(t =>
+      String(t.id)===String(tradeId) ? {...t, status:'CANCELLED'} : t
+    ));
   };
 
   // All active trades (for modal — no dismiss filter)
@@ -556,6 +577,7 @@ export default function MyTrades({user}) {
                 trade={t}
                 userId={user?.id}
                 onDismiss={id=>setDismissed(prev=>new Set([...prev,id]))}
+                onExpire={handleExpire}
               />
             ))}
           </div>

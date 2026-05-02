@@ -669,6 +669,7 @@ export default function Dashboard({ user }) {
   const [loadError, setLoadError]         = useState(false);
   const [activeTab, setActiveTab]         = useState('overview');
   const [lastRefresh, setLastRefresh]     = useState(null);
+  const [isRefreshing, setIsRefreshing]   = useState(false);
 
   const applyUserData = (userData) => {
     setProfile(userData);
@@ -696,9 +697,28 @@ export default function Dashboard({ user }) {
         timeout: 15000,
       });
       applyUserData(response.data.user);
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Dashboard refresh error:', error);
       if (!silent) setLoadError(true);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axios.post(`${API_URL}/users/heartbeat`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => {});
+      }
+      await loadDashboardData(true);
+      await fetchWalletBalance();
+      await fetchReferralData();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -752,7 +772,11 @@ export default function Dashboard({ user }) {
     if (user) {
       applyUserData(user);
       setLoading(false);
-      // Background refresh to pick up any changes since last login
+      // Background refresh + heartbeat so user shows as online immediately
+      const token = localStorage.getItem('token');
+      if (token) {
+        axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      }
       loadDashboardData(true);
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -763,9 +787,16 @@ export default function Dashboard({ user }) {
     fetchWalletBalance();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh every 60s — silent so no spinner flicker
+  // Auto-refresh every 60s — heartbeat keeps user online, silent so no spinner flicker
   useEffect(() => {
-    const iv = setInterval(() => { loadDashboardData(true); fetchWalletBalance(); }, 60000);
+    const iv = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      }
+      loadDashboardData(true);
+      fetchWalletBalance();
+    }, 60000);
     return () => clearInterval(iv);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -813,15 +844,23 @@ export default function Dashboard({ user }) {
               Dashboard
             </h1>
             {lastRefresh && (
-              <p className="text-xs" style={{color:C.g400}}>
-                Updated {lastRefresh.toLocaleTimeString()}
+              <p className="text-xs flex items-center gap-1" style={{color:C.online}}>
+                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{backgroundColor:C.online}}/>
+                Online · Updated {lastRefresh.toLocaleTimeString()}
               </p>
             )}
           </div>
-          <button onClick={() => loadDashboardData(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border hover:bg-gray-50 transition"
-            style={{borderColor:C.g200, color:C.g600}}>
-            <RefreshCw size={12}/> Refresh
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition disabled:opacity-60"
+            style={{
+              borderColor: isRefreshing ? C.online : C.g200,
+              color: isRefreshing ? C.online : C.g600,
+              backgroundColor: isRefreshing ? `${C.online}10` : 'transparent',
+            }}>
+            <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''}/>
+            {isRefreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
 
@@ -842,6 +881,42 @@ export default function Dashboard({ user }) {
               )}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ── ONLINE STATUS BANNER ──────────────────────────────────────────────── */}
+      <div className="border-b" style={{borderColor:C.g100, backgroundColor: isRefreshing ? `${C.online}08` : lastRefresh ? `${C.online}05` : `${C.warn}05`}}>
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {isRefreshing ? (
+              <>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor:C.online}}/>
+                <span className="text-xs font-bold" style={{color:C.online}}>Syncing data…</span>
+              </>
+            ) : lastRefresh ? (
+              <>
+                <span className="w-2 h-2 rounded-full" style={{backgroundColor:C.online}}/>
+                <span className="text-xs font-bold" style={{color:C.online}}>Active &amp; Online</span>
+                <span className="text-xs" style={{color:C.g400}}>· Last synced {lastRefresh.toLocaleTimeString()}</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full" style={{backgroundColor:C.warn}}/>
+                <span className="text-xs font-bold" style={{color:C.warn}}>Tap Refresh to go Online</span>
+              </>
+            )}
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black transition disabled:opacity-50"
+            style={{
+              backgroundColor: isRefreshing ? `${C.online}20` : `${C.online}15`,
+              color: C.online,
+            }}>
+            <RefreshCw size={11} className={isRefreshing ? 'animate-spin' : ''}/>
+            {isRefreshing ? 'Syncing' : 'Refresh Now'}
+          </button>
         </div>
       </div>
 

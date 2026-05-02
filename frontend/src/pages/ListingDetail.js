@@ -192,7 +192,11 @@ export default function ListingDetail({ user }) {
   const sellerRateLocal = sellerRateUSD * usdRate;
 
   const minLocal = listing.min_limit_local || (listing.min_limit_usd ? listing.min_limit_usd * usdRate : 10 * usdRate);
-  const maxLocal = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 1000 * usdRate);
+  // Use effective_max_usd (based on seller's live wallet) when available, else fall back to listing max
+  const effectiveMaxUsd = listing.effective_max_usd || listing.max_limit_usd || 0;
+  const maxLocal = listing.max_limit_local
+    || (effectiveMaxUsd ? effectiveMaxUsd * usdRate : listing.max_limit_usd ? listing.max_limit_usd * usdRate : 1000 * usdRate);
+  const sellerHasLowBalance = listing.seller_balance_btc !== undefined && listing.seller_balance_btc < (listing.min_limit_usd || 10) / (listing.bitcoin_price || 88000);
 
   const payAmtNum = parseFloat(payAmt) || 0;
 
@@ -268,7 +272,7 @@ export default function ListingDetail({ user }) {
         trade_type:      (listing.listing_type === 'SELL' || listing.listing_type === 'SELL_GIFT_CARD') ? 'BUY' : 'SELL',
         sellerRateLocal: parseFloat(activeQuote.executableRate.toFixed(2)),
         sellerRateUsd:   parseFloat(sellerRateUSD.toFixed(2)),
-      }, { headers: { Authorization: `Bearer ${token}` }, timeout: 20000 });
+      }, { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 });
 
       const tradeData = r.data.trade || r.data;
       const tradeId   = tradeData?.id || tradeData?.trade?.id;
@@ -698,6 +702,14 @@ export default function ListingDetail({ user }) {
                 </div>
               )}
 
+              {/* Low-balance advisory (soft warning, not a block) */}
+              {sellerHasLowBalance && !tradeError && (
+                <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: 12, fontWeight: 700, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                  <span style={{ flexShrink: 0, fontSize: 14 }}>⚡</span>
+                  <span>Seller's available balance may be low — try a smaller amount if the trade fails to open.</span>
+                </div>
+              )}
+
               {/* Inline trade error */}
               {tradeError && (
                 <div style={{ marginBottom:14, padding:'10px 14px', borderRadius:10, background:'#FEF2F2', border:'1.5px solid #FECACA', fontSize:13, fontWeight:700, color:'#B91C1C', display:'flex', alignItems:'flex-start', gap:8 }}>
@@ -744,6 +756,16 @@ export default function ListingDetail({ user }) {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Multi-offer info banner ── */}
+        {!isOwner && !isGiftCard && (
+          <div style={{ marginTop: 14, borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 9, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+            <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>ℹ️</span>
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#1E40AF', lineHeight: 1.6 }}>
+              This seller may have <strong>other active offers</strong> on the marketplace — they will remain available to other buyers even after your trade starts. Bitcoin is only locked at the moment your trade is opened.
+            </p>
           </div>
         )}
 

@@ -204,11 +204,6 @@ function OfferCard({ listing, onEdit, onDelete, onToggle, walletBtc }) {
   const maxLocal = listing.max_limit_local || (listing.max_limit_usd ? listing.max_limit_usd * usdRate : 0);
   const views    = parseInt(listing.view_count || 0);
 
-  // Determine if this paused offer is due to insufficient balance
-  const isSellOffer  = tab === 'sell';
-  const btcPrice     = parseFloat(listing.bitcoin_price) || 88000;
-  const minBtcNeeded = parseFloat(listing.min_limit_usd || 0) / btcPrice;
-  const isLowBal     = isSellOffer && !isActive && (walletBtc || 0) < minBtcNeeded;
 
   const TYPE_CFG = {
     sell: { label:'Sell BTC',   badge:'Buy BTC page',    color:C.green,  icon:Bitcoin      },
@@ -219,10 +214,6 @@ function OfferCard({ listing, onEdit, onDelete, onToggle, walletBtc }) {
   const Icon = tc.icon;
 
   const handleToggle = async () => {
-    if (!isActive && isLowBal) {
-      toast.error(`Insufficient balance — need ₿${minBtcNeeded.toFixed(8)} to activate. Top up your wallet first.`);
-      return;
-    }
     setToggling(true);
     await onToggle(listing.id, listing.status);
     setToggling(false);
@@ -267,8 +258,8 @@ function OfferCard({ listing, onEdit, onDelete, onToggle, walletBtc }) {
               </span>
             )}
           </div>
-          <p className="text-xs mt-0.5" style={{color:isActive?C.success:isLowBal?C.danger:C.g400,fontSize:10}}>
-            {isActive?'🟢 Live':isLowBal?'⚠️ Low Balance':'⏸ Paused'} · #{String(listing.id||'').slice(0,6).toUpperCase()}
+          <p className="text-xs mt-0.5" style={{color:isActive?C.success:C.g400,fontSize:10}}>
+            {isActive?'🟢 Live':'⏸ Paused'} · #{String(listing.id||'').slice(0,6).toUpperCase()}
           </p>
         </div>
 
@@ -298,22 +289,6 @@ function OfferCard({ listing, onEdit, onDelete, onToggle, walletBtc }) {
           </button>
         )}
       </div>
-
-      {/* ── Low balance warning ── */}
-      {isLowBal && (
-        <div className="mx-3 mb-1 px-3 py-2 rounded-xl flex items-center justify-between gap-2"
-          style={{backgroundColor:`${C.danger}08`, border:`1px solid ${C.danger}25`}}>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <AlertTriangle size={11} style={{color:C.danger,flexShrink:0}}/>
-            <p className="text-xs font-bold truncate" style={{color:C.danger}}>
-              Need ₿{minBtcNeeded.toFixed(6)} — top up wallet to reactivate
-            </p>
-          </div>
-          <a href="/wallet" className="text-xs font-black flex-shrink-0 underline" style={{color:C.danger}}>
-            Top Up
-          </a>
-        </div>
-      )}
 
       {/* ── Metrics: 2×2 grid ── */}
       <div className="grid grid-cols-2 gap-px" style={{backgroundColor:C.g100}}>
@@ -450,14 +425,39 @@ export default function MyListings({ user }) {
         axios.get(`${API_URL}/my-listings`, { headers: authH() }),
         axios.get(`${API_URL}/hd-wallet/wallet`, { headers: authH() }),
       ]);
+
+      let currentListings = [];
       if (listingsRes.status === 'fulfilled') {
-        setListings((listingsRes.value.data.listings || []).filter(l => l.status !== 'DELETED'));
+        currentListings = (listingsRes.value.data.listings || []).filter(l => l.status !== 'DELETED');
       } else {
         toast.error('Failed to load your offers');
       }
+
+      let currentWalletBtc = 0;
       if (walletRes.status === 'fulfilled') {
-        setWalletBtc(parseFloat(walletRes.value.data.available_btc || walletRes.value.data.balance_btc || 0));
+        currentWalletBtc = parseFloat(walletRes.value.data.available_btc || walletRes.value.data.balance_btc || 0);
+        setWalletBtc(currentWalletBtc);
       }
+
+      // Auto-reactivate any PAUSED SELL offers when wallet has $10+ worth of BTC
+      if (currentWalletBtc * 88000 >= 10) {
+        const pausedSell = currentListings.filter(l => {
+          const lt = (l.listing_type || '').toUpperCase();
+          return l.status === 'PAUSED' && (lt === 'SELL' || lt === 'SELL_BITCOIN');
+        });
+        if (pausedSell.length > 0) {
+          await Promise.allSettled(
+            pausedSell.map(l =>
+              axios.patch(`${API_URL}/listings/${l.id}/status`, { status: 'ACTIVE' }, { headers: authH() })
+            )
+          );
+          currentListings = currentListings.map(l =>
+            pausedSell.some(p => p.id === l.id) ? { ...l, status: 'ACTIVE' } : l
+          );
+        }
+      }
+
+      setListings(currentListings);
     } finally { setLoading(false); }
   };
 
@@ -531,11 +531,6 @@ export default function MyListings({ user }) {
   const gcListings    = listings.filter(l=>tabOf(l)==='gift');
   const totalActive   = listings.filter(l=>l.status==='ACTIVE').length;
   const totalViews    = listings.reduce((s,l)=>s+parseInt(l.view_count||0),0);
-  const lowBalCount   = sellListings.filter(l => {
-    if (l.status === 'ACTIVE') return false;
-    const minBtc = parseFloat(l.min_limit_usd || 0) / (parseFloat(l.bitcoin_price) || 88000);
-    return walletBtc < minBtc;
-  }).length;
   const allIds       = listings.map(l=>l.id);
   const allAreActive = listings.length > 0 && totalActive === listings.length;
 
@@ -593,27 +588,6 @@ export default function MyListings({ user }) {
           <StatCard icon={Eye}         label="Total Views"  value={fmt(totalViews)}    color={C.amber}/>
           <StatCard icon={Bitcoin}     label="Sell"         value={sellListings.length} color={C.gold}   sub={`${buyListings.length} buy · ${gcListings.length} gift`}/>
         </div>
-
-        {/* ── LOW BALANCE ALERT ── */}
-        {lowBalCount > 0 && (
-          <div className="flex items-center gap-3 p-3 rounded-xl border"
-            style={{backgroundColor:`${C.danger}06`,borderColor:`${C.danger}30`}}>
-            <AlertTriangle size={16} style={{color:C.danger,flexShrink:0}}/>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black" style={{color:C.danger}}>
-                {lowBalCount} offer{lowBalCount>1?'s':''} paused — insufficient wallet balance
-              </p>
-              <p className="text-xs mt-0.5" style={{color:C.g500}}>
-                Top up your Bitcoin wallet to reactivate {lowBalCount>1?'them':'it'} automatically.
-              </p>
-            </div>
-            <a href="/wallet"
-              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-black text-white hover:opacity-90"
-              style={{backgroundColor:C.danger}}>
-              Top Up
-            </a>
-          </div>
-        )}
 
         {/* ── GLOBAL ON / OFF ALL ── */}
         {listings.length > 0 && (

@@ -1685,39 +1685,8 @@ app.post('/api/listings', verifyToken, async (req, res) => {
       });
     }
 
-    // ── One active listing per payment method per seller ─────────────────────
-    if (payMethod && (listingType === 'SELL' || listingType === 'SELL_BITCOIN')) {
-      const { data: existing } = await supabaseAdmin
-        .from('listings')
-        .select('id')
-        .eq('seller_id', req.userId)
-        .eq('status', 'ACTIVE')
-        .eq('listing_type', listingType)
-        .ilike('payment_method', payMethod)
-        .maybeSingle();
-      if (existing) {
-        return res.status(400).json({
-          error: `You already have an active offer for ${payMethod}. Edit or deactivate it before creating a new one.`
-        });
-      }
-    }
-
-    // ── Balance check: max limit must not exceed user's wallet capacity ──────
-    if (maxUSD > 0) {
-      const { data: bal } = await supabaseAdmin
-        .from('user_balances').select('balance_btc, balance_usd').eq('user_id', req.userId).single();
-      const btcBal = parseFloat(bal?.balance_btc || 0);
-      const usdBal = parseFloat(bal?.balance_usd || 0);
-      // SELL / BUY_GIFT_CARD: user locks BTC → capacity = btc × btcPrice
-      // BUY: user pays cash → capacity = usd balance
-      const isBtcSide = listingType === 'SELL' || listingType === 'SELL_BITCOIN' || listingType === 'BUY_GIFT_CARD';
-      const capacityUSD = isBtcSide ? btcBal * (btcPriceUSD || 68000) : usdBal;
-      if (capacityUSD > 0 && maxUSD > capacityUSD) {
-        return res.status(400).json({
-          error: `Your maximum trade limit ($${maxUSD.toFixed(2)}) exceeds your wallet balance ($${capacityUSD.toFixed(2)}). Please top up or lower your limit.`
-        });
-      }
-    }
+    // Offers are preferences only — no per-offer balance locking.
+    // Sellers can create multiple offers for the same BTC; escrow locks at trade time.
     const cur         = b.currency || 'USD';
     const curSym      = b.currency_symbol || (cur === 'GHS' ? '₵' : cur === 'NGN' ? '₦' : cur === 'EUR' ? '€' : cur === 'GBP' ? '£' : '$');
     const amtUsd      = parseFloat(b.amountUsd || b.amount_usd || minUSD) || 0;
@@ -1764,43 +1733,30 @@ app.get('/api/listings', async (req, res) => {
 
     let listings = data || [];
 
-    // For SELL / SELL_BITCOIN offers: filter out sellers with insufficient balance.
-    // This is a defence-in-depth check — the DB status may lag behind the true balance.
+    // Attach live seller BTC balance to each SELL listing so the frontend can
+    // show dynamic available limits. ALL active offers are shown regardless of
+    // balance — escrow locks at trade time, not at offer creation.
     const sellListings = listings.filter(l =>
       l.listing_type === 'SELL' || l.listing_type === 'SELL_BITCOIN'
     );
 
     if (sellListings.length > 0) {
       const sellerIds = [...new Set(sellListings.map(l => l.seller_id))];
-
       const { data: wallets } = await supabaseAdmin
-        .from('user_wallets')
+        .from('user_balances')
         .select('user_id, balance_btc')
         .in('user_id', sellerIds);
 
       const balMap = {};
       (wallets || []).forEach(w => { balMap[w.user_id] = parseFloat(w.balance_btc || 0); });
 
-      const staleIds = [];
-      listings = listings.filter(l => {
-        if (l.listing_type !== 'SELL' && l.listing_type !== 'SELL_BITCOIN') return true;
-        const balance      = balMap[l.seller_id] || 0;
-        const btcPrice     = parseFloat(l.bitcoin_price) || 88000;
-        const minBtcNeeded = parseFloat(l.min_limit_usd || 0) / btcPrice;
-        const ok = balance > 0 && balance >= minBtcNeeded;
-        if (!ok) staleIds.push(l.id);
-        return ok;
+      listings = listings.map(l => {
+        if (l.listing_type !== 'SELL' && l.listing_type !== 'SELL_BITCOIN') return l;
+        const sellerBtc   = balMap[l.seller_id] || 0;
+        const btcPriceVal = parseFloat(l.bitcoin_price) || 88000;
+        const effectiveMaxUsd = sellerBtc > 0 ? sellerBtc * btcPriceVal : parseFloat(l.max_limit_usd || 0);
+        return { ...l, seller_balance_btc: sellerBtc, effective_max_usd: effectiveMaxUsd };
       });
-
-      // Async DB fix — mark the stale ones PAUSED so they stop showing up next time
-      if (staleIds.length > 0) {
-        supabaseAdmin
-          .from('listings')
-          .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
-          .in('id', staleIds)
-          .then(() => console.log(`[listings] Auto-paused ${staleIds.length} insufficient offer(s)`))
-          .catch(err => console.error('[listings] Auto-pause error:', err.message));
-      }
     }
 
     res.json({ listings });
@@ -1910,27 +1866,66 @@ app.patch('/api/listings/:id/status', verifyToken, async (req, res) => {
     if (findError || !listing) return res.status(404).json({ error: 'Listing not found' });
     if (listing.seller_id !== req.userId) return res.status(403).json({ error: 'Unauthorized' });
 
-    // Block manual reactivation of SELL offers when balance is still insufficient
-    if (status === 'ACTIVE' && ['SELL', 'SELL_BITCOIN'].includes(listing.listing_type)) {
-      const { data: wallet } = await supabaseAdmin
-        .from('user_wallets').select('balance_btc').eq('user_id', req.userId).single();
-      const availableBtc = parseFloat(wallet?.balance_btc || 0);
-      const btcPrice     = parseFloat(listing.bitcoin_price) || 88000;
-      const minBtcNeeded = parseFloat(listing.min_limit_usd || 0) / btcPrice;
-      if (availableBtc <= 0 || availableBtc < minBtcNeeded) {
-        return res.status(400).json({
-          error: `Insufficient balance. You need at least ₿${minBtcNeeded.toFixed(8)} to activate this offer, but your available balance is ₿${availableBtc.toFixed(8)}. Top up your wallet first.`,
-          insufficientBalance: true,
-        });
-      }
-    }
-
+    // No balance check needed — offers are just preferences, escrow locks at trade time.
     const { data, error } = await supabaseAdmin
       .from('listings').update({ status, updated_at: new Date().toISOString() }).eq('id', id).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json({ success: true, listing: data });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET all active offers for the market (alias for /api/listings with offers table naming)
+app.get('/api/offers', async (req, res) => {
+  try {
+    const { type, country, limit = 100 } = req.query;
+
+    let query = supabaseAdmin
+      .from('listings')
+      .select(`
+        *,
+        users:seller_id (
+          id,
+          username,
+          badge,
+          country
+        )
+      `)
+      .eq('status', 'ACTIVE');
+
+    if (type) query = query.eq('listing_type', type.toUpperCase());
+    if (country) query = query.eq('country', country);
+
+    const { data, error } = await query.limit(parseInt(limit));
+
+    if (error) throw error;
+
+    res.json({ success: true, offers: data });
+  } catch (err) {
+    console.error('Error fetching offers:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET single offer by ID
+app.get('/api/offers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabaseAdmin
+      .from('listings')
+      .select('*, users:seller_id(id, username, badge, country)')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+
+    res.json({ offer: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -2096,41 +2091,8 @@ app.post('/api/trades', verifyToken, async (req, res) => {
 
     console.log(`[Trade] type:${listingTypeUpper} → buyer:${buyerId.slice(0,8)} seller:${sellerId.slice(0,8)} btcProvider:${btcProviderId.slice(0,8)}`);
 
-    // ── Fetch trade opener verification status for permission checks ───────────
-    const { data: tradeOpener, error: tradeOpenerErr } = await supabaseAdmin
-      .from('users').select('is_email_verified, is_phone_verified, is_id_verified, phone')
-      .eq('id', req.userId).single();
-
-    let tHasEmail = false, tHasPhone = false, tHasKyc = false;
-    if (tradeOpenerErr) {
-      const { data: safeOpener } = await supabaseAdmin
-        .from('users').select('is_email_verified, is_id_verified, phone')
-        .eq('id', req.userId).single();
-      tHasEmail = !!(safeOpener?.is_email_verified);
-      tHasPhone = !!(safeOpener?.phone);
-      tHasKyc   = !!(safeOpener?.is_id_verified);
-    } else {
-      tHasEmail = !!(tradeOpener?.is_email_verified);
-      tHasPhone = !!(tradeOpener?.is_phone_verified || tradeOpener?.phone);
-      tHasKyc   = !!(tradeOpener?.is_id_verified);
-    }
-    const tVerifCount = [tHasEmail, tHasPhone, tHasKyc].filter(Boolean).length;
-
-    // Rule 1: Any 1 verification to open any trade
-    if (tVerifCount < 1) {
-      return res.status(403).json({
-        error: 'Please verify your email or phone number before trading. Go to Profile → Verification.',
-        requireVerification: 'any',
-      });
-    }
-
-    // Rule 2: Gift card trades require 2 verifications
-    if (listingTypeUpper.includes('GIFT_CARD') && tVerifCount < 2) {
-      return res.status(403).json({
-        error: 'Gift card trades require 2 verifications. Please verify your email and phone number.',
-        requireVerification: 'two',
-      });
-    }
+    // All registered users can open trades — no verification gate for buyers.
+    // Gift card trades and large trades ($10k+) retain their checks below.
 
     // Resolve trade currency + local amount
     const tradeLocalAmt       = parseFloat(amountLocal) || 0;
@@ -2211,12 +2173,16 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       });
     }
 
-    // Rule 3: Large trades ($10k+) require all 3 verifications
-    if (tradeAmountUsd >= 10000 && tVerifCount < 3) {
-      return res.status(403).json({
-        error: 'Trades of $10,000 or more require email, phone, and ID verification.',
-        requireVerification: 'all',
-      });
+    // Large trades ($10k+) require KYC to protect the platform
+    if (tradeAmountUsd >= 10000) {
+      const { data: bigTrader } = await supabaseAdmin
+        .from('users').select('is_id_verified').eq('id', req.userId).single();
+      if (!bigTrader?.is_id_verified) {
+        return res.status(403).json({
+          error: 'Trades of $10,000 or more require ID verification. Please complete KYC in your profile.',
+          requireVerification: 'kyc',
+        });
+      }
     }
 
     const { data: trade, error } = await supabaseAdmin.from('trades').insert([{

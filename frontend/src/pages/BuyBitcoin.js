@@ -683,6 +683,8 @@ export default function BuyBitcoin({user}) {
   const [activeTrades, setActiveTrades] = useState([]);
   const [showAllTrades, setShowAllTrades] = useState(false);
   const [pausedOffer,  setPausedOffer]  = useState(false);
+  const [lastSynced,   setLastSynced]   = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [traderSearch,   setTraderSearch]   = useState('');
   const [selCurrency,    setSelCurrency]    = useState(CURRENCIES[0]);
   const [showCurrency,   setShowCurrency]   = useState(false);
@@ -694,6 +696,7 @@ export default function BuyBitcoin({user}) {
   useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
   useEffect(()=>{
     loadListings();
+    if (_cache()) setLastSynced(new Date());
     const interval = setInterval(loadListings, 60000);
     return () => clearInterval(interval);
   },[]);
@@ -727,25 +730,28 @@ export default function BuyBitcoin({user}) {
 
   const loadListings = async () => {
     try {
-      const r = await axios.get(`${API_URL}/listings`, { timeout: 15000 });
+      const r = await axios.get(`${API_URL}/listings`, { timeout: 25000 });
       const all = (r.data.listings||[]).map(l=>({...l, users:Array.isArray(l.users)?l.users[0]:l.users}));
       const data = all.filter(l=>l.listing_type==='SELL'||l.listing_type==='SELL_BITCOIN');
       setListings(data);
+      setLastSynced(new Date());
       try { sessionStorage.setItem('praqen_buy', JSON.stringify({data, ts:Date.now()})); } catch {}
+    } catch { if (!listings.length) toast.error('Failed to load marketplace. Please refresh.'); }
+    finally { setLoading(false); }
+  };
 
-      // Check if the logged-in user (as a seller) has a paused SELL offer due to empty wallet
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
       const tk = localStorage.getItem('token');
       if (tk) {
-        try {
-          const myR = await axios.get(`${API_URL}/my-listings`, { headers: { Authorization: `Bearer ${tk}` } });
-          const myPaused = (myR.data.listings||[]).filter(l=>
-            l.status === 'PAUSED' && (l.listing_type === 'SELL' || l.listing_type === 'SELL_BITCOIN')
-          );
-          setPausedOffer(myPaused.length > 0);
-        } catch {}
+        await axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
       }
-    } catch { if (!listings.length) toast.error('Failed to load marketplace'); }
-    finally { setLoading(false); }
+      await loadListings();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const getFiltered = () => {
@@ -773,15 +779,7 @@ export default function BuyBitcoin({user}) {
       (l.users?.username||'').toLowerCase().includes(traderSearch.trim().toLowerCase())
     );
 
-    // One offer per seller per payment method — keep the best-sorted one
-    const seen = new Set();
-    list = list.filter(l => {
-      const key = `${l.seller_id}:${String(l.payment_method||'').toLowerCase().trim()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
+    // All offers are shown — sellers can have multiple offers for the same BTC
     return list;
   };
 
@@ -865,20 +863,34 @@ export default function BuyBitcoin({user}) {
             </Link>
           ))}
         </div>
-        {/* Stats row — always visible below tabs */}
-        <div className="flex items-center justify-between px-3 py-1.5 border-t" style={{borderColor:C.g100, backgroundColor:C.g50}}>
-          <span className="text-xs font-semibold" style={{color:C.g400}}>
-            {sellerCount} seller{sellerCount!==1?'s':''}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{backgroundColor: onlineCnt>0 ? C.online : C.g300,
-                      boxShadow: onlineCnt>0 ? `0 0 0 3px ${C.online}30` : 'none'}}/>
-            <span className="text-xs font-semibold"
-              style={{color: onlineCnt>0 ? C.online : C.g400}}>
-              {onlineCnt>0 ? `${onlineCnt} online` : 'offline — offers still available'}
-            </span>
-          </span>
+        {/* Active & Online / Last synced / Refresh row */}
+        <div className="flex items-center justify-between px-3 py-2 border-t" style={{borderColor:C.g100, backgroundColor:C.g50}}>
+          {/* Left: status dot + Active & Online */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
+              style={{backgroundColor:C.online, boxShadow:`0 0 0 3px ${C.online}30`}}/>
+            <span className="text-xs font-black" style={{color:C.online}}>Active &amp; Online</span>
+            {lastSynced && (
+              <>
+                <span style={{color:C.g300, fontSize:10}}>·</span>
+                <span className="text-xs font-medium hidden sm:inline" style={{color:C.g400}}>
+                  Last synced {lastSynced.toLocaleTimeString()}
+                </span>
+                <span className="text-xs font-medium sm:hidden" style={{color:C.g400}}>
+                  {lastSynced.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+                </span>
+              </>
+            )}
+          </div>
+          {/* Right: Refresh button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition disabled:opacity-60"
+            style={{backgroundColor:`${C.green}15`, color:C.green, border:`1.5px solid ${C.green}30`}}>
+            <RefreshCw size={11} className={isRefreshing ? 'animate-spin' : ''}/>
+            {isRefreshing ? 'Syncing…' : 'Refresh'}
+          </button>
         </div>
       </div>
 

@@ -340,7 +340,7 @@ export default function CreateOffer() {
       if (isGC) return true;
       const mn = parseFloat(minLimit), mx = parseFloat(maxLimit);
       if (!(mn > 0 && mx > 0 && mx >= mn)) return false;
-      if (maxExceedsWallet) return false;
+      // maxExceedsWallet is no longer a blocker — BTC locks at trade time, not offer time
       return true;
     }
     return true;
@@ -1405,7 +1405,7 @@ export default function CreateOffer() {
                 {walletCapacityLocal === 0 && (
                   <div className="px-3 pb-2">
                     <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
-                      ⚠️ Wallet empty — <button onClick={() => navigate('/wallet')} className="underline">top up your wallet</button> before creating an offer.
+                      💡 No balance yet — you can still create this offer. BTC is only locked when a buyer opens a trade.
                     </p>
                   </div>
                 )}
@@ -1449,16 +1449,11 @@ export default function CreateOffer() {
                   </div>
                 )}
                 {maxExceedsWallet && (
-                  <div className="flex items-start gap-2 p-2.5 rounded-xl" style={{ backgroundColor: `${C.danger}10`, border: `1px solid ${C.danger}30` }}>
-                    <AlertTriangle size={13} style={{ color: C.danger, flexShrink: 0, marginTop: 1 }} />
-                    <div>
-                      <p className="text-xs font-black" style={{ color: C.danger }}>
-                        Maximum exceeds your wallet balance
-                      </p>
-                      <p className="text-xs font-semibold mt-0.5" style={{ color: C.danger }}>
-                        Your capacity: {sym}{fmt(walletCapacityLocal, 0)} {cur}. Please top up your wallet or lower the maximum.
-                      </p>
-                    </div>
+                  <div className="flex items-start gap-2 p-2.5 rounded-xl" style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                    <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>💡</span>
+                    <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
+                      Your limit exceeds your current wallet balance — that's OK! You can create the offer now and your BTC will be locked only when a buyer opens a trade.
+                    </p>
                   </div>
                 )}
 

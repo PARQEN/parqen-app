@@ -87,29 +87,30 @@ export default function ListingDetail({ user }) {
   const [popupOpen,         setPopupOpen]         = useState(false);
 
   // Must be declared before the useEffect that depends on it
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const r = await axios.get(`${API_URL}/listings/${id}`, { timeout: 12000 });
-      const l = r.data.listing;
-      setListing(l);
-      const embeddedUser = Array.isArray(l?.users) ? l.users[0] : l?.users;
-      if (embeddedUser) setSeller(embeddedUser);
-      if (l?.seller_id) {
-        try {
-          const sr = await axios.get(`${API_URL}/users/${l.seller_id}`, { timeout: 8000 });
-          const full = sr.data.user;
-          setSeller(prev => ({ ...(prev || {}), ...full }));
-        } catch {}
-      }
-      axios.post(`${API_URL}/listings/${id}/view`).catch(() => {});
-    } catch {
-      setLoadError(true);
-      toast.error('Could not load listing — check your connection and try again.');
+const loadAll = useCallback(async () => {
+  setLoading(true);
+  setLoadError(false);
+  try {
+    const r = await axios.get(`${API_URL}/offers/${id}`, { timeout: 12000 });
+    const offer = r.data.offer;
+    setListing(offer);
+    // Get seller info from the offer's users field or user_id
+    const sellerData = offer.users || (offer.user_id ? { id: offer.user_id } : null);
+    if (sellerData) setSeller(sellerData);
+    if (offer?.user_id) {
+      try {
+        const sr = await axios.get(`${API_URL}/users/${offer.user_id}`, { timeout: 8000 });
+        const full = sr.data.user;
+        setSeller(prev => ({ ...(prev || {}), ...full }));
+      } catch {}
     }
-    finally { setLoading(false); }
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+    axios.post(`${API_URL}/offers/${id}/view`).catch(() => {});
+  } catch {
+    setLoadError(true);
+    toast.error('Could not load listing — check your connection and try again.');
+  }
+  finally { setLoading(false); }
+}, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Slide up after listing loads
   useEffect(() => {

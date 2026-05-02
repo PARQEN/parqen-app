@@ -69,9 +69,63 @@ const JWT_SECRET = process.env.JWT_SECRET || 'praqen-secret-change-in-production
 const otpStore          = new Map();
 const verificationCodes = new Map();
 
+// ── Phone rate limiting (anti-abuse for OTP / phone verification) ────────────
+const phoneRateLimits = new Map();
+
+function getPhoneLimitRecord(phone) {
+  const today = new Date().toDateString();
+  let rec = phoneRateLimits.get(phone) || { requestsToday: 0, failedAttempts: 0, lastRequest: 0, lockedUntil: 0, requestsDate: today };
+  if (rec.requestsDate !== today) {
+    rec = { ...rec, requestsToday: 0, requestsDate: today };
+    phoneRateLimits.set(phone, rec);
+  }
+  return rec;
+}
+
+function checkPhoneRateLimit(phone) {
+  const now = Date.now();
+  const rec = getPhoneLimitRecord(phone);
+  if (rec.lockedUntil > now) {
+    const mins = Math.ceil((rec.lockedUntil - now) / 60000);
+    return { blocked: true, error: `Too many attempts. Phone locked — try again in ${mins} minute(s).` };
+  }
+  if (rec.requestsToday >= 3) {
+    rec.lockedUntil = now + 24 * 60 * 60 * 1000;
+    phoneRateLimits.set(phone, rec);
+    return { blocked: true, error: 'Maximum OTP requests reached. Try again in 24 hours.' };
+  }
+  if (rec.lastRequest > 0 && now - rec.lastRequest < 60 * 1000) {
+    const secs = Math.ceil((60 * 1000 - (now - rec.lastRequest)) / 1000);
+    return { blocked: true, error: `Please wait ${secs} second(s) before requesting another code.` };
+  }
+  return { blocked: false };
+}
+
+function recordPhoneRequest(phone) {
+  const rec = getPhoneLimitRecord(phone);
+  rec.requestsToday += 1;
+  rec.lastRequest = Date.now();
+  phoneRateLimits.set(phone, rec);
+}
+
+function recordPhoneFailure(phone) {
+  const rec = getPhoneLimitRecord(phone);
+  rec.failedAttempts = (rec.failedAttempts || 0) + 1;
+  if (rec.failedAttempts >= 3) {
+    rec.lockedUntil = Date.now() + 24 * 60 * 60 * 1000;
+  }
+  phoneRateLimits.set(phone, rec);
+}
+
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: { rejectUnauthorized: false },
 });
 
 // ── Trade Notification Helpers ───────────────────────────────────────────────
@@ -195,7 +249,7 @@ async function notifyUserEmail(userId, subject, htmlContent) {
     if (!user?.email) { console.warn(`[Email] No email on file for user ${userId} — skipping`); return; }
     if (!transporter) { console.error('[Email] transporter not initialized'); return; }
     await transporter.sendMail({
-      from: '"PRAQEN" <kendevdash@gmail.com>',
+      from: `"PRAQEN" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       html: htmlContent
@@ -206,12 +260,9 @@ async function notifyUserEmail(userId, subject, htmlContent) {
   }
 }
 
-async function notifyTradeParties(trade, subject, smsMessage, htmlContent) {
+async function notifyTradeParties(trade, subject, _smsMessage, htmlContent) {
   const ids = [trade.buyer_id, trade.seller_id].filter(Boolean);
-  await Promise.allSettled([
-    ...ids.map(id => notifyUserSMS(id, smsMessage)),
-    ...ids.map(id => notifyUserEmail(id, subject, htmlContent))
-  ]);
+  await Promise.allSettled(ids.map(id => notifyUserEmail(id, subject, htmlContent)));
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -926,7 +977,7 @@ app.get('/api/auth/twilio-check', async (req, res) => {
 //   );
 
 async function storeOtp(contact, otp) {
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   const { error } = await supabaseAdmin
     .from('otp_codes')
     .insert({ phone: contact, code: otp, expires_at: expiresAt, used: false });
@@ -953,7 +1004,7 @@ async function checkOtp(contact, token) {
 app.post('/api/auth/send-otp', async (req, res) => {
   try {
     const { phone, email, channel } = req.body;
-    const ch = channel || 'sms';
+    const ch = channel || 'email';
     const contact = ch === 'email' ? email : toE164(phone);
     if (!contact) return res.status(400).json({ error: 'Phone or email required' });
 
@@ -965,14 +1016,18 @@ app.post('/api/auth/send-otp', async (req, res) => {
         from: process.env.EMAIL_USER,
         to: contact,
         subject: 'Your PRAQEN verification code',
-        html: `<p style="font-family:sans-serif">Your PRAQEN verification code is:<br/><strong style="font-size:28px;letter-spacing:6px">${otp}</strong><br/><small>Valid for 5 minutes. Do not share this code.</small></p>`,
+        html: `<p style="font-family:sans-serif">Your PRAQEN verification code is:<br/><strong style="font-size:28px;letter-spacing:6px">${otp}</strong><br/><small>Valid for 10 minutes. Do not share this code.</small></p>`,
       });
     } else {
+      // SMS only for phone verification (one-time per user)
+      const limit = checkPhoneRateLimit(contact);
+      if (limit.blocked) return res.status(429).json({ error: limit.error });
       await twilioClient.messages.create({
-        body: `Your PRAQEN code is: ${otp}. Valid 5 min. Do not share.`,
+        body: `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`,
         from: process.env.TWILIO_PHONE,
         to: contact,
       });
+      recordPhoneRequest(contact);
     }
 
     console.log(`[OTP send] channel=${ch} to=${contact}`);
@@ -989,15 +1044,27 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     if (!phone) return res.status(400).json({ error: 'Phone required' });
     const contact = toE164(phone);
 
+    const limit = checkPhoneRateLimit(contact);
+    if (limit.blocked) return res.status(429).json({ error: limit.error });
+
+    // Block only if this phone is already verified by an account — not if it's merely saved/unverified
+    const { data: existing } = await supabaseAdmin
+      .from('users').select('id')
+      .eq('phone', contact)
+      .eq('is_phone_verified', true)
+      .maybeSingle();
+    if (existing) return res.status(400).json({ error: 'This phone number is already verified by another account.' });
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await storeOtp(contact, otp);
 
     await twilioClient.messages.create({
-      body: `Your PRAQEN code is: ${otp}. Valid 5 min. Do not share.`,
+      body: `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`,
       from: process.env.TWILIO_PHONE,
       to: contact,
     });
 
+    recordPhoneRequest(contact);
     console.log(`[OTP send-phone] to=${contact}`);
     res.json({ success: true, message: 'Code sent!' });
   } catch (error) {
@@ -1023,8 +1090,15 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     console.log(`[OTP verify] channel=${ch} contact=${normalizedContact} token=${token}`);
 
+    // Lock check for SMS channel
+    if (ch !== 'email') {
+      const limit = checkPhoneRateLimit(normalizedContact);
+      if (limit.blocked) return res.status(429).json({ error: limit.error });
+    }
+
     const record = await checkOtp(normalizedContact, token);
     if (!record) {
+      if (ch !== 'email') recordPhoneFailure(normalizedContact);
       return res.status(400).json({ error: 'Code expired or already used. Tap "Resend code" to get a new one.' });
     }
 
@@ -1068,7 +1142,8 @@ app.post('/api/auth/send-verification', async (req, res) => {
       <div class="footer"><p>&copy; 2024 PRAQEN. All rights reserved.</p></div>
     </div></body></html>`;
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"PRAQEN" <${process.env.EMAIL_USER}>`, to: email,
+      from: `"PRAQEN" <${process.env.EMAIL_USER}>`,
+      to: email,
       subject: 'Verify Your Email - PRAQEN',
       text: `Your PRAQEN verification code is: ${code}\nExpires in 10 minutes.`,
       html: htmlContent,
@@ -1140,6 +1215,16 @@ app.post('/api/auth/verify-code', async (req, res) => {
     console.error('Verify-code error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
+});
+
+// Aliases so both naming conventions work
+app.post('/api/auth/send-verification-email', (req, res, next) => {
+  req.url = '/api/auth/send-verification';
+  app._router.handle(req, res, next);
+});
+app.post('/api/auth/verify-email', (req, res, next) => {
+  req.url = '/api/auth/verify-code';
+  app._router.handle(req, res, next);
 });
 
 // ============================================================
@@ -1228,16 +1313,24 @@ app.post('/api/users/send-phone-otp', verifyToken, async (req, res) => {
     if (!phone) return res.status(400).json({ error: 'Phone number required' });
 
     const e164 = phone.startsWith('+') ? phone : `+${phone.replace(/^0/, '')}`;
-    const otp  = Math.floor(100000 + Math.random() * 900000).toString();
 
-    otpStore.set(e164, { otp, expires: Date.now() + 5 * 60 * 1000 });
+    const limit = checkPhoneRateLimit(e164);
+    if (limit.blocked) return res.status(429).json({ error: limit.error });
+
+    // One phone = one account (allow if already belongs to THIS user)
+    const { data: existing } = await supabaseAdmin.from('users').select('id').eq('phone', e164).neq('id', req.userId).maybeSingle();
+    if (existing) return res.status(400).json({ error: 'This phone number is already registered to another account.' });
+
+    const otp  = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(e164, { otp, expires: Date.now() + 10 * 60 * 1000 });
 
     await twilioClient.messages.create({
-      body: `[PRAQEN] Your verification code is: ${otp}. Valid for 5 minutes. Never share this code.`,
+      body: `[PRAQEN] Your verification code is: ${otp}. Valid for 10 minutes. Never share this code.`,
       from: process.env.TWILIO_PHONE,
       to:   e164,
     });
 
+    recordPhoneRequest(e164);
     console.log(`[send-phone-otp] OTP sent to ${e164}`);
     res.json({ success: true, message: 'OTP sent to your phone' });
   } catch (err) {
@@ -1252,10 +1345,15 @@ app.post('/api/users/verify-phone-otp', verifyToken, async (req, res) => {
     const { phone, otp } = req.body;
     if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP required' });
 
-    const e164   = phone.startsWith('+') ? phone : `+${phone.replace(/^0/, '')}`;
+    const e164 = phone.startsWith('+') ? phone : `+${phone.replace(/^0/, '')}`;
+
+    const limit = checkPhoneRateLimit(e164);
+    if (limit.blocked) return res.status(429).json({ error: limit.error });
+
     const stored = otpStore.get(e164);
 
     if (!stored || String(stored.otp) !== String(otp) || Date.now() > stored.expires) {
+      recordPhoneFailure(e164);
       return res.status(400).json({ error: 'Invalid or expired OTP. Request a new one.' });
     }
 
@@ -1876,34 +1974,48 @@ app.patch('/api/listings/:id/status', verifyToken, async (req, res) => {
   }
 });
 
-// GET all active offers for the market (alias for /api/listings with offers table naming)
+// GET all active offers for the market
 app.get('/api/offers', async (req, res) => {
   try {
     const { type, country, limit = 100 } = req.query;
-
+    
+    // First, get all active offers
     let query = supabaseAdmin
-      .from('listings')
-      .select(`
-        *,
-        users:seller_id (
-          id,
-          username,
-          badge,
-          country
-        )
-      `)
-      .eq('status', 'ACTIVE');
-
-    if (type) query = query.eq('listing_type', type.toUpperCase());
+      .from('offers')
+      .select('*')
+      .eq('status', 'active');
+    
+    if (type) query = query.eq('type', type);
     if (country) query = query.eq('country', country);
-
-    const { data, error } = await query.limit(parseInt(limit));
-
+    
+    const { data: offers, error } = await query.limit(parseInt(limit));
+    
     if (error) throw error;
-
-    res.json({ success: true, offers: data });
+    
+    // Second, get all unique user IDs from offers
+    const userIds = [...new Set(offers.map(o => o.user_id).filter(Boolean))];
+    
+    if (userIds.length === 0) {
+      return res.json({ success: true, offers: [] });
+    }
+    
+    // Third, fetch user data for those IDs
+    const { data: users, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, username, badge, country')
+      .in('id', userIds);
+    
+    if (userError) throw userError;
+    
+    // Combine offers with user data
+    const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+    const offersWithUsers = offers.map(o => ({
+      ...o,
+      users: userMap[o.user_id] || null
+    }));
+    
+    res.json({ success: true, offers: offersWithUsers });
   } catch (err) {
-    console.error('Error fetching offers:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1913,17 +2025,25 @@ app.get('/api/offers/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabaseAdmin
-      .from('listings')
-      .select('*, users:seller_id(id, username, badge, country)')
+    // First get the offer from offers table (not listings)
+    const { data: offer, error: offerError } = await supabaseAdmin
+      .from('offers')
+      .select('*')
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    if (offerError || !offer) {
       return res.status(404).json({ error: 'Offer not found' });
     }
 
-    res.json({ offer: data });
+    // Then get the seller info separately
+    const { data: seller } = await supabaseAdmin
+      .from('users')
+      .select('id, username, badge, country')
+      .eq('id', offer.user_id)
+      .single();
+
+    res.json({ offer: { ...offer, seller } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -80,7 +80,6 @@ const COUNTRY_REGIONS = {
 
 const COUNTRIES = [
   {code:'ALL', name:'All Countries',  flag:'🌍', currency:'USD', symbol:'$',    region:null},
-  // Africa
   {code:'GH',  name:'Ghana',          flag:'🇬🇭', currency:'GHS', symbol:'₵',    region:'Africa'},
   {code:'NG',  name:'Nigeria',        flag:'🇳🇬', currency:'NGN', symbol:'₦',    region:'Africa'},
   {code:'KE',  name:'Kenya',          flag:'🇰🇪', currency:'KES', symbol:'KSh',  region:'Africa'},
@@ -102,7 +101,6 @@ const COUNTRIES = [
   {code:'ZA',  name:'South Africa',   flag:'🇿🇦', currency:'ZAR', symbol:'R',    region:'Africa'},
   {code:'EG',  name:'Egypt',          flag:'🇪🇬', currency:'EGP', symbol:'E£',   region:'Africa'},
   {code:'MA',  name:'Morocco',        flag:'🇲🇦', currency:'MAD', symbol:'MAD',  region:'Africa'},
-  // Asia
   {code:'IN',  name:'India',          flag:'🇮🇳', currency:'INR', symbol:'₹',    region:'Asia'},
   {code:'CN',  name:'China',          flag:'🇨🇳', currency:'CNY', symbol:'¥',    region:'Asia'},
   {code:'PH',  name:'Philippines',    flag:'🇵🇭', currency:'PHP', symbol:'₱',    region:'Asia'},
@@ -113,15 +111,12 @@ const COUNTRIES = [
   {code:'TH',  name:'Thailand',       flag:'🇹🇭', currency:'THB', symbol:'฿',    region:'Asia'},
   {code:'MY',  name:'Malaysia',       flag:'🇲🇾', currency:'MYR', symbol:'RM',   region:'Asia'},
   {code:'SG',  name:'Singapore',      flag:'🇸🇬', currency:'SGD', symbol:'S$',   region:'Asia'},
-  // Middle East
   {code:'AE',  name:'UAE',            flag:'🇦🇪', currency:'AED', symbol:'AED',  region:'Middle East'},
   {code:'SA',  name:'Saudi Arabia',   flag:'🇸🇦', currency:'SAR', symbol:'SR',   region:'Middle East'},
-  // Americas
   {code:'US',  name:'United States',  flag:'🇺🇸', currency:'USD', symbol:'$',    region:'Americas'},
   {code:'BR',  name:'Brazil',         flag:'🇧🇷', currency:'BRL', symbol:'R$',   region:'Americas'},
   {code:'MX',  name:'Mexico',         flag:'🇲🇽', currency:'MXN', symbol:'MX$',  region:'Americas'},
   {code:'CO',  name:'Colombia',       flag:'🇨🇴', currency:'COP', symbol:'COP$', region:'Americas'},
-  // Europe
   {code:'GB',  name:'United Kingdom', flag:'🇬🇧', currency:'GBP', symbol:'£',    region:'Europe'},
   {code:'TR',  name:'Turkey',         flag:'🇹🇷', currency:'TRY', symbol:'₺',    region:'Europe'},
   {code:'PL',  name:'Poland',         flag:'🇵🇱', currency:'PLN', symbol:'zł',   region:'Europe'},
@@ -131,7 +126,6 @@ const COUNTRIES = [
 
 const PAYMENT_OPTIONS = [
   {value:'all',            label:'All Methods',                   icon:'💳', cat:null},
-  // Mobile Money
   {value:'mtn',            label:'MTN Mobile Money',              icon:'📱', cat:'Mobile Money'},
   {value:'vodafone',       label:'Vodafone Cash',                 icon:'📱', cat:'Mobile Money'},
   {value:'airteltigo',     label:'AirtelTigo Money',              icon:'📱', cat:'Mobile Money'},
@@ -145,7 +139,6 @@ const PAYMENT_OPTIONS = [
   {value:'moov money',     label:'Moov Money',                    icon:'📱', cat:'Mobile Money'},
   {value:'africell',       label:'Africell Money',                icon:'📱', cat:'Mobile Money'},
   {value:'paga',           label:'Paga',                          icon:'🟢', cat:'Mobile Money'},
-  // Digital Wallet
   {value:'paypal',         label:'PayPal',                        icon:'💰', cat:'Digital Wallet'},
   {value:'cash app',       label:'Cash App',                      icon:'💸', cat:'Digital Wallet'},
   {value:'apple pay',      label:'Apple Pay',                     icon:'🍎', cat:'Digital Wallet'},
@@ -158,13 +151,11 @@ const PAYMENT_OPTIONS = [
   {value:'neteller',       label:'Neteller',                      icon:'💳', cat:'Digital Wallet'},
   {value:'payeer',         label:'Payeer',                        icon:'💳', cat:'Digital Wallet'},
   {value:'perfect money',  label:'Perfect Money',                 icon:'💳', cat:'Digital Wallet'},
-  // Remittance
   {value:'wise',           label:'Wise',                          icon:'🌍', cat:'Remittance'},
   {value:'worldremit',     label:'WorldRemit',                    icon:'🌐', cat:'Remittance'},
   {value:'remitly',        label:'Remitly',                       icon:'🚀', cat:'Remittance'},
   {value:'western union',  label:'Western Union',                 icon:'🏢', cat:'Remittance'},
   {value:'moneygram',      label:'MoneyGram',                     icon:'🏢', cat:'Remittance'},
-  // Bank
   {value:'bank transfer',  label:'Bank Transfer',                 icon:'🏦', cat:'Bank'},
   {value:'wire transfer',  label:'Wire Transfer',                 icon:'🔗', cat:'Bank'},
   {value:'mobile banking', label:'Mobile Banking App',            icon:'📲', cat:'Bank'},
@@ -172,17 +163,14 @@ const PAYMENT_OPTIONS = [
   {value:'ussd',           label:'USSD Bank Transfer',            icon:'📞', cat:'Bank'},
   {value:'instant eft',    label:'Instant EFT (South Africa)',    icon:'🏦', cat:'Bank'},
   {value:'cash deposit',   label:'Cash Deposit (Bank Counter)',   icon:'🏦', cat:'Bank'},
-  // FinTech
   {value:'opay',           label:'OPay',                          icon:'🟢', cat:'FinTech'},
   {value:'palmpay',        label:'PalmPay',                       icon:'🌴', cat:'FinTech'},
   {value:'kuda',           label:'Kuda Bank',                     icon:'🏦', cat:'FinTech'},
   {value:'moniepoint',     label:'Moniepoint',                    icon:'🏦', cat:'FinTech'},
   {value:'paystack',       label:'Paystack',                      icon:'💚', cat:'FinTech'},
   {value:'flutterwave',    label:'Flutterwave (Barter)',           icon:'🦋', cat:'FinTech'},
-  // Cash
   {value:'cash in person', label:'Cash in Person (Face-to-Face)', icon:'💵', cat:'Cash'},
   {value:'cash out',       label:'Cash Out',                      icon:'💵', cat:'Cash'},
-  // Crypto
   {value:'usdt',           label:'USDT (Tether – TRC20)',          icon:'💵', cat:'Crypto'},
   {value:'binance pay',    label:'Binance Pay',                   icon:'🟡', cat:'Crypto'},
   {value:'bitcoin',        label:'Bitcoin (BTC)',                  icon:'₿',  cat:'Crypto'},
@@ -275,11 +263,8 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
     <div className="bg-white rounded-2xl overflow-hidden border hover:shadow-lg transition-all w-full"
       style={{borderColor:C.g200}}>
 
-      {/* ─ Seller header ─────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-start gap-3">
-
-          {/* Avatar + online dot */}
           <div className="relative flex-shrink-0">
             <button onClick={onViewSeller}>
               <Avatar user={u} size={48} radius="rounded-xl"/>
@@ -294,7 +279,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
             )}
           </div>
 
-          {/* Name + badge + stats */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <CountryFlag
@@ -313,7 +297,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
               </span>
             </div>
 
-            {/* Stats row — feedback left, trades + status right */}
             <div className="flex items-center justify-between mt-1.5 gap-1">
               <div className="flex items-center gap-1.5">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold"
@@ -351,7 +334,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
           </div>
         </div>
 
-        {/* Payment method */}
         <div className="mt-2.5">
           <span className="inline-flex flex-col px-2.5 py-1.5 rounded-lg"
             style={{backgroundColor:C.g100}}>
@@ -361,10 +343,8 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
         </div>
       </div>
 
-      {/* ─ Divider ───────────────────────────────────────────── */}
       <div style={{height:1, backgroundColor:C.g100}}/>
 
-      {/* ─ You Pay / You Receive ────────────────────────────── */}
       <div className="px-4 py-3 grid grid-cols-2 gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{color:C.g500}}>YOU PAY</p>
@@ -382,7 +362,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
         </div>
       </div>
 
-      {/* ─ Rate + margin ─────────────────────────────────────── */}
       <div className="px-4 pb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold truncate" style={{color:C.g600}}>
           Rate: {sym}{fmt(rateLocal)}/BTC
@@ -393,7 +372,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
         </span>
       </div>
 
-      {/* ─ Limit row ─────────────────────────────────────────── */}
       {(minLocal > 0 || maxLocal > 0) && (
         <div className="px-4 pb-2">
           <p className="text-xs font-bold" style={{color:C.g600}}>
@@ -402,7 +380,6 @@ function OfferCard({listing, btcPriceUSD, onViewSeller, onBuy, liked, onToggleLi
         </div>
       )}
 
-      {/* ─ Actions ───────────────────────────────────────────── */}
       <div className="px-4 pb-4 flex items-center gap-2">
         <button onClick={onViewSeller}
           className="w-10 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 hover:bg-gray-50 transition"
@@ -443,7 +420,6 @@ function ProfileModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
       <div className="bg-white w-full md:max-w-md max-h-[90vh] rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl flex flex-col"
         style={{border:`1px solid ${C.g200}`, animation:'slideUp .25s ease'}}>
 
-        {/* Header */}
         <div className="relative p-4 sm:p-5 text-white flex-shrink-0"
           style={{background:`linear-gradient(135deg,${C.forest},${C.mint})`}}>
           <button onClick={onClose}
@@ -483,7 +459,6 @@ function ProfileModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
             </div>
           </div>
 
-          {/* Stats grid */}
           {(()=>{
             const phoneOk = !!(u.is_phone_verified||u.phone_verified||u.phone);
             const emailOk = !!(u.is_email_verified||u.email_verified||u.email);
@@ -515,7 +490,6 @@ function ProfileModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
           })()}
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b flex-shrink-0" style={{borderColor:C.g200}}>
           {[['rules','📋 Trade Rules'],['offer','📊 Offer Details']].map(([t,l])=>(
             <button key={t} onClick={()=>setTab(t)}
@@ -530,7 +504,6 @@ function ProfileModal({seller, listing, onClose, onTrade, btcPriceUSD}) {
           ))}
         </div>
 
-        {/* Body */}
         <div className="p-4 overflow-y-auto flex-1" style={{WebkitOverflowScrolling:'touch'}}>
           {tab==='rules' ? (
             <div className="space-y-3">
@@ -693,18 +666,39 @@ export default function BuyBitcoin({user}) {
   const countryRef  = useRef(null);
   const paymentRef  = useRef(null);
 
-  useEffect(()=>{ if(contextBtcUsd>0) setBtcPrice(contextBtcUsd); },[contextBtcUsd]);
-  useEffect(()=>{
+  useEffect(() => {
+    if (contextBtcUsd > 0) setBtcPrice(contextBtcUsd);
+  }, [contextBtcUsd]);
+
+  const loadListings = async () => {
+    try {
+      console.log('🔄 loadListings started');
+      const r = await axios.get(`${API_URL}/offers`, { timeout: 25000 });
+      const offers = r.data.offers || [];
+      const sellOffers = offers.filter(offer => offer.type === 'sell');
+      console.log('📦 Sell offers count:', sellOffers.length);
+      setListings(sellOffers);
+      setLastSynced(new Date());
+      try { sessionStorage.setItem('praqen_buy', JSON.stringify({data: sellOffers, ts:Date.now()})); } catch {}
+    } catch (error) {
+      console.error('❌ Error loading offers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadListings();
-    if (_cache()) setLastSynced(new Date());
     const interval = setInterval(loadListings, 60000);
     return () => clearInterval(interval);
-  },[]);
-  useEffect(()=>{
+  }, []);
+
+  useEffect(() => {
     const tk = localStorage.getItem('token');
     if (!tk) return;
-    axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
-  },[]);
+    axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -718,36 +712,27 @@ export default function BuyBitcoin({user}) {
     const interval = setInterval(fetchTrades, 30000);
     return () => clearInterval(interval);
   }, []);
-  useEffect(()=>{
-    const h = e => {
-      if(currencyRef.current&&!currencyRef.current.contains(e.target)){setShowCurrency(false);setCurrencySearch('');}
-      if(countryRef.current&&!countryRef.current.contains(e.target)) setShowCountry(false);
-      if(paymentRef.current&&!paymentRef.current.contains(e.target)){setShowPayment(false);setPaymentSearch('');}
-    };
-    document.addEventListener('mousedown',h);
-    return () => document.removeEventListener('mousedown',h);
-  },[]);
 
-  const loadListings = async () => {
-    try {
-      const r = await axios.get(`${API_URL}/listings`, { timeout: 25000 });
-      const all = (r.data.listings||[]).map(l=>({...l, users:Array.isArray(l.users)?l.users[0]:l.users}));
-      const data = all.filter(l=>l.listing_type==='SELL'||l.listing_type==='SELL_BITCOIN');
-      setListings(data);
-      setLastSynced(new Date());
-      try { sessionStorage.setItem('praqen_buy', JSON.stringify({data, ts:Date.now()})); } catch {}
-    } catch { if (!listings.length) toast.error('Failed to load marketplace. Please refresh.'); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    const h = e => {
+      if (currencyRef.current && !currencyRef.current.contains(e.target)) {
+        setShowCurrency(false);
+        setCurrencySearch('');
+      }
+      if (countryRef.current && !countryRef.current.contains(e.target)) setShowCountry(false);
+      if (paymentRef.current && !paymentRef.current.contains(e.target)) {
+        setShowPayment(false);
+        setPaymentSearch('');
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
   const handleRefresh = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const tk = localStorage.getItem('token');
-      if (tk) {
-        await axios.post(`${API_URL}/users/heartbeat`, {}, { headers: { Authorization: `Bearer ${tk}` } }).catch(()=>{});
-      }
       await loadListings();
     } finally {
       setIsRefreshing(false);
@@ -755,48 +740,60 @@ export default function BuyBitcoin({user}) {
   };
 
   const getFiltered = () => {
+    console.log('🔴 getFiltered CALLED, listings.length:', listings.length);
     let list = [...listings];
-    if (selCountry.code!=='ALL') list=list.filter(l=>l.country===selCountry.code);
-    if (selPayment!=='all')      list=list.filter(l=>String(l.payment_method||'').toLowerCase().includes(selPayment));
-    if (buyAmt && parseFloat(buyAmt)>0) {
-      const a = parseFloat(buyAmt);
-      const _cur  = selCurrency.code;
-      const _rate = USD_RATES[_cur] || 1;
-      list=list.filter(l=>{
-        if (l.min_limit_local && l.max_limit_local && l.currency===_cur) {
-          return a>=(l.min_limit_local) && a<=(l.max_limit_local);
-        }
-        const aUsd = _rate>0 ? a/_rate : a;
-        return aUsd>=(l.min_limit_usd||0) && aUsd<=(l.max_limit_usd||999999);
+    
+    if (selCountry.code !== 'ALL') {
+      list = list.filter(l => l.country === selCountry.code);
+    }
+    
+    if (selPayment !== 'all') {
+      list = list.filter(l => String(l.payment_method || '').toLowerCase().includes(selPayment));
+    }
+    
+    if (buyAmt && parseFloat(buyAmt) > 0) {
+      const amount = parseFloat(buyAmt);
+      list = list.filter(offer => {
+        const minAmount = offer.min_amount || 0;
+        const maxAmount = offer.max_amount || 999999;
+        return amount >= minAmount && amount <= maxAmount;
       });
     }
-    const rate = l => getRateUSD(l,btcPrice);
-    if (sortBy==='rate_low')    list.sort((a,b)=>rate(a)-rate(b));
-    else if (sortBy==='rating') list.sort((a,b)=>(b.users?.average_rating||0)-(a.users?.average_rating||0));
-    else if (sortBy==='trades') list.sort((a,b)=>getTrades(b.users)-getTrades(a.users));
-
-    if (traderSearch.trim()) list = list.filter(l =>
-      (l.users?.username||'').toLowerCase().includes(traderSearch.trim().toLowerCase())
-    );
-
-    // All offers are shown — sellers can have multiple offers for the same BTC
+    
+    if (sortBy === 'rate_low') {
+      list.sort((a, b) => (a.bitcoin_price || 0) - (b.bitcoin_price || 0));
+    } else if (sortBy === 'rating') {
+      list.sort((a, b) => (b.users?.average_rating || 0) - (a.users?.average_rating || 0));
+    } else if (sortBy === 'trades') {
+      list.sort((a, b) => (b.users?.total_trades || 0) - (a.users?.total_trades || 0));
+    }
+    
+    if (traderSearch.trim()) {
+      const search = traderSearch.trim().toLowerCase();
+      list = list.filter(offer => (offer.users?.username || '').toLowerCase().includes(search));
+    }
+    
+    console.log('📊 FINAL filtered length:', list.length);
     return list;
   };
 
   const handleBuy = (id) => {
-    if (!user) { navigate('/login?message=Please log in to start trading'); return; }
+    if (!user) {
+      navigate('/login?message=Please log in to start trading');
+      return;
+    }
     navigate(`/listing/${id}`);
   };
 
-  const filtered  = getFiltered();
-  const cur     = selCurrency.code;
-  const sym     = selCurrency.symbol;
+  const filtered = getFiltered();
+  const cur = selCurrency.code;
+  const sym = selCurrency.symbol;
   const usdRate = USD_RATES[cur] || 1;
-  const btcLocal  = btcPrice * usdRate;
-  const selPmInfo = PAYMENT_OPTIONS.find(p=>p.value===selPayment);
-  const onlineCnt   = listings.filter(l=>(Date.now()-new Date(l.users?.last_seen_at||l.users?.last_login||0))/1000<300).length;
-  const sellerCount = new Set(listings.map(l=>l.seller_id)).size;
-  const hasFilters = selPayment!=='all' || buyAmt || selCountry.code!=='ALL' || selCurrency.code!=='USD' || !!traderSearch.trim();
+  const btcLocal = btcPrice * usdRate;
+  const selPmInfo = PAYMENT_OPTIONS.find(p => p.value === selPayment);
+  const onlineCnt = listings.filter(l => (Date.now() - new Date(l.users?.last_seen_at || l.users?.last_login || 0)) / 1000 < 300).length;
+  const sellerCount = new Set(listings.map(l => l.seller_id)).size;
+  const hasFilters = selPayment !== 'all' || buyAmt || selCountry.code !== 'ALL' || selCurrency.code !== 'USD' || !!traderSearch.trim();
 
   return (
     <div className="min-h-screen flex flex-col pb-0 overflow-x-hidden"
@@ -845,7 +842,6 @@ export default function BuyBitcoin({user}) {
 
       {/* ══ 2. TAB NAVIGATION ══════════════════════════════════ */}
       <div className="bg-white border-b sticky top-0 z-30 flex-shrink-0" style={{borderColor:C.g200}}>
-        {/* 3 equal tabs — always fits any phone */}
         <div className="flex w-full">
           {[
             {label:'Buy BTC',    path:'/buy-bitcoin',  active:true,  color:'#1B4332'},
@@ -863,9 +859,7 @@ export default function BuyBitcoin({user}) {
             </Link>
           ))}
         </div>
-        {/* Active & Online / Last synced / Refresh row */}
         <div className="flex items-center justify-between px-3 py-2 border-t" style={{borderColor:C.g100, backgroundColor:C.g50}}>
-          {/* Left: status dot + Active & Online */}
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
               style={{backgroundColor:C.online, boxShadow:`0 0 0 3px ${C.online}30`}}/>
@@ -882,7 +876,6 @@ export default function BuyBitcoin({user}) {
               </>
             )}
           </div>
-          {/* Right: Refresh button */}
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -894,7 +887,6 @@ export default function BuyBitcoin({user}) {
         </div>
       </div>
 
-      {/* ══ PAUSED OFFER BANNER — shown to seller when their SELL offer is paused ══ */}
       {pausedOffer && (
         <div className="flex-shrink-0 px-3 pt-3">
           <div className="max-w-7xl mx-auto rounded-2xl p-4 flex items-start gap-3"
@@ -923,10 +915,8 @@ export default function BuyBitcoin({user}) {
       <div className="bg-white border-b flex-shrink-0" style={{borderColor:C.g200}}>
         <div className="max-w-7xl mx-auto px-3 py-3 space-y-2">
 
-          {/* 2×2 on mobile, 4-col on sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 
-            {/* ── AMOUNT ── */}
             <div>
               <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>AMOUNT</p>
               <div className="relative">
@@ -949,7 +939,6 @@ export default function BuyBitcoin({user}) {
               </div>
             </div>
 
-            {/* ── CURRENCY (own currency list) ── */}
             <div className="relative" ref={currencyRef}>
               <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>CURRENCY</p>
               <button
@@ -993,7 +982,6 @@ export default function BuyBitcoin({user}) {
               )}
             </div>
 
-            {/* ── PAYMENT ── */}
             <div className="relative" ref={paymentRef}>
               <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>PAYMENT</p>
               <button
@@ -1047,7 +1035,6 @@ export default function BuyBitcoin({user}) {
               )}
             </div>
 
-            {/* ── COUNTRY ── */}
             <div className="relative" ref={countryRef}>
               <p className="text-xs font-black mb-1 tracking-wide" style={{color:C.g500}}>COUNTRY</p>
               <button
@@ -1104,7 +1091,6 @@ export default function BuyBitcoin({user}) {
             </div>
           </div>
 
-          {/* Sort + Search + Create + Clear — all on one line */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-black flex-shrink-0" style={{color:C.g500}}>Sort:</span>
             <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
@@ -1181,7 +1167,7 @@ export default function BuyBitcoin({user}) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 w-full">
             {Array(6).fill(0).map((_,i)=><SkeletonCard key={i}/>)}
           </div>
-        ) : filtered.length===0 ? (
+        ) : filtered.length === 0 ? (
           <div className="bg-white rounded-2xl border p-6 sm:p-10 text-center" style={{borderColor:C.g200}}>
             <p className="text-5xl mb-4">🔍</p>
             <p className="font-black text-base mb-1" style={{color:C.g800}}>No offers found</p>
@@ -1201,7 +1187,7 @@ export default function BuyBitcoin({user}) {
                   btcPriceUSD={btcPrice}
                   onViewSeller={()=>{
                     setModal({seller:l.users||{}, listing:l});
-                    axios.post(`${API_URL}/listings/${l.id}/view`).catch(()=>{});
+                    axios.post(`${API_URL}/offers/${l.id}/view`).catch(()=>{});
                   }}
                   onBuy={()=>handleBuy(l.id)}
                   liked={liked.has(l.id)}
@@ -1226,10 +1212,7 @@ export default function BuyBitcoin({user}) {
         </div>
       </div>
 
-      {/* ══ 5. FOOTER ══════════════════════════════════════════ */}
       <PRQFooter/>
-
-      {/* ══ 6. BOTTOM NAV ══════════════════════════════════════ */}
       <BottomNav/>
 
       {modal && (

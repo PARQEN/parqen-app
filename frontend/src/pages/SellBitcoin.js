@@ -695,11 +695,15 @@ export default function SellBitcoin({user}) {
     const fetchTrades = async () => {
       try {
         const res = await axios.get(`${API_URL}/trades/active`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.data.success) setActiveTrades(res.data.trades || []);
+        if (res.data.success) {
+          const now = Date.now();
+          const live = (res.data.trades || []).filter(t => !t.expires_at || new Date(t.expires_at).getTime() > now);
+          setActiveTrades(live);
+        }
       } catch {}
     };
     fetchTrades();
-    const interval = setInterval(fetchTrades, 30000);
+    const interval = setInterval(fetchTrades, 10000);
     return () => clearInterval(interval);
   }, []);
   useEffect(()=>{
@@ -758,6 +762,8 @@ export default function SellBitcoin({user}) {
 
     return list;
   };
+
+  const handleTradeExpire = (id) => setActiveTrades(prev => prev.filter(t => t.id !== id));
 
   const handleSell = (id) => {
     if (!user) { navigate('/login?message=Please log in to start trading'); return; }
@@ -1085,7 +1091,7 @@ export default function SellBitcoin({user}) {
       {activeTrades.length > 0 && (
         <div className="px-3 mb-2 max-w-7xl mx-auto w-full">
           {activeTrades.slice(0, showAllTrades ? activeTrades.length : 3).map(trade => (
-            <ActiveTradeCard key={trade.id} trade={trade} />
+            <ActiveTradeCard key={trade.id} trade={trade} pageColor="#D97706" onExpire={handleTradeExpire} />
           ))}
           {activeTrades.length > 3 && (
             <button onClick={() => setShowAllTrades(p => !p)}

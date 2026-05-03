@@ -16,6 +16,8 @@ const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const twilio = require('twilio');
 const twilioClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 const twilioVerifySid = process.env.TWILIO_VERIFY_SID || 'VAddba23c45841679ed249d49be8a90bbe';
@@ -269,12 +271,7 @@ async function notifyTradeParties(trade, subject, _smsMessage, htmlContent) {
 
 async function sendVerificationEmail(email, code) {
     const year = new Date().getFullYear();
-    try {
-        await transporter.sendMail({
-            from: `"PRAQEN" <${process.env.EMAIL_USER || 'kendevdash@gmail.com'}>`,
-            to: email,
-            subject: '🔐 Your PRAQEN verification code',
-            html: `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -384,12 +381,36 @@ async function sendVerificationEmail(email, code) {
   </table>
 
 </body>
-</html>`
-        });
-        console.log('✅ Verification email sent to:', email);
-    } catch (error) {
-        console.error('❌ Email send failed:', error.message);
+</html>`;
+
+    // Try Resend first (more reliable than Gmail SMTP)
+    if (resendClient) {
+        try {
+            const fromAddr = process.env.RESEND_FROM || 'PRAQEN <noreply@praqen.com>';
+            const { error: resendError } = await resendClient.emails.send({
+                from: fromAddr,
+                to: email,
+                subject: '🔐 Your PRAQEN verification code',
+                html,
+            });
+            if (!resendError) {
+                console.log('✅ Verification email sent via Resend to:', email);
+                return;
+            }
+            console.warn('⚠️ Resend error:', resendError.message, '— falling back to SMTP');
+        } catch (resendErr) {
+            console.warn('⚠️ Resend failed:', resendErr.message, '— falling back to SMTP');
+        }
     }
+
+    // Fallback: Gmail SMTP
+    await transporter.sendMail({
+        from: `"PRAQEN" <${process.env.EMAIL_USER || 'kendevdash@gmail.com'}>`,
+        to: email,
+        subject: '🔐 Your PRAQEN verification code',
+        html,
+    });
+    console.log('✅ Verification email sent via SMTP to:', email);
 }
 
 // ============================================================
@@ -984,6 +1005,44 @@ async function storeOtp(contact, otp) {
   if (error) throw new Error(`OTP store failed: ${error.message}`);
 }
 
+// Send SMS with Twilio primary, Termii fallback (better for African numbers)
+async function sendSmsOtp(phone, message) {
+  // Try Twilio first
+  try {
+    await twilioClient.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE,
+      to: phone,
+    });
+    console.log(`[SMS] Sent via Twilio to ${phone}`);
+    return;
+  } catch (twilioErr) {
+    console.warn(`[SMS] Twilio failed (code ${twilioErr.code}): ${twilioErr.message}`);
+    // If not a trial/geography restriction, rethrow immediately
+    if (![21608, 21408, 21215, 21612, 63038].includes(twilioErr.code)) {
+      throw twilioErr;
+    }
+  }
+
+  // Fallback: Termii (built for African numbers)
+  if (!process.env.TERMII_API_KEY) throw new Error('SMS delivery failed and no Termii key configured.');
+  const termiiPhone = phone.replace(/^\+/, ''); // Termii prefers no leading +
+  const { data: termiiRes } = await require('axios').post('https://api.ng.termii.com/api/sms/send', {
+    to: termiiPhone,
+    from: 'PRAQEN',
+    sms: message,
+    type: 'plain',
+    channel: 'generic',
+    api_key: process.env.TERMII_API_KEY,
+  });
+  if (termiiRes && termiiRes.code === 'ok') {
+    console.log(`[SMS] Sent via Termii to ${phone}`);
+  } else {
+    console.error('[SMS] Termii response:', JSON.stringify(termiiRes));
+    throw new Error('SMS delivery failed via both providers.');
+  }
+}
+
 async function checkOtp(contact, token) {
   const { data, error } = await supabaseAdmin
     .from('otp_codes')
@@ -1022,11 +1081,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
       // SMS only for phone verification (one-time per user)
       const limit = checkPhoneRateLimit(contact);
       if (limit.blocked) return res.status(429).json({ error: limit.error });
-      await twilioClient.messages.create({
-        body: `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`,
-        from: process.env.TWILIO_PHONE,
-        to: contact,
-      });
+      await sendSmsOtp(contact, `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`);
       recordPhoneRequest(contact);
     }
 
@@ -1058,11 +1113,7 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await storeOtp(contact, otp);
 
-    await twilioClient.messages.create({
-      body: `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`,
-      from: process.env.TWILIO_PHONE,
-      to: contact,
-    });
+    await sendSmsOtp(contact, `Your PRAQEN code is: ${otp}. Valid 10 min. Do not share.`);
 
     recordPhoneRequest(contact);
     console.log(`[OTP send-phone] to=${contact}`);
@@ -1324,18 +1375,19 @@ app.post('/api/users/send-phone-otp', verifyToken, async (req, res) => {
     const otp  = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(e164, { otp, expires: Date.now() + 10 * 60 * 1000 });
 
-    await twilioClient.messages.create({
-      body: `[PRAQEN] Your verification code is: ${otp}. Valid for 10 minutes. Never share this code.`,
-      from: process.env.TWILIO_PHONE,
-      to:   e164,
-    });
+    await sendSmsOtp(e164, `[PRAQEN] Your verification code is: ${otp}. Valid for 10 minutes. Never share this code.`);
 
     recordPhoneRequest(e164);
     console.log(`[send-phone-otp] OTP sent to ${e164}`);
     res.json({ success: true, message: 'OTP sent to your phone' });
   } catch (err) {
-    console.error('[send-phone-otp]', err.message);
-    res.status(500).json({ error: 'Failed to send SMS. Check the number and try again.' });
+    console.error('[send-phone-otp] error code:', err.code, 'message:', err.message);
+    let userMsg = 'Failed to send SMS. Please try again.';
+    if (err.code === 21211 || err.code === 21212) userMsg = 'Invalid phone number. Use the full international format, e.g. +233XXXXXXXXX.';
+    else if (err.code === 21614) userMsg = 'This phone number cannot receive SMS messages.';
+    else if (err.code === 20003) userMsg = 'SMS service configuration error. Please contact support.';
+    else if (err.code === 21610) userMsg = 'This number has opted out of receiving SMS messages.';
+    res.status(500).json({ error: userMsg, code: err.code || null });
   }
 });
 
@@ -1974,60 +2026,62 @@ app.patch('/api/listings/:id/status', verifyToken, async (req, res) => {
   }
 });
 
-// GET all active offers for the market
+// GET all active offers for the market — reads from listings (canonical table)
 app.get('/api/offers', async (req, res) => {
   try {
     const { type, country, limit = 100 } = req.query;
-    
-    // First, get all active offers
+
+    const typeMap = { sell: 'SELL', buy: 'BUY', gc_buy: 'BUY_GIFT_CARD' };
+    const listingTypeFilter = type ? (typeMap[type.toLowerCase()] || type.toUpperCase()) : null;
+
     let query = supabaseAdmin
-      .from('offers')
+      .from('listings')
       .select('*')
-      .eq('status', 'active');
-    
-    if (type) query = query.eq('type', type);
+      .eq('status', 'ACTIVE');
+
+    if (listingTypeFilter) query = query.eq('listing_type', listingTypeFilter);
     if (country) query = query.eq('country', country);
-    
-    const { data: offers, error } = await query.limit(parseInt(limit));
-    
+
+    const { data: listings, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
     if (error) throw error;
-    
-    // Second, get all unique user IDs from offers
-    const userIds = [...new Set(offers.map(o => o.user_id).filter(Boolean))];
-    
-    if (userIds.length === 0) {
-      return res.json({ success: true, offers: [] });
-    }
-    
-    // Third, fetch user data for those IDs
+
+    const userIds = [...new Set((listings || []).map(l => l.seller_id).filter(Boolean))];
+
+    if (userIds.length === 0) return res.json({ success: true, offers: [] });
+
     const { data: users, error: userError } = await supabaseAdmin
       .from('users')
-      .select('id, username, badge, country')
+      .select('id, username, badge, country, total_trades, positive_feedback, negative_feedback, average_rating, avatar_url, last_seen_at, last_login, completion_rate')
       .in('id', userIds);
-    
+
     if (userError) throw userError;
-    
-    // Combine offers with user data
+
     const userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
-    const offersWithUsers = offers.map(o => ({
-      ...o,
-      users: userMap[o.user_id] || null
+
+    // Add backward-compat aliases so BuyBitcoin.js (which checks offer.type) still works
+    const offers = (listings || []).map(l => ({
+      ...l,
+      type: (l.listing_type || '').toLowerCase(), // 'sell' | 'buy' | 'buy_gift_card'
+      user_id: l.seller_id,
+      users: userMap[l.seller_id] || null,
     }));
-    
-    res.json({ success: true, offers: offersWithUsers });
+
+    res.json({ success: true, offers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET single offer by ID
+// GET single offer by ID — reads from listings (canonical table)
 app.get('/api/offers/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // First get the offer from offers table (not listings)
     const { data: offer, error: offerError } = await supabaseAdmin
-      .from('offers')
+      .from('listings')
       .select('*')
       .eq('id', id)
       .single();
@@ -2036,15 +2090,151 @@ app.get('/api/offers/:id', async (req, res) => {
       return res.status(404).json({ error: 'Offer not found' });
     }
 
-    // Then get the seller info separately
     const { data: seller } = await supabaseAdmin
       .from('users')
-      .select('id, username, badge, country')
-      .eq('id', offer.user_id)
+      .select('id, username, badge, country, average_rating, total_trades, completion_rate, avatar_url, created_at, total_feedback_count, positive_feedback, negative_feedback, last_login, last_seen_at, is_id_verified, is_email_verified, is_phone_verified, bio')
+      .eq('id', offer.seller_id)
       .single();
 
-    res.json({ offer: { ...offer, seller } });
+    res.json({ offer: { ...offer, type: (offer.listing_type || '').toLowerCase(), user_id: offer.seller_id, seller } });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Track offer views — proxies to listings view_count
+app.post('/api/offers/:id/view', async (req, res) => {
+  try {
+    const { data: row } = await supabaseAdmin.from('listings').select('view_count').eq('id', req.params.id).single();
+    const next = (parseInt(row?.view_count) || 0) + 1;
+    await supabaseAdmin.from('listings').update({ view_count: next }).eq('id', req.params.id);
+    res.json({ success: true, views: next });
+  } catch (e) { res.json({ success: false }); }
+});
+
+// POST create new offer
+app.post('/api/offers', verifyToken, async (req, res) => {
+  try {
+    const {
+      type,
+      amount_usd,
+      bitcoin_price,
+      payment_method,
+      country,
+      min_amount,
+      max_amount,
+      margin,
+      listing_type,
+      gift_card_brand,
+      currency,
+      currency_symbol,
+      min_limit_usd,
+      max_limit_usd,
+      min_limit_local,
+      max_limit_local,
+      pricing_type,
+      time_limit,
+      trade_instructions,
+      listing_terms,
+      description,
+      card_values,
+      card_type
+    } = req.body;
+
+    const userId = req.userId;
+
+    // Validation: check required fields
+    if (!type && !listing_type) {
+      return res.status(400).json({ error: 'Missing offer type (type or listing_type)' });
+    }
+
+    if (!payment_method) {
+      return res.status(400).json({ error: 'Missing payment_method' });
+    }
+
+    // Verify user has at least 1 verification
+    const { data: listingUser, error: listingUserErr } = await supabaseAdmin
+      .from('users').select('is_email_verified, is_phone_verified, is_id_verified, phone')
+      .eq('id', userId).single();
+
+    let hasEmail = false, hasPhone = false, hasKyc = false;
+    if (listingUserErr) {
+      const { data: safeUser } = await supabaseAdmin
+        .from('users').select('is_email_verified, is_id_verified, phone')
+        .eq('id', userId).single();
+      hasEmail = !!(safeUser?.is_email_verified);
+      hasKyc   = !!(safeUser?.is_id_verified);
+      hasPhone = !!(safeUser?.phone);
+    } else {
+      hasEmail = !!(listingUser?.is_email_verified);
+      hasPhone = !!(listingUser?.is_phone_verified || listingUser?.phone);
+      hasKyc   = !!(listingUser?.is_id_verified);
+    }
+    const verifCount = [hasEmail, hasPhone, hasKyc].filter(Boolean).length;
+
+    if (verifCount < 1) {
+      return res.status(403).json({
+        error: 'Please verify your email or phone number to create offers.',
+        requireVerification: 'any',
+      });
+    }
+
+    // Determine listing type
+    const offerTypeMap = { 'sell': 'SELL', 'buy': 'BUY', 'gc_buy': 'BUY_GIFT_CARD' };
+    const mappedType = offerTypeMap[type] || listing_type || 'SELL';
+    
+    const isGiftCard = mappedType === 'BUY_GIFT_CARD' || mappedType === 'SELL_GIFT_CARD';
+    if (isGiftCard && verifCount < 2) {
+      return res.status(403).json({
+        error: 'Gift card offers require 2 verifications. Please verify your email and phone number.',
+        requireVerification: 'two',
+      });
+    }
+
+    // Default gift_card_brand for non-GC offers (column is NOT NULL in schema)
+    const brandDefault = mappedType === 'SELL' ? 'Sell Bitcoin' : mappedType === 'BUY' ? 'Buy Bitcoin' : '';
+    const cur = currency || 'USD';
+    const curSym = currency_symbol || (cur === 'GHS' ? '₵' : cur === 'NGN' ? '₦' : cur === 'EUR' ? '€' : cur === 'GBP' ? '£' : '$');
+
+    // Create offer in listings table (single source of truth for all marketplace pages)
+    const { data, error } = await supabaseAdmin
+      .from('listings')
+      .insert({
+        seller_id:           userId,
+        listing_type:        mappedType,
+        gift_card_brand:     gift_card_brand || brandDefault,
+        status:              'ACTIVE',
+        bitcoin_price:       bitcoin_price || 88000,
+        margin:              margin || 0,
+        pricing_type:        pricing_type || 'market',
+        currency:            cur,
+        currency_symbol:     curSym,
+        country:             country || 'GH',
+        payment_method:      payment_method,
+        amount_usd:          amount_usd || min_limit_usd || 100,
+        min_limit_usd:       min_limit_usd || amount_usd || 10,
+        max_limit_usd:       max_limit_usd || amount_usd || 100000,
+        min_limit_local:     min_limit_local || 10,
+        max_limit_local:     max_limit_local || 100000,
+        time_limit:          time_limit || 30,
+        trade_instructions:  trade_instructions || description || '',
+        listing_terms:       listing_terms || '',
+        card_values:         Array.isArray(card_values) && card_values.length > 0 ? card_values.map(Number) : null,
+        card_type:           card_type || 'both',
+        face_value:          Array.isArray(card_values) && card_values[0] ? parseFloat(card_values[0]) : null,
+        created_at:          new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Offer creation error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true, offer: data, listing: data });
+  } catch (err) {
+    console.error('Offer creation exception:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2094,7 +2284,7 @@ app.get('/api/trades/active', verifyToken, async (req, res) => {
   try {
     const { data: trades, error } = await supabaseAdmin
       .from('trades')
-      .select(`*, buyer:buyer_id(id, username, completion_rate, positive_feedback, negative_feedback, country, avatar_url), seller:seller_id(id, username, completion_rate, positive_feedback, negative_feedback, country, avatar_url)`)
+      .select(`*, listing:listing_id(id, time_limit, payment_method, listing_type, gift_card_brand), buyer:buyer_id(id, username, badge, completion_rate, positive_feedback, negative_feedback, country, avatar_url, total_trades, average_rating), seller:seller_id(id, username, badge, completion_rate, positive_feedback, negative_feedback, country, avatar_url, total_trades, average_rating)`)
       .or(`buyer_id.eq.${req.userId},seller_id.eq.${req.userId}`)
       .in('status', ['CREATED', 'FUNDS_LOCKED', 'PAYMENT_SENT', 'DISPUTED'])
       .order('created_at', { ascending: false })
@@ -2317,7 +2507,7 @@ app.post('/api/trades', verifyToken, async (req, res) => {
       payment_method: paymentMethod || listing.payment_method,
       gift_card_brand: listingTypeUpper.includes('GIFT_CARD') ? (listing.gift_card_brand || null) : null,
       trade_ref: tradeRef,
-      expires_at: new Date(Date.now() + 30 * 60 * 1000),
+      expires_at: new Date(Date.now() + (listing.time_limit || 30) * 60 * 1000),
     }]).select();
     if (error) return res.status(400).json({ error: error.message });
 

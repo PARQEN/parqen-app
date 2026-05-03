@@ -653,11 +653,15 @@ export default function GiftCards({user}) {
     const fetchTrades = async () => {
       try {
         const res = await axios.get(`${API_URL}/trades/active`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.data.success) setActiveTrades(res.data.trades || []);
+        if (res.data.success) {
+          const now = Date.now();
+          const live = (res.data.trades || []).filter(t => !t.expires_at || new Date(t.expires_at).getTime() > now);
+          setActiveTrades(live);
+        }
       } catch {}
     };
     fetchTrades();
-    const interval = setInterval(fetchTrades, 30000);
+    const interval = setInterval(fetchTrades, 10000);
     return () => clearInterval(interval);
   },[]);
   useEffect(()=>{
@@ -726,6 +730,8 @@ export default function GiftCards({user}) {
 
     return list;
   };
+
+  const handleTradeExpire = (id) => setActiveTrades(prev => prev.filter(t => t.id !== id));
 
   const handleTrade = (id) => {
     if(!user){ navigate('/login?message=Please log in to start trading'); return; }
@@ -1075,7 +1081,7 @@ export default function GiftCards({user}) {
         {activeTrades.length > 0 && (
           <div className="mb-2">
             {activeTrades.slice(0, showAllTrades ? activeTrades.length : 3).map(trade => (
-              <ActiveTradeCard key={trade.id} trade={trade} />
+              <ActiveTradeCard key={trade.id} trade={trade} pageColor="#0D9488" onExpire={handleTradeExpire} />
             ))}
             {activeTrades.length > 3 && (
               <button onClick={() => setShowAllTrades(p => !p)}

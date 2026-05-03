@@ -1,44 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Clock, ArrowRight, X } from 'lucide-react';
+import axios from 'axios';
 import CountryFlag from './CountryFlag';
-import { BadgeChip } from '../lib/badge';
+import { deriveBadge } from '../lib/badge';
 
-const LIMIT_SECS = 30 * 60; // 30-minute escrow window
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const STATUS_CFG = {
-  CREATED:      { bg:'#FFFBEB', border:'#F59E0B', badge:'#FEF3C7', badgeTxt:'#92400E', label:'⏳ Waiting',        btn:'#F59E0B' },
-  FUNDS_LOCKED: { bg:'#F0FDF4', border:'#22C55E', badge:'#DCFCE7', badgeTxt:'#166534', label:'✅ Active & Funded', btn:'#16A34A' },
-  PAYMENT_SENT: { bg:'#EFF6FF', border:'#3B82F6', badge:'#DBEAFE', badgeTxt:'#1E40AF', label:'💳 Payment Sent',    btn:'#2563EB' },
-  DISPUTED:     { bg:'#FFF1F2', border:'#EF4444', badge:'#FEE2E2', badgeTxt:'#991B1B', label:'⚠️ In Dispute',      btn:'#DC2626' },
+  CREATED:      { label: '⏳ Waiting for Escrow', statusColor: '#D97706', statusBg: '#FEF3C7' },
+  FUNDS_LOCKED: { label: '✅ Active & Funded',     statusColor: '#16A34A', statusBg: '#DCFCE7' },
+  PAYMENT_SENT: { label: '💳 Payment Sent',        statusColor: '#2563EB', statusBg: '#DBEAFE' },
+  DISPUTED:     { label: '⚠️ In Dispute',          statusColor: '#DC2626', statusBg: '#FEE2E2' },
 };
 
-function TradeTimer({ createdAt }) {
-  const calc = () => {
-    if (!createdAt) return LIMIT_SECS;
-    const elapsed = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
-    return Math.max(0, LIMIT_SECS - elapsed);
-  };
-  const [secs, setSecs] = useState(calc);
-  useEffect(() => {
-    const t = setInterval(() => setSecs(calc()), 1000);
-    return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createdAt]);
-
-  const mm      = String(Math.floor(secs / 60)).padStart(2, '0');
-  const ss      = String(secs % 60).padStart(2, '0');
-  const urgent  = secs > 0 && secs < 300;
-  const expired = secs === 0;
-  const bg      = expired ? '#FEE2E2' : urgent ? '#FEF3C7' : '#F0FDF4';
-  const color   = expired ? '#DC2626' : urgent ? '#D97706' : '#16A34A';
-
-  return (
-    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-      style={{ backgroundColor: bg, color }}>
-      ⏱ {expired ? 'Expired' : `${mm}:${ss}`}
-    </span>
-  );
+// What market / page this trade belongs to
+function getMarketInfo(listingType) {
+  const t = (listingType || '').toUpperCase();
+  if (t === 'SELL')                              return { label: 'SELL TRADE',  color: '#D97706', bg: '#FEF3C7' };
+  if (t === 'BUY')                               return { label: 'BUY TRADE',   color: '#1B4332', bg: '#DCFCE7' };
+  if (t === 'BUY_GIFT_CARD' || t === 'SELL_GIFT_CARD') return { label: 'GIFT CARD',   color: '#0D9488', bg: '#CCFBF1' };
+  return { label: 'TRADE', color: '#475569', bg: '#F1F5F9' };
 }
 
 function getMyId() {
@@ -49,81 +31,342 @@ function getMyId() {
   } catch { return null; }
 }
 
-export default function ActiveTradeCard({ trade }) {
-  const navigate   = useNavigate();
-  const myId       = getMyId();
-  const isBuyer    = myId ? String(trade.buyer_id) === String(myId) : true;
-  const counterparty = isBuyer ? trade.seller : trade.buyer;
-  const pos        = parseInt(counterparty?.positive_feedback || 0);
-  const neg        = parseInt(counterparty?.negative_feedback || 0);
-  const cc         = (counterparty?.country || 'gh').toLowerCase();
-  const cfg        = STATUS_CFG[trade.status] || STATUS_CFG.CREATED;
+// Returns effective expires_at — uses server value or derives from created_at
+function resolveExpiresAt(expiresAt, createdAt, limitMins) {
+  if (expiresAt) return expiresAt;
+  if (createdAt) return new Date(new Date(createdAt).getTime() + (limitMins || 30) * 60 * 1000).toISOString();
+  return null;
+}
 
-  const payLabel  = isBuyer ? 'You Pay' : 'You Receive';
-  const recvLabel = isBuyer ? 'You Receive' : 'You Pay';
-  const payAmt    = isBuyer
-    ? `${trade.local_currency || ''} ${trade.amount_local?.toLocaleString() || '—'}`
-    : `₿ ${trade.crypto_amount ? parseFloat(trade.crypto_amount).toFixed(8) : '—'}`;
-  const recvAmt   = isBuyer
-    ? `₿ ${trade.crypto_amount ? parseFloat(trade.crypto_amount).toFixed(8) : '—'}`
-    : `${trade.local_currency || ''} ${trade.amount_local?.toLocaleString() || '—'}`;
-  const payNote   = isBuyer ? `via ${trade.payment_method || '—'}` : 'Bitcoin escrow';
-  const recvNote  = isBuyer ? 'Bitcoin' : `via ${trade.payment_method || '—'}`;
+// MM:SS countdown
+function TradeTimer({ expiresAt, timeLimitMins = 30, onExpire }) {
+  const limitSecs    = Math.max(60, timeLimitMins * 60);
+  const expiredFired = useRef(false);
+
+  const calcRemaining = () => {
+    if (!expiresAt) return limitSecs;
+    const diff = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000);
+    return Math.min(limitSecs, Math.max(0, diff));
+  };
+
+  const [secs, setSecs] = useState(calcRemaining);
+
+  useEffect(() => {
+    expiredFired.current = false;
+    setSecs(calcRemaining());
+    const tick = setInterval(() => {
+      const remaining = calcRemaining();
+      setSecs(remaining);
+      if (remaining === 0 && !expiredFired.current) {
+        expiredFired.current = true;
+        onExpire?.();
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiresAt]);
+
+  const expired = secs === 0;
+  const urgent  = !expired && secs < 300;
+  const pct     = Math.round((secs / limitSecs) * 100);
+  const mm      = String(Math.floor(secs / 60)).padStart(2, '0');
+  const ss      = String(secs % 60).padStart(2, '0');
+  const color   = expired ? '#DC2626' : urgent ? '#D97706' : '#16A34A';
+  const bg      = expired ? '#FEE2E2' : urgent ? '#FEF3C7' : '#DCFCE7';
 
   return (
-    <div className="rounded-xl mb-2 overflow-hidden"
-      style={{ backgroundColor: cfg.bg, border: `1px solid ${cfg.border}`, borderLeft: `4px solid ${cfg.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-
-      {/* ── Row 1: status + countdown ── */}
-      <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5 gap-2">
-        <span className="text-xs font-bold px-2 py-0.5 rounded-full truncate"
-          style={{ backgroundColor: cfg.badge, color: cfg.badgeTxt }}>
-          {cfg.label}
-        </span>
-        <TradeTimer createdAt={trade.created_at} />
-      </div>
-
-      {/* ── Row 2: flag + username + badge + feedback ── */}
-      <div className="flex items-center justify-between px-3 pb-2 gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <CountryFlag countryCode={cc} className="w-4 h-3 rounded-sm flex-shrink-0" />
-          <span className="font-bold text-sm text-gray-800 truncate">{counterparty?.username || '—'}</span>
-          <BadgeChip user={counterparty} className="text-[10px] flex-shrink-0" />
+    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+      <span className="inline-flex items-center gap-1 text-xs font-mono font-black px-2.5 py-1 rounded-full"
+        style={{ backgroundColor: bg, color }}>
+        <Clock size={10} />
+        {expired ? 'Expired' : `${mm}:${ss}`}
+      </span>
+      {!expired && (
+        <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#E5E7EB' }}>
+          <div className="h-full rounded-full transition-all duration-1000"
+            style={{ width: `${pct}%`, backgroundColor: color }} />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: '#16A34A' }}>
-            <ThumbsUp size={10} />{pos}
-          </span>
-          <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: '#DC2626' }}>
-            <ThumbsDown size={10} />{neg}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Divider ── */}
-      <div className="mx-3 mb-2" style={{ height: '1px', backgroundColor: cfg.border, opacity: 0.2 }} />
-
-      {/* ── Row 3: Pay | Receive two-column ── */}
-      <div className="px-3 pb-2.5 flex gap-2">
-        <div className="flex-1 rounded-lg px-2.5 py-2" style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">{payLabel}</p>
-          <p className="font-black text-sm text-gray-900 leading-tight break-all">{payAmt}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5 truncate">{payNote}</p>
-        </div>
-        <div className="flex items-center justify-center text-gray-300 text-base px-0.5">→</div>
-        <div className="flex-1 rounded-lg px-2.5 py-2" style={{ backgroundColor: cfg.badge }}>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: cfg.badgeTxt }}>{recvLabel}</p>
-          <p className="font-black text-sm leading-tight break-all" style={{ color: cfg.border }}>{recvAmt}</p>
-          <p className="text-[10px] mt-0.5 truncate" style={{ color: cfg.badgeTxt, opacity: 0.75 }}>{recvNote}</p>
-        </div>
-      </div>
-
-      {/* ── Action button ── */}
-      <button onClick={() => navigate(`/trade/${trade.id}`)}
-        className="w-full py-2 text-xs font-bold text-white tracking-widest uppercase"
-        style={{ backgroundColor: cfg.btn }}>
-        Attend to Trade →
-      </button>
+      )}
     </div>
+  );
+}
+
+function fmtLocal(sym, amount) {
+  if (!amount || isNaN(parseFloat(amount))) return null;
+  const num = parseFloat(amount);
+  return `${sym || ''}${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function fmtBtc(amount) {
+  if (!amount || isNaN(parseFloat(amount))) return null;
+  return `₿ ${parseFloat(amount).toFixed(6)}`;
+}
+
+// Popup — fetches fresh profile so badge is always accurate
+function TraderPopup({ cpId, cpFallback, onClose }) {
+  const [user, setUser] = useState(cpFallback || {});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!cpId) { setLoading(false); return; }
+    axios.get(`${API_URL}/users/${cpId}`)
+      .then(r => { if (r.data?.user || r.data) setUser(r.data.user || r.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [cpId]);
+
+  const badge      = deriveBadge(user);
+  const pos        = parseInt(user.positive_feedback || 0);
+  const neg        = parseInt(user.negative_feedback || 0);
+  const total      = pos + neg;
+  const trust      = total > 0 ? Math.round(pos / total * 100) : parseInt(user.total_trades || 0) > 0 ? 100 : 0;
+  const trades     = parseInt(user.total_trades || 0);
+  const completion = parseFloat(user.completion_rate || 0);
+  const rating     = parseFloat(user.average_rating || 0);
+  const cc         = (user.country || 'GH').toLowerCase();
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <style>{`@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+      <div
+        className="bg-white w-full sm:max-w-xs rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
+        style={{ border: '1px solid #E2E8F0', animation: 'slideUp .22s ease' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="relative px-5 pt-5 pb-4"
+          style={{ background: 'linear-gradient(135deg,#1B4332 0%,#2D6A4F 100%)' }}>
+          <button onClick={onClose}
+            className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+            <X size={14} className="text-white" />
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl text-white flex-shrink-0"
+              style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)' }}>
+              {(user.username || '?').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <CountryFlag countryCode={cc} className="w-4 h-3 rounded-sm flex-shrink-0" />
+                <span className="font-black text-base text-white leading-tight truncate">
+                  {user.username || '—'}
+                </span>
+              </div>
+              {/* Badge — always from fresh profile data */}
+              {loading ? (
+                <div className="h-5 w-24 rounded-full animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />
+              ) : (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border font-bold ${badge.animate ? 'shadow-md' : ''}`}
+                  style={{
+                    background: badge.bg,
+                    borderColor: badge.borderColor,
+                    fontSize: '11px',
+                    boxShadow: badge.glow ? `0 0 10px ${badge.glow}` : undefined,
+                  }}>
+                  <span style={{ color: badge.iconColor || badge.textColor, fontSize: '13px' }}>{badge.icon}</span>
+                  <span style={{ color: badge.textColor }}>{badge.label}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 p-4">
+          {[
+            { label: 'Trades',     value: trades,                                        color: '#1B4332' },
+            { label: 'Trust',      value: `${trust}%`,                                   color: trust >= 80 ? '#16A34A' : trust >= 50 ? '#D97706' : '#DC2626' },
+            { label: 'Completion', value: completion > 0 ? `${Math.round(completion)}%` : '—', color: '#2563EB' },
+            { label: 'Positive',   value: pos,                                           color: '#16A34A' },
+            { label: 'Negative',   value: neg,                                           color: '#DC2626' },
+            { label: 'Rating',     value: rating > 0 ? `${rating.toFixed(1)} ⭐` : '—', color: '#D97706' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-xl px-3 py-2.5 text-center"
+              style={{ backgroundColor: '#F8FAFC', border: '1px solid #F1F5F9' }}>
+              <p className="text-[9px] font-black uppercase tracking-wider mb-0.5" style={{ color: '#94A3B8' }}>{label}</p>
+              <p className="font-black text-sm leading-tight" style={{ color }}>{loading ? '…' : value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-4 pb-5">
+          <button onClick={onClose}
+            className="w-full py-3 rounded-xl text-sm font-black text-white hover:opacity-90 transition"
+            style={{ backgroundColor: '#1B4332' }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ActiveTradeCard({ trade, onExpire, pageColor }) {
+  const navigate  = useNavigate();
+  const myId      = getMyId();
+  const isBuyer   = myId ? String(trade.buyer_id) === String(myId) : true;
+  const [showPopup, setShowPopup] = useState(false);
+
+  // Counterparty object
+  const cp = (isBuyer
+    ? (typeof trade.seller === 'object' ? trade.seller : {})
+    : (typeof trade.buyer  === 'object' ? trade.buyer  : {})
+  ) || {};
+
+  const cfg      = STATUS_CFG[trade.status] || STATUS_CFG.CREATED;
+  const btnColor = pageColor || '#1B4332';
+
+  // Listing type — check nested join AND direct field
+  const listingType   = trade.listing?.listing_type || trade.listing_type || trade.trade_type || '';
+  const market        = getMarketInfo(listingType);
+  const timeLimitMins = trade.listing?.time_limit || trade.time_limit || 30;
+
+  // Timer: use server expires_at, fall back to created_at + limit
+  const effectiveExpiresAt = resolveExpiresAt(trade.expires_at, trade.created_at, timeLimitMins);
+
+  // Badge from joined data — may be null, deriveBadge handles gracefully
+  const badge = deriveBadge(cp);
+
+  // Amounts
+  const sym      = trade.currency_symbol || '';
+  const localAmt = fmtLocal(sym, trade.amount_local) || fmtLocal('$', trade.amount_usd);
+  const btcAmt   = fmtBtc(trade.amount_btc);
+
+  const youPayAmt   = isBuyer ? localAmt : btcAmt;
+  const youRecvAmt  = isBuyer ? btcAmt   : localAmt;
+  const youPayNote  = isBuyer ? `via ${trade.payment_method || trade.listing?.payment_method || '—'}` : 'Bitcoin escrow';
+  const youRecvNote = isBuyer ? 'Bitcoin' : `via ${trade.payment_method || trade.listing?.payment_method || '—'}`;
+  const roleLabel   = isBuyer ? 'You are the Buyer' : 'You are the Seller';
+
+  const pos = parseInt(cp.positive_feedback || 0);
+  const neg = parseInt(cp.negative_feedback || 0);
+  const cc  = (cp.country || 'GH').toLowerCase();
+
+  return (
+    <>
+      <div className="rounded-2xl mb-3 overflow-hidden"
+        style={{
+          background: '#FFFFFF',
+          border: `1.5px solid ${cfg.statusColor}30`,
+          borderLeft: `4px solid ${btnColor}`,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+        }}>
+
+        {/* ── Row 0: Market label + your role ── */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-1 gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex-shrink-0"
+            style={{ backgroundColor: market.bg, color: market.color }}>
+            {market.label}
+          </span>
+          <span className="text-[10px] font-bold flex-shrink-0" style={{ color: '#94A3B8' }}>
+            {roleLabel}
+          </span>
+        </div>
+
+        {/* ── Row 1: Status badge + countdown ── */}
+        <div className="flex items-center justify-between px-4 pt-1.5 pb-2 gap-2">
+          <span className="text-[11px] font-black px-3 py-1 rounded-full flex-shrink-0"
+            style={{ backgroundColor: cfg.statusBg, color: cfg.statusColor }}>
+            {cfg.label}
+          </span>
+          <TradeTimer
+            expiresAt={effectiveExpiresAt}
+            timeLimitMins={timeLimitMins}
+            onExpire={() => onExpire?.(trade.id)}
+          />
+        </div>
+
+        {/* ── Row 2: Counterparty info ── */}
+        <div className="flex items-center justify-between px-4 pb-3 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <CountryFlag countryCode={cc} className="w-4 h-3 rounded-sm flex-shrink-0" />
+            {/* Clickable username → opens popup with fresh profile data */}
+            <button
+              onClick={() => setShowPopup(true)}
+              className="font-black text-sm truncate hover:underline decoration-dotted"
+              style={{ color: btnColor }}>
+              {cp.username || '—'}
+            </button>
+            {/* Badge — from joined data; popup always shows fresh correct badge */}
+            <span
+              className={`inline-flex items-center gap-px font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0 ${badge.animate ? 'shadow-sm' : ''}`}
+              style={{
+                background: badge.bg,
+                borderColor: badge.borderColor,
+                fontSize: '9px',
+                boxShadow: badge.glow ? `0 0 6px ${badge.glow}` : undefined,
+              }}>
+              <span style={{ color: badge.iconColor || badge.textColor }}>{badge.icon}</span>
+              <span style={{ color: badge.textColor }} className="ml-0.5">{badge.label}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <span className="flex items-center gap-0.5 text-xs font-bold" style={{ color: '#16A34A' }}>
+              <ThumbsUp size={10} />{pos}
+            </span>
+            <span className="flex items-center gap-0.5 text-xs font-bold" style={{ color: '#DC2626' }}>
+              <ThumbsDown size={10} />{neg}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Divider ── */}
+        <div className="mx-4 mb-3" style={{ height: '1px', backgroundColor: '#F1F5F9' }} />
+
+        {/* ── Row 3: You Pay → You Receive ── */}
+        <div className="px-4 pb-3 flex items-stretch gap-2">
+          <div className="flex-1 rounded-xl px-3 py-2.5" style={{ backgroundColor: '#F8FAFC' }}>
+            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">You Pay</p>
+            <p className="font-black text-base text-gray-900 leading-tight">
+              {youPayAmt || <span className="text-gray-300">—</span>}
+            </p>
+            <p className="text-[10px] text-gray-400 mt-0.5 truncate">{youPayNote}</p>
+          </div>
+
+          <div className="flex items-center justify-center flex-shrink-0 px-0.5">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${btnColor}15` }}>
+              <ArrowRight size={14} style={{ color: btnColor }} />
+            </div>
+          </div>
+
+          <div className="flex-1 rounded-xl px-3 py-2.5"
+            style={{ backgroundColor: `${btnColor}10`, border: `1px solid ${btnColor}25` }}>
+            <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: btnColor, opacity: 0.7 }}>
+              You Receive
+            </p>
+            <p className="font-black text-base leading-tight" style={{ color: btnColor }}>
+              {youRecvAmt || <span style={{ opacity: 0.3 }}>—</span>}
+            </p>
+            <p className="text-[10px] mt-0.5 truncate" style={{ color: btnColor, opacity: 0.6 }}>
+              {youRecvNote}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Action button ── */}
+        <button
+          onClick={() => navigate(`/trade/${trade.id}`)}
+          className="w-full py-3 text-white text-xs font-black tracking-widest uppercase flex items-center justify-center gap-2 hover:opacity-90 active:opacity-80 transition-opacity"
+          style={{ backgroundColor: btnColor }}>
+          Attend to Trade
+          <ArrowRight size={13} />
+        </button>
+      </div>
+
+      {showPopup && (
+        <TraderPopup
+          cpId={cp.id}
+          cpFallback={cp}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
+    </>
   );
 }

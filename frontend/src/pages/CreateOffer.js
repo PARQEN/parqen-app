@@ -363,7 +363,7 @@ export default function CreateOffer() {
         : btcPrice * (1 + margin / 100);
 
       const payload = {
-        seller_id:         user.id,
+        type:              offerType,
         listing_type:      listingTypeMap[offerType],
         gift_card_brand:   isGC ? gcBrand : null,
         face_value:        isGC ? gcMinVal : null,
@@ -374,7 +374,6 @@ export default function CreateOffer() {
         margin:            pricingType === 'market' ? margin : 0,
         payment_method:    isGC ? gcBrand : (selectedPay?.name || payMethod),
         country:           country,
-        country_name:      curr?.name,
         currency:          cur,
         currency_symbol:   sym,
         min_limit_usd:     minUSDVal,
@@ -382,20 +381,18 @@ export default function CreateOffer() {
         min_limit_local:   minLocalVal,
         max_limit_local:   maxLocalVal,
         time_limit:        timeLimit,
-        status:            'ACTIVE',
         pricing_type:      pricingType,
         description:       instructions,
-        terms:             terms,
-        trade_instructions:instructions,
         listing_terms:     terms,
+        trade_instructions:instructions,
         created_at:        new Date().toISOString(),
       };
 
-      const r = await axios.post(`${API_URL}/listings`, payload, {
+      const r = await axios.post(`${API_URL}/offers`, payload, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
-      if (r.data.success || r.data.listing) {
+      if (r.data.success || r.data.offer) {
         toast.success('🎉 Offer published successfully!');
         if (offerType === 'sell') navigate('/buy-bitcoin');
         else if (offerType === 'buy') navigate('/sell-bitcoin');
